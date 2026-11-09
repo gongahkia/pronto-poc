@@ -4,7 +4,8 @@ import {summarizeStability} from './plan';
 export type EvidenceTurn=GradedTurn&{customer:string;conversationId?:string;latencyMs?:number;};
 export type EvidenceReport={runId:string;complete:boolean;runStatus:string;rounds:number;cases:number;expectedTurns:number;
  observations:EvidenceTurn[];sourceHashes:Record<string,string>;fixtureState:{knowledgeHash:string;configurationHash:string};
- provider:string;model:string;reasoningEffort:string;};
+ provider:string;model:string;reasoningEffort:string;
+ gradingReview?:{reason:string;originalReport:string;originalReportHash:string;runtimeMatchesCurrent:boolean;sourceHashes:Record<string,string>;changes:unknown[]};};
 export type ProviderCapture={status:number;responseId?:string;model?:string;usage?:unknown};
 type PlannedCase={id:string;turns:unknown[]};
 

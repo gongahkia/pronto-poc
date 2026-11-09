@@ -780,6 +780,20 @@
           }
         }
       ]
+    },
+    {
+      "id": "booking-completion-draft-repaired",
+      "category": "recovery",
+      "turns": [
+        {
+          "customer": "Check a table for 2 tomorrow at 7pm.",
+          "response": {"action":"answer","answer":"Your booking is completed and confirmed on Chope.","citations":"all"},
+          "repairResponse": {"action":"answer","answer":"I cannot verify current availability. Please check and complete your booking on Chope: https://www.chope.co/singapore-restaurants/restaurant/ps-cafe-raffles-city. No reservation has been made.","citations":"all"},
+          "expect": {"outcome":"answered","contains":["cannot verify","No reservation has been made"],"excludes":["booking is completed"]},
+          "extraction": {"intent":"availability","dateOffset":1,"time":"19:00","partySize":2},
+          "tool": "error"
+        }
+      ]
     }
   ]
 }

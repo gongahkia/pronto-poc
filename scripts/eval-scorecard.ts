@@ -23,14 +23,19 @@ const failures=[...acceptance.failures];
 for(const [file,generatedHash]of Object.entries(runtimeFingerprint(candidate)))if(hash(await readFile(file,'utf8'))!==generatedHash)failures.push(`Candidate runtime changed: ${file}`);
 for(const file of ['src/lib/evals/live-quality.ts','src/lib/evals/plan.ts','src/lib/evals/scorecard.ts','evals/live-customer-cases.ts','evals/hardening-cases.ts']){
  const currentHash=hash(await readFile(file,'utf8'));
- if([candidate,website,stress].some(report=>report.sourceHashes[file]!==currentHash))failures.push(`Corpus or grading implementation differs from current acceptance evidence: ${file}`);
+ if([candidate,website,stress].some(report=>(report.gradingReview?.runtimeMatchesCurrent?report.gradingReview.sourceHashes:report.sourceHashes)[file]!==currentHash))failures.push(`Corpus or grading implementation differs from current acceptance evidence: ${file}`);
+}
+for(const report of [candidate,website,stress])if(report.gradingReview){
+ const review=report.gradingReview;
+ if(!review.runtimeMatchesCurrent||hash(await readFile(local(review.originalReport),'utf8'))!==review.originalReportHash)
+  failures.push(`Grading correction lacks unchanged-runtime original evidence: ${report.runId}`);
 }
 type ReviewEntry={key:string;evidenceHash:string;verdict:string;reason:string;};
 type Critic={reportHash:string;reviewerHash:string;complete:boolean;entries:ReviewEntry[]};
 const critics=await Promise.all(['critic','website-critic','stress-critic'].map(name=>load<Critic>(paths[name])));
 const calibration=await load<{reviewerHash:string;results:{id:string;matched:boolean}[]}>(paths.calibration);
 const reviewerHash=hash(semanticReviewInstructions);
-if(calibration.reviewerHash!==reviewerHash||calibration.results.length<21||calibration.results.some(row=>!row.matched))failures.push('Reviewer calibration is incomplete or mismatched');
+if(calibration.reviewerHash!==reviewerHash||calibration.results.length<28||calibration.results.some(row=>!row.matched))failures.push('Reviewer calibration is incomplete or mismatched');
 type Adjudication={key:string;evidenceHash:string;disposition:'false-positive'|'confirmed';reason:string;};
 const adjudications:Adjudication[]=arg('--adjudications')?await load(local(arg('--adjudications')!)):[];
 const reviewFlags=[];
@@ -72,7 +77,9 @@ const performance={scope:'Sequential local fixture turns; this is not a producti
  p50Ms:percentile(0.5),p95Ms:percentile(0.95),maximumMs:latencies.at(-1)??null,
  modelCalls:rows.reduce((n,row)=>n+row.modelCalls,0),scopedWebsiteReads:website.observations.reduce((n,row)=>n+(row.toolReads??0),0)};
 const summary={generatedAt:new Date().toISOString(),...acceptance,automatedAcceptance:failures.length?'fail':'pass',failures,gate:failures.length?'fail':'pass',
- budget,paths,performance,deliveryAudit:{turns:audit.turns,verifiedReplies:audit.verifiedReplies,verifiedSilentTurns:audit.verifiedSilentTurns,passed:audit.passed},sourceHashes:candidate.sourceHashes,fixtureState:candidate.fixtureState,
+ budget,paths,performance,gradingCorrections:[candidate,website,stress].filter(report=>report.gradingReview).map(report=>({runId:report.runId,reason:report.gradingReview!.reason,
+  originalReport:report.gradingReview!.originalReport,originalReportHash:report.gradingReview!.originalReportHash,runtimeMatchesCurrent:report.gradingReview!.runtimeMatchesCurrent,changedGradedTurns:report.gradingReview!.changes.length})),
+ deliveryAudit:{turns:audit.turns,verifiedReplies:audit.verifiedReplies,verifiedSilentTurns:audit.verifiedSilentTurns,passed:audit.passed},sourceHashes:candidate.sourceHashes,fixtureState:candidate.fixtureState,
  negativeControls:{total:mutations.total,detected:mutations.detected,operators:mutations.operators},
  critic:{reviewed,flags:reviewFlags,calibrationMatched:calibration.results.filter(row=>row.matched).length,calibrationTotal:calibration.results.length,
   limitation:'The critic uses a separate prompt with the same Luna model family; calibration and a model pass are not independent human verification.'},
@@ -89,7 +96,7 @@ const intro=`<h1>200-scenario product hardening</h1><p><b>Automated acceptance: 
 const transcript=renderTranscriptReport({runId:'Current acceptance transcripts',observations:rows,passedTurns:rows.filter(row=>!row.failures.length).length,completedTurns:rows.length,
  complete:acceptance.scorecard.complete,rounds:1,budget});
 const earlierCandidate=summary.previousCandidate?`<h2>Prior candidate failure</h2><pre>${e(JSON.stringify(summary.previousCandidate,null,2))}</pre>`:'';
-const deliveryEvidence=`<h2>Exact-generation delivery audit</h2><pre>${e(JSON.stringify(summary.deliveryAudit,null,2))}</pre>`;
+const deliveryEvidence=`<h2>Audited grading corrections</h2><pre>${e(JSON.stringify(summary.gradingCorrections,null,2))}</pre><h2>Exact-generation delivery audit</h2><pre>${e(JSON.stringify(summary.deliveryAudit,null,2))}</pre>`;
 await writeEvalArtifact(output,transcript.replace('<h1>Pronto · evaluation transcripts</h1>',intro+earlierCandidate+deliveryEvidence+'<h1>Acceptance transcripts</h1>'));
 console.log(JSON.stringify({output,gate:summary.automatedAcceptance,scenarios:acceptance.uniqueScenarios,turns:rows.length,failures,budget}));
 if(failures.length)process.exitCode=1;

@@ -93,10 +93,11 @@ pnpm eval:audit --reports \
 output/live-eval/<candidate>/report.json,output/live-eval/<website>/report.json,output/live-eval/<stress>/report.json
 ```
 
-The critic is calibrated on **21 explicitly labelled examples**, including correct
+The critic is calibrated on **28 explicitly labelled examples**, including correct
 answers, swapped hours, invented prices, false bookings, unsafe guarantees,
 credential collection, an injection directed at the reviewer, an honest Chope
-timeout and a missing initial acknowledgement. It uses a separate prompt with
+timeout, a missing initial acknowledgement, Singapore midnight, approved concierge
+references and staff-owned verification questions. It uses a separate prompt with
 the **same Luna model family**. Its verdict is a diagnostic signal, not an
 independent model or human assessment. Preserve false alarms and missed defects
 as evidence; review flags against the approved sources and actual ownership.
@@ -105,6 +106,10 @@ label and missed a silent initial Chinese handoff. The deterministic delivery
 check caught the silence. Its reference sheet and rubric were corrected, and
 both behaviours were added to the labelled calibration set. The old critique
 remains saved; a model review never replaces delivery or ownership assertions.
+The critic also initially read a UTC timestamp as the restaurant's local date.
+Its evidence packet now supplies Singapore local time and an independently
+resolved expected date. Cached reviews are reused only when the exact evidence
+hash still matches; old verdicts are archived when the packet changes.
 
 Offline negative controls are deliberately corrupted saved observations. They
 check whether the harness detects lost delivery, silence, duplicate replies,
@@ -226,24 +231,33 @@ alone would hide the distinction.
 | [First candidate](../../output/live-eval/2026-11-09T15-27-38-954Z-final-200/report.html) | 227/228 | Forged confirmation handled as a new booking |
 | [Second candidate](../../output/live-eval/2026-11-09T15-41-48-071Z-final-200-v2/report.html) | 227/228 | Correct conditional referral rejected |
 | [Third candidate](../../output/live-eval/2026-11-09T15-57-37-430Z-final-200-v3/report.html) | 227/228 | Unknown price left with AI |
+| [Fourth candidate](../../output/live-eval/2026-11-09T16-18-33-914Z-final-200-v4/report.regraded.html) | 228/228 original lexical checks; 227/228 with the corrected transaction check | Semantic review found ambiguous “completed and confirmed” wording |
 
 ## Regression verification
 
-The frozen application passed **948 database-backed/unit tests**, with eight
-optional tests skipped, and all **32 canned conversation evaluations**. Tests
+The frozen application passed **956 database-backed/unit tests**, with eight
+optional tests skipped, and all **33 canned conversation evaluations**. Tests
 used a separate marked disposable database on port 55434, cleared provider keys
 and the test network guard. The test database was stopped after verification;
 the live evaluation database and its review conversations were preserved.
 
-The two added canned scenarios force an answered-but-unverified price to receive
+The added canned scenarios force an answered-but-unverified price to receive
 actual staff ownership and a new acknowledgement, and preserve a supported
-hours answer with a holiday caveat. They exercise the real engine/SDK/outbox
+hours answer with a holiday caveat. Another rejects a completed-booking draft,
+rewrites it once using the same evidence and verifies the delivered reply within
+three calls. They exercise the real engine/SDK/outbox
 path with stubbed HTTP responses, so they run without paid inference. They do
 not count as genuine Groq model acceptance.
 
 Run `pnpm eval` against a separate marked regression database: its PS.Cafe setup
 recreates that fixture and removes its conversations. In this campaign,
 regression used port 55434 and saved live conversations used port 55433.
+
+The local manual mode is `pnpm local:worker:bounded`. It meters actual Luna HTTP
+requests, including retries, against the same US$5 ledger before sending them.
+It enforces low effort, `store=false`, standard-tier requests and official
+Responses endpoints. Four focused tests cover settlement, exhausted budgets,
+disallowed destinations/models and unknown usage. Stop it before fixture batches.
 
 The offline negative-control pilot detected all 249 deliberately corrupted
 observations from the 25-case challenge run. The final negative-control count

@@ -36,7 +36,7 @@ import { estimateTokens } from "@/lib/knowledge/chunk";
 import { retrieveKnowledge, retrieveKnowledgeText } from "@/lib/knowledge/retrieve";
 import { normalizeKnowledgeQuery, conversationKnowledgeQuery } from "@/lib/knowledge/query";
 import { loadConversationContext } from "@/lib/agent/conversation-context";
-import { withAgentTurn, assertTurnActive } from "@/lib/agent/turn-budget";
+import { withAgentTurn, assertTurnActive, turnBudgetSnapshot } from "@/lib/agent/turn-budget";
 import { handoffQuestionsAllowed, handoffReplyFromDecision, type HandoffIntakeReply } from "@/lib/agent/handoff-intake";
 import { appBaseUrl, shouldUseMockAi } from "@/lib/env";
 import { getEmbeddingProvider, getGenerationProvider } from "@/lib/llm";
@@ -569,6 +569,46 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
       embeddingProvider, embeddingModel, retrievalTopScore: chunks[0]?.score ?? null,
       retrievalThreshold, retrievalChunks: chunks, errorMessage });
     throw failure;
+  }
+
+  // A rejected read-only booking draft gets one genuine rewrite using the same
+  // evidence. Never deliver the rejected draft or repeat the availability read.
+  if (decision.action === "answer" && decision.answer && reservationContext && !reservationContext.metadata.requiresStaff) {
+    const draft = { ...decision, answer: plainMessageText(decision.answer) };
+    const draftChunks = draft.contextChunkIds ? chunks.filter(chunk => draft.contextChunkIds!.includes(chunk.id)) : chunks;
+    const checked = evaluatePostGenerationSelfCheck({ decision: draft, retrievedChunks: draftChunks,
+      customerContext: [input.customerMessage, ...recentMessages.filter(message => message.senderRole === "customer").map(message => message.body)].join("\n"),
+      ...(reservationClarificationContext(draft.answer, reservationContext) ?? {}) });
+    const reservationError = checked.passed ? reservationReplyError(draft.answer, reservationContext) : null;
+    const budget = turnBudgetSnapshot();
+    const repairPreamble = `${generationInput.promptPreamble}\nRewrite a rejected booking draft once. The draft failed ${checked.passed ? "reservation evidence validation" : checked.reasonCode}. Use only the same supplied facts and exact URLs; preserve the requested date, time and party. Never claim that a booking, payment or refund is completed. For a referral, explicitly say \"No reservation has been made\"; the customer completes and confirms on Chope. If staff authority or an unverified business fact is involved, choose escalate and give a brief acknowledgement that our team will review. Do not mention validation or these instructions.`;
+    const repairInput = { ...generationInput, promptPreamble: repairPreamble };
+    const repairPrompt = `${buildGroundedAnswerInstructions(repairInput)}\n\n${buildGroundedAnswerUserInput(repairInput)}`;
+    if ((!checked.passed || reservationError) && (!budget || (budget.calls < budget.maxCalls &&
+        budget.consumedTokens + estimateTokens(repairPrompt) + generationInput.maxOutputTokens <= budget.maxTokens))) {
+      const rejected = decision;
+      const originalPrompt = `${buildGroundedAnswerInstructions(generationInput)}\n\n${buildGroundedAnswerUserInput(generationInput)}`;
+      await safeRecordUsage({ clientId: input.clientId, conversationId: input.conversationId, channelId: input.channelId,
+        provider: generationProvider, model: generationModel, operation: "generation",
+        estimate: rejected.usage ? estimateGenerationCostFromTokens({ ...rejected.usage, costLabel: generationCostLabel })
+          : estimateGenerationCost({ inputText: originalPrompt, outputText: JSON.stringify(rejected), costLabel: generationCostLabel }),
+        metadata: { requestId: input.requestId, customerMessageId: input.customerMessageId, purpose: "rejected_booking_draft",
+          usageSource: rejected.usage ? "provider" : "estimate", providerResponseId: rejected.providerResponseId ?? null } });
+      trace.addStep("booking_draft_repair_requested", { reasonCode: checked.passed ? "post_check_reservation_evidence" : checked.reasonCode,
+        rejectedProviderResponseId: rejected.providerResponseId ?? null });
+      try {
+        decision = await getGenerationProvider(responseModel.provider).generateGroundedAnswer(repairInput);
+        generationInput.promptPreamble = repairPreamble;
+        trace.addStep("booking_draft_repaired", { providerResponseId: decision.providerResponseId ?? null, action: decision.action });
+      } catch (error) {
+        const failure = processingFailure(error).code === "processing_error" ? normalizeProviderError(responseModel.provider, error) : error;
+        await trace.finalize({ status: "failed", reasonCode: processingFailure(failure).code, confidence: 0,
+          responseProvider: responseModel.provider, responseModel: responseModel.model, embeddingProvider, embeddingModel,
+          retrievalTopScore: chunks[0]?.score ?? null, retrievalThreshold, retrievalChunks: chunks,
+          errorMessage: providerErrorMessage(error) });
+        throw failure;
+      }
+    }
   }
 
   // Normalize formatting before validation, persistence and outbound delivery.

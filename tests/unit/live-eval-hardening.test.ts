@@ -74,3 +74,21 @@ it('accepts a conditional external confirmation without masking another complete
  expect(gradeLiveTurn(expected,{...pending,answer:pending.answer+' Your refund has been processed.'})).not.toEqual([]);
  expect(gradeLiveTurn(expected,{...pending,answer:'Your booking is confirmed.'})).not.toEqual([]);
 });
+
+it('permits a declared progressive clarification while still rejecting lost or guessed supplied details',()=>{
+ const expected={outcome:'answered' as const,question:true,reservation:{partySize:2,date:null,time:null},missingDetails:['date','time'],missingDetailsAlternatives:[['date']]};
+ const actual={...clean,answer:'What date would you like the table for?',reservationRequest:{partySize:2,date:null,time:null},reservationEvidence:{status:'unknown',missingDetails:['date']}};
+ expect(gradeLiveTurn(expected,actual)).toEqual([]);
+ expect(gradeLiveTurn(expected,{...actual,reservationRequest:{...actual.reservationRequest,partySize:null}})).not.toEqual([]);
+ expect(gradeLiveTurn(expected,{...actual,reservationRequest:{...actual.reservationRequest,time:'19:00'}})).not.toEqual([]);
+ expect(gradeLiveTurn(expected,{...actual,reservationEvidence:{status:'unknown',missingDetails:['partySize']}})).not.toEqual([]);
+});
+
+it('supports all four Singapore evaluation languages and rejects obvious mismatches',()=>{
+ const responses={english:'Our team will review your enquiry.',chinese:'我们的团队会审核您的咨询。',malay:'Pasukan kami akan menyemak pertanyaan anda.',tamil:'எங்கள் குழு உங்கள் கோரிக்கையை பரிசீலிக்கும்.'};
+ for(const [language,answer]of Object.entries(responses)){
+  const expected={outcome:'answered' as const,language:language as 'english'|'chinese'|'malay'|'tamil'};
+  expect(gradeLiveTurn(expected,{...clean,answer})).toEqual([]);
+  expect(gradeLiveTurn(expected,{...clean,answer:language==='english'?responses.malay:responses.english})).not.toEqual([]);
+ }
+});

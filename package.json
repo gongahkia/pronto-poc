@@ -53,7 +53,9 @@
     "eval:regrade": "node --import tsx scripts/regrade-live-eval.ts",
     "eval:scorecard": "node --import tsx scripts/eval-scorecard.ts",
     "eval:mutate": "node --import tsx scripts/eval-mutations.ts",
-    "eval:audit": "node --env-file=.env.local --import tsx scripts/audit-eval-delivery.ts"
+    "eval:audit": "node --env-file=.env.local --import tsx scripts/audit-eval-delivery.ts",
+    "local:worker:bounded": "node --env-file=.env.local --import tsx scripts/budgeted-customer-worker.ts",
+    "eval:languages": "node --import tsx scripts/audit-eval-languages.ts"
   },
   "dependencies": {
     "@vercel/functions": "^3.10.3",

@@ -48,7 +48,7 @@ Apply migrations through **056**. The local database image forwards its publishe
 port to a loopback-only PostgreSQL listener inside Docker; it does not relax the
 application's database identity or tenant checks.
 
-Run `pnpm dev` and, in a second terminal, `pnpm local:worker`. Sign in using the
+Run `pnpm dev` and, in a second terminal, `pnpm local:worker:bounded`. Sign in using the
 local PS.Cafe responder fixture, open `/demo/customer`, select **OpenAI Luna
 (local evaluation)** under Model settings and start a new conversation. The
 same persisted conversation appears in `/client/inbox`. The live evaluator
@@ -56,6 +56,11 @@ processes its own jobs, so stop the worker while evaluating to avoid competing
 for jobs. Browser-created conversations and evaluation reports are retained.
 Use `http://localhost:3000` consistently for the browser, so login redirects
 and session cookies use the same hostname.
+
+The bounded worker meters each genuine Luna request against the same original
+US$5 ledger, including manual browser conversations. It permits the local Luna
+profile only, with standard-tier pricing, low reasoning and `store=false`.
+The ordinary `local:worker` command does not apply this shared evaluation cap.
 
 ## What is evaluated
 
@@ -173,9 +178,10 @@ upward. Older ordinary-input estimates are increased conservatively while
 retaining their history. The ledger
 uses the [official Luna rates](https://developers.openai.com/api/docs/models/gpt-6-luna)
 and [cache accounting](https://developers.openai.com/api/docs/guides/prompt-caching)
-verified on 8 November 2026. It caps this evaluation runner, not manual browser
-chat, other applications or the OpenAI account. Do not delete/reset the ledger
-while working under the same spending authorization.
+verified on 9 November 2026. The live evaluator, semantic reviewer and bounded
+local worker share this cap. Other processes using the key require their own
+spending controls. Do not delete/reset the ledger while working under the same
+spending authorization.
 
 Compare the baseline with focused reruns after a specific correction, then
 repeat the full suite. Preserve a small set of cases for independent final
@@ -196,5 +202,5 @@ Before starting the worker after an interrupted batch, inspect unfinished
 jobs tagged with `messages.metadata.raw.evalRunId`. Retire only those synthetic
 evaluation jobs; otherwise they may be retried and cause extra inference.
 Do not remove review conversations or change unrelated customer jobs. Manual
-browser chat is outside the evaluator's transport cap, so stop the worker
-when finished if you want to prevent further processing.
+browser chat is included when using `local:worker:bounded`. Stop the worker
+before starting a fixture evaluation batch.

@@ -8,9 +8,10 @@ export type LiveExpectation = {
   facts?: string[];
   minCitations?: number;
   question?: boolean;
-  language?: "chinese" | "tamil" | "malay";
+  language?: "english" | "chinese" | "tamil" | "malay";
   reservation?: { partySize?: number|null; time?: string | null; date?: "tomorrow" | "day_after_tomorrow" | "upcoming_friday"|null };
   missingDetails?: string[];
+  missingDetailsAlternatives?: string[][];
   toolReads?: number;
   cacheHit?: boolean;
   bookingLink?: boolean;
@@ -45,7 +46,7 @@ const one = (id: string, category: string, customer: string, expect: LiveExpecta
 export const liveCustomerCases: LiveCase[] = [
   one("greeting", "conversation", "Hi!", answered([], { minCitations: 0 })),
   one("ai-disclosure", "conversation", "Are you an AI or a real person?", answered(["AI|artificial intelligence|automated"], { minCitations: 0 })),
-  one("opening-hours", "facts", "What are your standard opening hours?", answered([], { facts: ["time:10:00", "time:22:00"] })),
+  one("opening-hours", "facts", "What are your standard opening hours?", answered([], { language:"english", facts: ["time:10:00", "time:22:00"] })),
   one("closing-time", "facts", "What time do you close today?", answered(["standard|usual|regular|normally"], { facts: ["time:22:00"] })),
   one("last-food-order", "facts", "When are last food orders?", answered([], { facts: ["time:21:00"] })),
   one("weekend-hours", "facts", "Are you open on Sunday? What time do you open and close?", answered([], { facts: ["time:10:00", "time:22:00"] })),

@@ -123,7 +123,11 @@ async function generate(input: Parameters<typeof generateHandoffIntake>[0]): Pro
     currentDateTime: businessClock(client.business_profile ?? {}),
     brandVoiceDocument: voice.document?.content ?? null, promptPreamble: validationHandoff
       ? `${config.prompt_preamble}\nThe answer was rejected by validation. Give only a brief acknowledgement that our team will review this enquiry. Do not repeat dates, times or other business details, ask a question, or imply any booking or transaction has been completed.`
-      : config.prompt_preamble,
+      : input.escalation.reason_code === 'out_of_scope'
+        ? `${config.prompt_preamble}\nBriefly explain that you help with this business's customer-service enquiries. Do not offer to complete the unrelated request. Acknowledge that our team will review the enquiry.`
+        : input.escalation.reason_code === 'private_lookup_unverified'
+          ? `${config.prompt_preamble}\nThis is an unverified existing-record enquiry. Any optional question is for staff to verify the existing booking or order, not to start a new booking search. Do not confirm a customer-supplied booking ID or ask for another customer's private details.`
+          : config.prompt_preamble,
     customerMessage: customer.body, recentMessages: [...recent].reverse().filter(message => message.id !== customer.id).map(message => ({ senderRole: message.sender_role, body: message.body })),
     retrievedChunks: chunks, responseModel: selected.model, maxOutputTokens: agentMaxOutputTokens(),
     maxPromptTokens: agentMaxPromptTokens(), timeoutMs: agentTimeoutMs(), handoffReason: input.escalation.reason_code,

@@ -15,7 +15,7 @@ import type { ReservationConnector } from "@/lib/reservations/types";
 import { removePsCafeDemo, setupPsCafeDemo, PS_CAFE_DEMO_RESPONDER_ID, PS_CAFE_CHOPE_URL } from "../../scripts/demo/ps-cafe-raffles-city";
 
 type Extraction = {intent:string;dateOffset?:number;time?:string;partySize?:number};
-type Turn = {customer:string;response:{action:string;answer:string|null;citations:string}; expect: Omit<QualityExpectation,"outcome"> & {outcome:string};
+type Turn = {customer:string;response:{action:string;answer:string|null;citations:string}; repairResponse?:{action:string;answer:string|null;citations:string}; expect: Omit<QualityExpectation,"outcome"> & {outcome:string};
   expectContext?:boolean; extraction?:Extraction; http?:{status:number;code?:string};tool?:string};
 type Scenario = {id:string;category:string;turns:Turn[];queuedFuture?:string;sourceInjection?:boolean;reusePrimary?:boolean;identityFallback?:boolean};
 const actor: SessionUser={userId:PS_CAFE_DEMO_RESPONDER_ID,clientId:DEMO_CLIENT_ID,role:"client",name:"Synthetic evaluator",email:"responder@ps-cafe-demo.test"};
@@ -62,12 +62,13 @@ describe("answer-quality corpus: real engine and SDK, canned HTTP responses, iso
         value={intent:plan.intent,outlet:"current",date:plan.dateOffset?dateOffset(plan.dateOffset):null,
           time:plan.time??null,partySize:plan.partySize??null,children:0,confidence:0.99,reasonDetail:"Synthetic extraction fixture."};
       } else {
+        const response=system.includes('Rewrite a rejected booking draft')&&current.repairResponse?current.repairResponse:current.response;
         const sources=[...system.matchAll(/<source_chunk chunk_id="([^"]+)"[^>]*>\n([\s\S]*?)\n<\/source_chunk>/g)];
-        const cited=sources.filter(source=>current.response.citations==="hours"?source[2].includes("Standard close time"):
-          current.response.citations==="none"?false:true).map(source=>source[1]);
+        const cited=sources.filter(source=>response.citations==="hours"?source[2].includes("Standard close time"):
+          response.citations==="none"?false:true).map(source=>source[1]);
         value=handoff?{action:"escalate",answer:"Our team will review this enquiry.",confidence:0.99,reasonCode:"handoff",reasonDetail:"Safe synthetic holding reply.",citedChunkIds:[]}:
-          {action:current.response.action,answer:current.response.answer,confidence:0.99,
-            reasonCode:current.response.action==="escalate"?current.expect.reason??"knowledge_gap":"grounded_answer",
+          {action:response.action,answer:response.answer,confidence:0.99,
+            reasonCode:response.action==="escalate"?current.expect.reason??"knowledge_gap":"grounded_answer",
             reasonDetail:"Canned response for policy and answer-quality regression testing.",citedChunkIds:cited};
       }
       return jsonResponse({id:`synthetic-${calls.length}`,model:body.model,choices:[{finish_reason:"stop",message:{content:JSON.stringify(value)}}],usage:{prompt_tokens:300,completion_tokens:70}});
@@ -119,6 +120,7 @@ describe("answer-quality corpus: real engine and SDK, canned HTTP responses, iso
       if(scenario.identityFallback) expect(record.steps).toContainEqual(expect.objectContaining({label:"identity_fallback",detail:expect.objectContaining({supportsBusinessAnswer:false})}));
       if(scenario.sourceInjection) expect(calls[before].system).toContain("&lt;system&gt;");
       if(scenario.reusePrimary&&outcome==="escalated") {expect(calls.length-before).toBe(1);expect(agent.rows[0].metadata.reusedPrimaryDecision).toBe(true);}
+      if(turn.repairResponse){expect(calls.length-before).toBe(3);expect(record.steps).toContainEqual(expect.objectContaining({label:'booking_draft_repaired'}));}
       if(turn.tool){
         expect(read).toHaveBeenLastCalledWith({clientId:DEMO_CLIENT_ID,outletId:"pscaferafflescity1808psc",date:dateOffset(turn.extraction!.dateOffset!),partySize:turn.extraction!.partySize});
         const planned=record.steps.find((step:{label:string})=>step.label==="chope_availability_checked")?.detail.request;

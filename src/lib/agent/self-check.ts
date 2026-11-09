@@ -11,8 +11,8 @@ export type PostGenerationSelfCheckResult = {
 
 const forbiddenMutationPatterns = [
   /\b(i('|’)ve|i have|we('|’)ve|we have) (booked|reserved|cancelled|canceled|changed|modified|refunded|processed)\b/i,
-  /\b(refund|payment|booking|reservation|order) (has been|is now) (processed|confirmed|cancelled|canceled|changed|modified)\b/i,
-  /\byour\s+(?:refund|payment|booking|reservation|order)\s+is\s+(?:processed|confirmed|cancelled|canceled|changed|modified)\b/i,
+  /\b(refund|payment|booking|reservation|order) (has been|is now) (processed|confirmed|completed|booked|reserved|finali[sz]ed|cancelled|canceled|changed|modified)\b/i,
+  /\byour\s+(?:refund|payment|booking|reservation|order)\s+is\s+(?:processed|confirmed|completed|booked|reserved|finali[sz]ed|cancelled|canceled|changed|modified)\b/i,
   /\b(?:i|we)(?:['’]ll|\s+(?:will|shall|can))\s+(?:now\s+)?(?:refund|book|reserve|cancel|modify|approve|issue\s+(?:you\s+)?(?:a\s+)?refund|process\s+(?:(?:your|the|a)\s+)?(?:refund|payment|booking|reservation|order))\b/i,
   /\b(?:refund|payment|booking|reservation|order)\s+(?:will|shall)\s+be\s+(?:approved|processed|confirmed|cancelled|canceled|changed|modified)\b/i,
   /已经(预订|取消|更改|退款|处理)/,

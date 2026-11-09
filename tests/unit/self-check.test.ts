@@ -182,6 +182,7 @@ it('distinguishes an explicit conditional Chope referral from a completed or pro
  const check=(answer:string)=>evaluatePostGenerationSelfCheck({decision:answerDecision({answer,citedChunkIds:['chope']}),retrievedChunks:[source]});
  expect(check('Your booking is confirmed only after you complete it on Chope.').passed).toBe(true);
  expect(check('Your booking is confirmed.').passed).toBe(false);
+ expect(check('Choose a time on Chope; your booking is completed and confirmed on Chope.').passed).toBe(false);
  expect(check('Your refund is confirmed only after you complete it on Chope.').passed).toBe(false);
  expect(check('Your booking is confirmed only after you complete it on Chope. We have booked your table.').passed).toBe(false);
 });

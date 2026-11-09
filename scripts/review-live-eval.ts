@@ -21,7 +21,13 @@ const budget=new LiveEvalBudget(resolve('output/live-eval/budget.json'));
 const entries:Record<string,unknown>[]=[];
 try{
  const previous=JSON.parse(await readFile(output,'utf8'));
- if(previous.reportHash===reportHash&&previous.reviewerHash===reviewerHash)entries.push(...previous.entries);
+ if(previous.reviewerHash===reviewerHash){
+  const evidence=new Map(report.observations.map((row:Parameters<typeof semanticReviewData>[0])=>[
+   `${row.caseId}/${row.round??1}/${row.turn}`,createHash('sha256').update(JSON.stringify(semanticReviewData(row,report.observations))).digest('hex')]));
+  const reusable=previous.entries.filter((entry:{key:string;evidenceHash:string})=>evidence.get(entry.key)===entry.evidenceHash);
+  if(previous.reportHash!==reportHash||reusable.length!==previous.entries.length)await writeEvalArtifact(output.replace(/\.json$/,`.stale-evidence-${createHash('sha256').update(JSON.stringify(previous.entries)).digest('hex').slice(0,12)}.json`),JSON.stringify(previous,null,2)+'\n');
+  entries.push(...reusable);
+ }
  else await writeEvalArtifact(output.replace(/\.json$/,`.${String(previous.reviewerHash).slice(0,12)}.${String(previous.reportHash).slice(0,8)}.json`),JSON.stringify(previous,null,2)+'\n');
 }catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}
 const save=async(complete:boolean)=>{
