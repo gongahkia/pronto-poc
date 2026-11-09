@@ -91,7 +91,7 @@ async function generate(input: Parameters<typeof generateHandoffIntake>[0]): Pro
   const config = configs.rows[0];
   const customer = recent.find(message => message.id === input.customerMessageId && message.sender_role === "customer");
   if (!client || !config || !customer) return null;
-  const validationHandoff = input.escalation.reason_code.startsWith('post_check_');
+  const validationHandoff = input.escalation.reason_code.startsWith('post_check_') || input.escalation.reason_code === 'staff_followup_required';
   const askForDetails = !validationHandoff && handoffQuestionsAllowed(customer.body, config.escalation_rules, input.channel.kind);
 
   const profile = aiExecutionProfile();

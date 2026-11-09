@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "mode": "stubbed-provider-real-engine",
   "synthetic": true,
   "cases": [
@@ -740,6 +740,43 @@
             "excludes": [
               "Coffee costs S$6"
             ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "unknown-price-ownership-correction",
+      "category": "handoff",
+      "turns": [
+        {
+          "customer": "How much is the Red Pesto Rigatoni?",
+          "response": {
+            "action": "answer",
+            "answer": "The price of the Red Pesto Rigatoni is not verified in the information I have.",
+            "citations": "all"
+          },
+          "expect": {
+            "outcome": "escalated",
+            "reason": "staff_followup_required",
+            "contains": ["Our team will review"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "supported-hours-with-unasked-caveat",
+      "category": "facts",
+      "turns": [
+        {
+          "customer": "What are your standard opening hours?",
+          "response": {
+            "action": "answer",
+            "answer": "Our standard hours are 10:00am to 10:00pm. Public-holiday exceptions are not verified.",
+            "citations": "all"
+          },
+          "expect": {
+            "outcome": "answered",
+            "contains": ["10:00am", "10:00pm"]
           }
         }
       ]

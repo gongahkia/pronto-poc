@@ -21,6 +21,10 @@ const captures=Object.fromEntries(await Promise.all(['candidate','website','stre
 const acceptance=assessAcceptance({candidate,website,stress,controlledCases:controlled,websiteCases:chopeWebsiteCases,captures});
 const failures=[...acceptance.failures];
 for(const [file,generatedHash]of Object.entries(runtimeFingerprint(candidate)))if(hash(await readFile(file,'utf8'))!==generatedHash)failures.push(`Candidate runtime changed: ${file}`);
+for(const file of ['src/lib/evals/live-quality.ts','src/lib/evals/plan.ts','src/lib/evals/scorecard.ts','evals/live-customer-cases.ts','evals/hardening-cases.ts']){
+ const currentHash=hash(await readFile(file,'utf8'));
+ if([candidate,website,stress].some(report=>report.sourceHashes[file]!==currentHash))failures.push(`Corpus or grading implementation differs from current acceptance evidence: ${file}`);
+}
 type ReviewEntry={key:string;evidenceHash:string;verdict:string;reason:string;};
 type Critic={reportHash:string;reviewerHash:string;complete:boolean;entries:ReviewEntry[]};
 const critics=await Promise.all(['critic','website-critic','stress-critic'].map(name=>load<Critic>(paths[name])));
@@ -84,7 +88,7 @@ const link=(path:string,title:string)=>`<a href="${e(relative(dirname(output),pa
 const intro=`<h1>200-scenario product hardening</h1><p><b>Automated acceptance: ${e(summary.automatedAcceptance)}.</b> ${acceptance.uniqueScenarios} distinct scenarios, ${rows.length} acceptance turns. Cumulative conservative accounting: US$${budget.accountedUsd.toFixed(4)} / US$${budget.limitUsd}.</p><p>Current candidate, real Chope website reads and stress trials must share runtime, knowledge and configuration hashes. Diagnostic runs retain their original versions and failures.</p><ul>${Object.entries(paths).map(([name,path])=>`<li>${link(path,name)}</li>`).join('')}</ul><h2>Product quality</h2><pre>${e(JSON.stringify(acceptance.scorecard,null,2))}</pre><h2>Repeatability</h2><p>${acceptance.stressStability.filter(row=>row.stable).length}/${acceptance.stressStability.length} selected cases passed every stress trial.</p><pre>${e(JSON.stringify(acceptance.stressStability,null,2))}</pre><h2>Semantic review and calibration</h2><pre>${e(JSON.stringify(summary.critic,null,2))}</pre><h2>Negative controls</h2><pre>${e(JSON.stringify(summary.negativeControls,null,2))}</pre><h2>Observed local latency</h2><pre>${e(JSON.stringify(performance,null,2))}</pre><h2>Earlier diagnostic evidence</h2><pre>${e(JSON.stringify(summary.diagnostic,null,2))}</pre><h2>Remaining limits</h2><p>${e(summary.deploymentDecision)}</p>${failures.length?`<pre class="fail">${e(failures.join('\n'))}</pre>`:''}<hr>`;
 const transcript=renderTranscriptReport({runId:'Current acceptance transcripts',observations:rows,passedTurns:rows.filter(row=>!row.failures.length).length,completedTurns:rows.length,
  complete:acceptance.scorecard.complete,rounds:1,budget});
-const earlierCandidate=summary.previousCandidate?`<h2>Prior candidate and remaining defect</h2><pre>${e(JSON.stringify(summary.previousCandidate,null,2))}</pre>`:'';
+const earlierCandidate=summary.previousCandidate?`<h2>Prior candidate failure</h2><pre>${e(JSON.stringify(summary.previousCandidate,null,2))}</pre>`:'';
 const deliveryEvidence=`<h2>Exact-generation delivery audit</h2><pre>${e(JSON.stringify(summary.deliveryAudit,null,2))}</pre>`;
 await writeEvalArtifact(output,transcript.replace('<h1>Pronto · evaluation transcripts</h1>',intro+earlierCandidate+deliveryEvidence+'<h1>Acceptance transcripts</h1>'));
 console.log(JSON.stringify({output,gate:summary.automatedAcceptance,scenarios:acceptance.uniqueScenarios,turns:rows.length,failures,budget}));

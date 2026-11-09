@@ -574,7 +574,12 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
   // Normalize formatting before validation, persistence and outbound delivery.
   const originalAnswer = decision.answer;
   if (decision.answer) decision = { ...decision, answer: plainMessageText(decision.answer) };
-  if (requiresStaffFollowUp(decision, !!reservationContext)) {
+  let needsOwnershipAcknowledgement = false;
+  if (requiresStaffFollowUp(decision, !!reservationContext, input.customerMessage)) {
+    // An admission alone does not tell the customer that staff will follow up.
+    // Let the existing bounded intake generate a real acknowledgement instead
+    // of delivering that incomplete draft as the handoff reply.
+    needsOwnershipAcknowledgement = !/\b(?:our|the)\s+team\b/i.test(decision.answer ?? "");
     trace.addStep("staff_followup_ownership_required", { originalAction: decision.action, originalReasonCode: decision.reasonCode });
     decision = { ...decision, action: "escalate", reasonCode: "staff_followup_required",
       reasonDetail: "The reply requires or promises team follow-up, so the conversation must be handed to staff." };
@@ -688,7 +693,7 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
     });
     const escalation = await createEscalation({
       ...input,
-      handoffReply: handoffReplyFromDecision({ decision, chunks: effectiveChunks, customerMessage: input.customerMessage,
+      handoffReply: needsOwnershipAcknowledgement ? undefined : handoffReplyFromDecision({ decision, chunks: effectiveChunks, customerMessage: input.customerMessage,
         askForDetails: handoffQuestionsAllowed(input.customerMessage, config.escalation_rules, input.channelKind),
         provider: responseModel.provider, model: responseModel.model, generationMode: shouldUseMockAi() ? "mock" : "real",
         retrievalMode: localTextRetrieval ? "local_text" : "hybrid_vector" }) ?? undefined,

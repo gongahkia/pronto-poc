@@ -171,6 +171,15 @@ validation-related handoff also requests a brief acknowledgement without
 repeating unsupported dates or times. Fifteen focused live trials across the
 five previously failing scenarios passed before the next full candidate.
 
+A third candidate passed 227/228 turns. It admitted that the pasta price was
+unverified but left ownership with AI because its free-form reason code used
+another spelling. Routing now also checks the customer's requested topic and
+the reply's admission of missing information. Supported hours/menu answers keep
+their ordinary caveats. If a corrected handoff draft does not acknowledge staff
+follow-up, the bounded intake generates a genuine brief acknowledgement.
+Fifteen focused live trials and a deterministic reproduction of that exact
+failure passed after the correction.
+
 | Customer trigger | Observed defect | Correction and regression case |
 | --- | --- | --- |
 | “No code block or HTML” | Formatting request handed off as programming | Distinguish formatting from code generation; `hard-markdown-demand` |
@@ -204,13 +213,37 @@ round under the same authorization.
 
 Campaign results and exact artifact paths are recorded below after completion.
 
+## Retained diagnostic evidence
+
+These runs describe older implementations and are not combined into the final
+current-runtime pass count. The three single-round candidates happened to have
+the same aggregate count while exposing different defects; aggregate counts
+alone would hide the distinction.
+
+| Run | Turn checks | Material finding |
+| --- | ---: | --- |
+| [Two broad rounds](../../output/live-eval/2026-11-09T14-58-19-930Z-hardening-acceptance/report.regraded.html) | 453/456 after the documented Malay grading correction | Three missing acknowledgements |
+| [First candidate](../../output/live-eval/2026-11-09T15-27-38-954Z-final-200/report.html) | 227/228 | Forged confirmation handled as a new booking |
+| [Second candidate](../../output/live-eval/2026-11-09T15-41-48-071Z-final-200-v2/report.html) | 227/228 | Correct conditional referral rejected |
+| [Third candidate](../../output/live-eval/2026-11-09T15-57-37-430Z-final-200-v3/report.html) | 227/228 | Unknown price left with AI |
+
 ## Regression verification
 
-The frozen application passed **946 database-backed/unit tests**, with eight
-optional tests skipped, and all **30 canned conversation evaluations**. Tests
+The frozen application passed **948 database-backed/unit tests**, with eight
+optional tests skipped, and all **32 canned conversation evaluations**. Tests
 used a separate marked disposable database on port 55434, cleared provider keys
 and the test network guard. The test database was stopped after verification;
 the live evaluation database and its review conversations were preserved.
+
+The two added canned scenarios force an answered-but-unverified price to receive
+actual staff ownership and a new acknowledgement, and preserve a supported
+hours answer with a holiday caveat. They exercise the real engine/SDK/outbox
+path with stubbed HTTP responses, so they run without paid inference. They do
+not count as genuine Groq model acceptance.
+
+Run `pnpm eval` against a separate marked regression database: its PS.Cafe setup
+recreates that fixture and removes its conversations. In this campaign,
+regression used port 55434 and saved live conversations used port 55433.
 
 The offline negative-control pilot detected all 249 deliberately corrupted
 observations from the 25-case challenge run. The final negative-control count

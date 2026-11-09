@@ -88,7 +88,7 @@ The [completed preparation checks](docs/poc/free-hosting-preparation.md) include
 
 The deployment fixes in [the POC deployment notes](docs/poc/deployment-fixes.md) remove the generated-file Docker dependency, add a clean-checkout Render image CI job, and support reviewed knowledge publication without an embedding service. Apply migrations through **054** before bootstrapping or updating the hosted demo. Readiness checks the Groq configuration and approved published knowledge without making a provider call.
 
-[Agent behavior and evaluation](docs/poc/agent-engineering.md) covers factual-value validation, bounded conversation retrieval, shared turn limits, operational retries and the 30-conversation `pnpm eval` suite using canned provider HTTP responses through the real execution path.
+[Agent behavior and evaluation](docs/poc/agent-engineering.md) covers factual-value validation, bounded conversation retrieval, shared turn limits, operational retries and the 32-conversation `pnpm eval` suite using canned provider HTTP responses through the real execution path.
 
 [Local OpenAI setup](docs/testing/local-live-evaluations.md) explains private key configuration and the hosted Groq default. The [200-scenario hardening guide](docs/testing/200-scenario-hardening.md) covers real Luna conversations, scoped Chope website checks, repeated trials, calibrated critiques and the cumulative US$5 evaluation budget.
 
