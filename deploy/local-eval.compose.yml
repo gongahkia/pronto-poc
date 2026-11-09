@@ -1,0 +1,22 @@
+services:
+  database:
+    build:
+      context: ..
+      dockerfile: deploy/local-eval-db.Dockerfile
+    container_name: ${PRONTO_EVAL_DB_CONTAINER:-pronto-local-eval-db}
+    environment:
+      POSTGRES_DB: pronto_test
+      POSTGRES_USER: pronto
+      POSTGRES_PASSWORD: pronto
+    ports:
+      - "127.0.0.1:${PRONTO_EVAL_DB_PORT:-55433}:5433"
+    volumes:
+      - local-eval-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U pronto -d pronto_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  local-eval-data:

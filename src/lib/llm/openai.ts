@@ -28,7 +28,7 @@ const answerDecisionSchema = z.object({
 });
 
 type OpenAiProviderName = "openai" | "azure";
-type ReasoningEffort = "minimal" | "low" | "medium" | "high";
+type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
 type OpenAiProviderOptions = {
   provider?: OpenAiProviderName;
@@ -50,7 +50,7 @@ export class OpenAiProvider implements LlmProvider {
     this.baseURL = options.baseURL ?? (() => process.env.OPENAI_BASE_URL || undefined);
     this.responseModel = options.responseModel ?? ((model) => model);
     this.embeddingModel = options.embeddingModel ?? ((model) => model);
-    this.reasoningEffort = options.reasoningEffort ?? (() => undefined);
+    this.reasoningEffort = options.reasoningEffort ?? openAiReasoningEffort;
   }
 
   async embed(
@@ -129,6 +129,8 @@ export class OpenAiProvider implements LlmProvider {
     }
 
     let response: {
+      id?: string;
+      model?: string;
       output_text?: string;
       output?: unknown[];
       usage?: { input_tokens: number; output_tokens: number };
@@ -157,13 +159,13 @@ export class OpenAiProvider implements LlmProvider {
         text: {
           format: {
             type: "json_schema",
-            name: "pronto_agent_decision",
+            name: input.reservationExtraction ? "pronto_reservation_query" : "pronto_agent_decision",
             strict: true,
             schema: input.reservationExtraction ? reservationExtractionJsonSchema : {
               type: "object",
               additionalProperties: false,
               properties: {
-                action: { type: "string", enum: ["answer", "escalate"] },
+                action: { type: "string", enum: input.handoffReason ? ["escalate"] : ["answer", "escalate"] },
                 answer: { type: ["string", "null"] },
                 confidence: { type: "number", minimum: 0, maximum: 1 },
                 reasonCode: { type: "string" },
@@ -211,6 +213,8 @@ export class OpenAiProvider implements LlmProvider {
         reasonDetail:
           "The model attempted to answer without a customer-facing answer or source citation.",
         citedChunkIds: parsed.citedChunkIds,
+        providerResponseId: response.id,
+        actualModel: response.model,
         usage: tokenUsage(response.usage),
       };
     }
@@ -227,7 +231,8 @@ export class OpenAiProvider implements LlmProvider {
       citedChunkCount: parsed.citedChunkIds.length,
     });
 
-    return { ...parsed, usage: tokenUsage(response.usage) };
+    return { ...parsed, providerResponseId: response.id, actualModel: response.model,
+      usage: tokenUsage(response.usage) };
   }
 
   private async client(): Promise<OpenAI | null> {
@@ -241,6 +246,13 @@ export class OpenAiProvider implements LlmProvider {
       baseURL: this.baseURL(),
     });
   }
+}
+
+function openAiReasoningEffort(): ReasoningEffort | undefined {
+  const value = process.env.OPENAI_REASONING_EFFORT?.trim();
+  if (!value) return undefined;
+  if (["none", "minimal", "low", "medium", "high", "xhigh"].includes(value)) return value as ReasoningEffort;
+  throw new LlmConfigurationError("openai", "OPENAI_REASONING_EFFORT is not a supported effort setting.");
 }
 
 function tokenUsage(

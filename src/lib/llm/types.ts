@@ -26,6 +26,7 @@ export type GenerateAnswerInput = {
   clientId?: string;
   conversationId?: string;
   clientName: string;
+  currentDateTime?: string;
   brandVoice: string;
   brandVoiceDocument?: string | null;
   fewShotExamples?: Array<{

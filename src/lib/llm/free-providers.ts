@@ -50,7 +50,8 @@ export class FreeTierProvider implements LlmProvider {
         ...(this.provider === "gemini" ? { max_tokens: limit } : { max_completion_tokens: limit }),
         reasoning_effort: "low",
         response_format: { type: "json_schema", json_schema: { name: input.reservationExtraction ? "pronto_reservation_query" : "pronto_agent_decision", strict: true,
-          schema: input.reservationExtraction ? reservationExtractionJsonSchema : jsonSchema } },
+          schema: input.reservationExtraction ? reservationExtractionJsonSchema : input.handoffReason
+            ? { ...jsonSchema, properties: { ...jsonSchema.properties, action: { type: "string", enum: ["escalate"] } } } : jsonSchema } },
       }, { signal: input.signal ? AbortSignal.any([input.signal, AbortSignal.timeout(input.timeoutMs ?? 25_000)]) : AbortSignal.timeout(input.timeoutMs ?? 25_000) });
       if (typeof response.model !== "string" || response.model.replace(/^models\//, "") !== input.responseModel)
         throw new ProviderRequestError(this.provider, "invalid_response");

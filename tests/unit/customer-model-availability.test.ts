@@ -19,6 +19,18 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("server model availability", () => {
+  it("offers local OpenAI only in an explicitly enabled non-hosted environment", async () => {
+    vi.stubEnv("PRONTO_DEMO_LOCAL_OPENAI", "1");
+    vi.stubEnv("OPENAI_API_KEY", "synthetic-test-key");
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("PRONTO_DEPLOYMENT_PROFILE", "");
+    expect((await demoModelAvailability()).find(choice => choice.id === "openai-local")?.available).toBe(true);
+    vi.stubEnv("NODE_ENV", "production");
+    expect((await demoModelAvailability()).some(choice => choice.id === "openai-local")).toBe(false);
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("PRONTO_DEPLOYMENT_PROFILE", "protected-demo");
+    expect((await demoModelAvailability()).some(choice => choice.id === "openai-local")).toBe(false);
+  });
   it.each(["development", "production"])("marks missing provider keys unavailable in %s", async mode => {
     vi.stubEnv("NODE_ENV", mode);
     const choices = await demoModelAvailability();

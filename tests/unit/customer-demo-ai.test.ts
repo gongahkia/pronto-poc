@@ -10,6 +10,24 @@ const config = { response_provider: "openai", response_model: "gpt-5.5",
 afterEach(() => vi.unstubAllEnvs());
 
 describe("explicit customer demo AI mode", () => {
+  it("uses the Groq text retrieval path for explicitly enabled local OpenAI without embeddings", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("PRONTO_DEPLOYMENT_PROFILE", "");
+    vi.stubEnv("PRONTO_DEMO_LOCAL_OPENAI", "1");
+    vi.stubEnv("PRONTO_DEMO_REAL_AI_APPROVED", "1");
+    vi.stubEnv("OPENAI_API_KEY", "synthetic-test-key");
+    const profile = profileForDemoChoice("openai-local")!;
+    expect(realDemoConfiguration(config, profile)).toMatchObject({ provider: "openai", model: "gpt-6-luna",
+      retrievalMode: "local_text", embeddingProvider: "none", missing: [] });
+    expect(storedDemoProfile({ ai_selection: "openai-local", ai_configuration: profile })).toEqual(profile);
+    vi.stubEnv("PRONTO_DEMO_REAL_AI_APPROVED", "0");
+    expect(realDemoConfiguration(config, profile).missing).toContain("PRONTO_DEMO_REAL_AI_APPROVED=1");
+    vi.stubEnv("NODE_ENV", "production");
+    expect(() => profileForDemoChoice("openai-local")).toThrow(/not enabled/);
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("PRONTO_DEPLOYMENT_PROFILE", "protected-demo");
+    expect(() => profileForDemoChoice("openai-local")).toThrow(/not enabled/);
+  });
   it("Groq local retrieval needs only the Groq key plus explicit free-tier/testing approval", () => {
     vi.stubEnv("GROQ_API_KEY", "synthetic-test-key");
     vi.stubEnv("PRONTO_DEMO_REAL_AI_APPROVED", "1");vi.stubEnv("PRONTO_GROQ_FREE_TIER_CONFIRMED", "1");

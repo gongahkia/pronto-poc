@@ -41,11 +41,19 @@
     "migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed.ts",
     "eval": "tsx scripts/eval.ts",
+    "eval:live": "node --env-file=.env.local --import tsx scripts/live-eval.ts",
+    "local:worker": "node --env-file=.env.local --import tsx scripts/demo/customer-worker.ts",
     "staging:preflight": "tsx scripts/staging-preflight.ts",
     "preflight:ci": "PRONTO_PREFLIGHT_PROFILE=ci tsx scripts/staging-preflight.ts",
     "channels:encrypt-credentials": "tsx scripts/encrypt-channel-credentials.ts",
     "worker": "tsx scripts/worker.ts",
-    "outbox:retry": "tsx scripts/retry-outbox.ts"
+    "outbox:retry": "tsx scripts/retry-outbox.ts",
+    "eval:review": "node --env-file=.env.local --import tsx scripts/review-live-eval.ts",
+    "eval:calibrate": "node --env-file=.env.local --import tsx scripts/calibrate-reviewer.ts",
+    "eval:regrade": "node --import tsx scripts/regrade-live-eval.ts",
+    "eval:scorecard": "node --import tsx scripts/eval-scorecard.ts",
+    "eval:mutate": "node --import tsx scripts/eval-mutations.ts",
+    "eval:audit": "node --env-file=.env.local --import tsx scripts/audit-eval-delivery.ts"
   },
   "dependencies": {
     "@vercel/functions": "^3.10.3",

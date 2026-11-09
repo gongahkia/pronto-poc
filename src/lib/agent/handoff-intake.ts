@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { businessClock } from "@/lib/agent/business-clock";
 import { plainMessageText } from "@/lib/message-text";
 import { shouldUseMockAi } from "@/lib/env";
 import { getPromptBrandVoiceProfile } from "@/lib/brand-voice";
@@ -90,7 +91,8 @@ async function generate(input: Parameters<typeof generateHandoffIntake>[0]): Pro
   const config = configs.rows[0];
   const customer = recent.find(message => message.id === input.customerMessageId && message.sender_role === "customer");
   if (!client || !config || !customer) return null;
-  const askForDetails = handoffQuestionsAllowed(customer.body, config.escalation_rules, input.channel.kind);
+  const validationHandoff = input.escalation.reason_code.startsWith('post_check_');
+  const askForDetails = !validationHandoff && handoffQuestionsAllowed(customer.body, config.escalation_rules, input.channel.kind);
 
   const profile = aiExecutionProfile();
   const provider = profile?.provider ?? process.env.PRONTO_LLM_PROVIDER ?? config.response_provider;
@@ -118,24 +120,35 @@ async function generate(input: Parameters<typeof generateHandoffIntake>[0]): Pro
 
   const generationInput = {
     clientId, conversationId, clientName: client.name, brandVoice: client.brand_voice,
-    brandVoiceDocument: voice.document?.content ?? null, promptPreamble: config.prompt_preamble,
+    currentDateTime: businessClock(client.business_profile ?? {}),
+    brandVoiceDocument: voice.document?.content ?? null, promptPreamble: validationHandoff
+      ? `${config.prompt_preamble}\nThe answer was rejected by validation. Give only a brief acknowledgement that our team will review this enquiry. Do not repeat dates, times or other business details, ask a question, or imply any booking or transaction has been completed.`
+      : config.prompt_preamble,
     customerMessage: customer.body, recentMessages: [...recent].reverse().filter(message => message.id !== customer.id).map(message => ({ senderRole: message.sender_role, body: message.body })),
     retrievedChunks: chunks, responseModel: selected.model, maxOutputTokens: agentMaxOutputTokens(),
     maxPromptTokens: agentMaxPromptTokens(), timeoutMs: agentTimeoutMs(), handoffReason: input.escalation.reason_code,
     handoffAskForDetails: askForDetails,
     escalationRules: config.escalation_rules, channelKind: input.channel.kind,
   };
-  const generated = await getGenerationProvider(selected.provider).generateGroundedAnswer(generationInput);
-  const decision = { ...generated, answer: generated.answer ? plainMessageText(generated.answer) : null };
-  const effectiveChunks = decision.contextChunkIds ? chunks.filter(chunk => decision.contextChunkIds!.includes(chunk.id)) : chunks;
-  const prompt = `${buildGroundedAnswerInstructions(generationInput)}\n${buildGroundedAnswerUserInput(generationInput)}`;
-  await recordUsage({ clientId, conversationId, channelId: input.channel.id, provider: selected.provider, model: selected.model,
-    operation: "generation", estimate: decision.usage ? estimateGenerationCostFromTokens({ ...decision.usage, costLabel: selected.costLabel })
-      : estimateGenerationCost({ inputText: prompt, outputText: JSON.stringify(decision), costLabel: selected.costLabel }),
-    metadata: { purpose: "handoff_intake", customerMessageId: customer.id, providerResponseId: decision.providerResponseId ?? null,
-      usageSource: decision.usage ? "provider" : "estimate" } });
-  return handoffReplyFromDecision({ decision, chunks: effectiveChunks, customerMessage: customer.body,
-    askForDetails, provider: selected.provider, model: selected.model, retrievalMode: localText ? "local_text" : "hybrid_vector" });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const draftInput = attempt === 0 ? generationInput : { ...generationInput, handoffAskForDetails: false,
+      promptPreamble: `${generationInput.promptPreamble}\nThe previous handoff draft failed validation. Write only a brief acknowledgement that our team will review this enquiry. Do not ask a question, introduce business facts, promise a transaction or repeat an unsupported claim.` };
+    // Repair a rejected draft once, within the existing per-turn call/token
+    // budget. Provider/network errors still leave immediately without retrying.
+    const generated = await getGenerationProvider(selected.provider).generateGroundedAnswer(draftInput);
+    const decision = { ...generated, answer: generated.answer ? plainMessageText(generated.answer) : null };
+    const effectiveChunks = decision.contextChunkIds ? chunks.filter(chunk => decision.contextChunkIds!.includes(chunk.id)) : chunks;
+    const prompt = `${buildGroundedAnswerInstructions(draftInput)}\n${buildGroundedAnswerUserInput(draftInput)}`;
+    await recordUsage({ clientId, conversationId, channelId: input.channel.id, provider: selected.provider, model: selected.model,
+      operation: "generation", estimate: decision.usage ? estimateGenerationCostFromTokens({ ...decision.usage, costLabel: selected.costLabel })
+        : estimateGenerationCost({ inputText: prompt, outputText: JSON.stringify(decision), costLabel: selected.costLabel }),
+      metadata: { purpose: "handoff_intake", repairAttempt: attempt, customerMessageId: customer.id, providerResponseId: decision.providerResponseId ?? null,
+        usageSource: decision.usage ? "provider" : "estimate" } });
+    const reply = handoffReplyFromDecision({ decision, chunks: effectiveChunks, customerMessage: customer.body,
+      askForDetails: draftInput.handoffAskForDetails, provider: selected.provider, model: selected.model, retrievalMode: localText ? "local_text" : "hybrid_vector" });
+    if (reply) return reply;
+  }
+  return null;
 }
 
 async function recordUsage(input: Parameters<typeof recordAgentUsageEvent>[0]) {

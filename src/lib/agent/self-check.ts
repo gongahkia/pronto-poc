@@ -12,8 +12,10 @@ export type PostGenerationSelfCheckResult = {
 const forbiddenMutationPatterns = [
   /\b(i('|’)ve|i have|we('|’)ve|we have) (booked|reserved|cancelled|canceled|changed|modified|refunded|processed)\b/i,
   /\b(refund|payment|booking|reservation|order) (has been|is now) (processed|confirmed|cancelled|canceled|changed|modified)\b/i,
-  /\bguarantee(d)?\b/i,
-  /已经(预订|取消|更改|退款|处理)|保证/,
+  /\byour\s+(?:refund|payment|booking|reservation|order)\s+is\s+(?:processed|confirmed|cancelled|canceled|changed|modified)\b/i,
+  /\b(?:i|we)(?:['’]ll|\s+(?:will|shall|can))\s+(?:now\s+)?(?:refund|book|reserve|cancel|modify|approve|issue\s+(?:you\s+)?(?:a\s+)?refund|process\s+(?:(?:your|the|a)\s+)?(?:refund|payment|booking|reservation|order))\b/i,
+  /\b(?:refund|payment|booking|reservation|order)\s+(?:will|shall)\s+be\s+(?:approved|processed|confirmed|cancelled|canceled|changed|modified)\b/i,
+  /已经(预订|取消|更改|退款|处理)/,
   /\b(saya|kami) telah (tempah|batalkan|ubah|bayar balik|proses)\b/i,
 ];
 
@@ -78,7 +80,11 @@ export function evaluatePostGenerationSelfCheck(input: {
     return failed("post_check_invalid_citations", "The model cited chunks that were not retrieved for this turn.");
   }
 
-  if (forbiddenMutationPatterns.some((pattern) => pattern.test(input.decision.answer ?? ""))) {
+  // This explicitly conditional referral describes the customer's next action
+  // on Chope. It does not assert that a booking has already been completed.
+  const mutationClaims = input.decision.answer.replace(/\byour\s+(?:booking|reservation)\s+is\s+confirmed\s+only\s+after\s+you\s+(?:complete|confirm)\s+(?:it|(?:your|the)\s+(?:booking|reservation))\s+(?:on|via|through)\s+Chope\b/gi, "your pending booking referral");
+  if (forbiddenMutationPatterns.some((pattern) => pattern.test(mutationClaims)) ||
+      affirmativeGuarantee(input.decision.answer)) {
     return failed(
       "post_check_forbidden_mutation",
       "The answer appears to promise a booking, refund, payment, order change, or other system mutation.",
@@ -103,7 +109,7 @@ export function evaluatePostGenerationSelfCheck(input: {
   return {
     passed: true,
     reasonCode: "post_check_passed",
-    reasonDetail: input.operationalContext ? "The conversational reply matches the assistant's identity and passed local policy checks."
+    reasonDetail: input.operationalContext ? "The reply matches the supplied assistant operating context and passed local policy checks."
       : input.clarificationContext ? "The clarification relates to the customer's message and passed local policy checks."
       : "The answer cited retrieved source chunks and passed local policy checks.",
     confidence: input.decision.confidence,
@@ -133,7 +139,26 @@ function sourceOverlapScore(answer: string, chunks: KnowledgeChunk[], clarificat
 
 function meaningfulTokens(text: string): string[] {
   const tokens: string[] = [];
-  for (const match of text.toLowerCase().matchAll(/[\p{L}\p{N}]+/gu)) {
+  // Narrow multilingual equivalents help compare translated hours against the
+  // same English evidence. Factual-value and citation checks still run first.
+  const normalized = text.toLowerCase()
+    .replace(/营业时间|營業時間|நேரம்/g, " opening hours ")
+    .replace(/开门|開門|திறக்கும்|திறக்கிறது/g, " open ")
+    .replace(/关门|關門|闭店|閉店|மூடும்|மூடப்படும்/g, " close ")
+    .replace(/每天|每日|தினமும்/g, " daily ")
+    .replace(/公众假期|公眾假期|公共假期/g, " public holiday ")
+    .replace(/(?:我们|我們)(?:的)?(?:团队|團隊)/g, " our team ")
+    // Staff-review acknowledgements are operating context, not new business
+    // facts. Keep the mapping narrow; scalar/citation/mutation checks run first.
+    .replace(/எங்கள் குழு/g, " our team ")
+    .replace(/பரிசீலிக்கும்|பரிசீலித்து/g, " review ")
+    .replace(/உதவும்/g, " assist ")
+    .replace(/\b(?:waktu operasi|waktu buka|jam operasi)\b/g, " opening hours ")
+    .replace(/\b(?:di)?buka\b/g, " open ")
+    .replace(/\b(?:di)?tutup\b/g, " close ")
+    .replace(/\bsetiap hari\b/g, " daily ")
+    .replace(/\bcuti umum\b/g, " public holiday ");
+  for (const match of normalized.matchAll(/[\p{L}\p{M}\p{N}]+/gu)) {
     const token = match[0];
     if (/^[\u4e00-\u9fff]+$/u.test(token)) {
       tokens.push(...cjkBigrams(token));
@@ -144,6 +169,16 @@ function meaningfulTokens(text: string): string[] {
     }
   }
   return tokens;
+}
+
+function affirmativeGuarantee(answer: string): boolean {
+  for (const match of answer.matchAll(/\bguarantee(?:d)?\b|保证|保證/gi)) {
+    const before = answer.slice(Math.max(0, match.index! - 40), match.index);
+    if (/\b(?:cannot|can['’]?t|do not|don['’]t|does not|doesn['’]t|no|not|never|unable to)\s+(?:(?:safely|reliably|possibly|fully|absolutely|here)\s+)?$/i.test(before) ||
+        /(?:不能(?:够|夠)?|无法|無法|不|没有|沒有)(?:在此|在这里|在這裡|完全|绝对|絕對|为您|為您|向您)?\s*$/.test(before)) continue;
+    return true;
+  }
+  return false;
 }
 
 function cjkBigrams(value: string): string[] {

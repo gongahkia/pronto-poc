@@ -14,7 +14,7 @@ function clock(hour: number, minute: number, period = ""): string | null {
   if (period) {
     if (hour < 1 || hour > 12) return null;
     hour %= 12;
-    if (/pm|petang|malam|下午|晚上|傍晚/i.test(period)) hour += 12;
+    if (/pm|petang|malam|下午|晚上|傍晚|பிற்பகல்|மாலை|இரவு/i.test(period)) hour += 12;
     if (/中午/.test(period) && hour < 11) hour += 12;
   }
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
@@ -58,6 +58,10 @@ export function extractGroundedValues(text: string): Fact[] {
   }
   for (const m of text.matchAll(/\b(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?|pagi|petang|malam)\b/gi))
     add("time", clock(Number(m[1]), Number(m[2] ?? 0), m[3].replace(/\./g, "")) ?? "invalid-time", m.index!, m[0].length);
+  for (const m of text.matchAll(/(上午|早上|中午|下午|晚上|傍晚)\s*(\d{1,2})[:：](\d{2})/g))
+    add("time", clock(Number(m[2]), Number(m[3]), m[1]) ?? "invalid-time", m.index!, m[0].length);
+  for (const m of text.matchAll(/(காலை|பிற்பகல்|மாலை|இரவு)\s*(\d{1,2})(?::(\d{2}))?\s*மணி/g))
+    add("time", clock(Number(m[2]), Number(m[3] ?? 0), m[1]) ?? "invalid-time", m.index!, m[0].length);
   for (const m of text.matchAll(/\b(\d{1,2}):(\d{2})\b/g))
     add("time", clock(Number(m[1]), Number(m[2])) ?? "invalid-time", m.index!, m[0].length);
   for (const m of text.matchAll(/(上午|早上|中午|下午|晚上|傍晚)?(\d{1,2})[点點时時](?:(\d{1,2})分?)?/g))
@@ -81,7 +85,7 @@ function sameValue(claim: Fact, evidence: Fact): boolean {
 function timeRole(text: string, fact: Fact): "open" | "close" | null {
   if (fact.kind !== "time" && fact.kind !== "date") return null;
   const before = text.slice(Math.max(0, fact.start - 100), fact.start);
-  const labels = [...before.matchAll(/\b(open(?:s|ed|ing)?|clos(?:e|es|ed|ing)|buka|tutup)\b|开门|開門|关门|關門|闭店|閉店/gi)];
+  const labels = [...before.matchAll(/\b(open(?:s|ed|ing)?|clos(?:e|es|ed|ing)|(?:di)?buka|(?:di)?tutup)\b|开门|開門|关门|關門|闭店|閉店|திறக்கும்|திறக்கிறது|மூடும்|மூடப்படும்/gi)];
   const last = labels.at(-1);
   const times = extractGroundedValues(text).filter(value => value.kind === "time");
   const index = times.findIndex(value => value.start === fact.start);
@@ -90,10 +94,10 @@ function timeRole(text: string, fact: Fact): "open" | "close" | null {
   if (previous && range(previous, fact) && /\b(open(?:ing)?|hours)\b/i.test(text.slice(Math.max(0, previous.start - 60), previous.start))) return "close";
   if (next && range(fact, next) && /\b(open(?:ing)?|hours)\b/i.test(before)) return "open";
   if (/\b(?:open\s+)?(?:until|till)\s*$/i.test(before)) return "close";
+  const following = text.slice(fact.end).match(/^\s*(?:க்கு\s*)?(开门|開門|关门|關門|闭店|閉店|திறக்கும்|திறக்கிறது|மூடும்|மூடப்படும்)/);
+  if (following) return /开门|開門|திறக்கும்|திறக்கிறது/.test(following[1]) ? "open" : "close";
   if (last && !/[.!?\n]/.test(before.slice(last.index! + last[0].length)))
-    return /^(?:open|buka|开门|開門)/i.test(last[0]) ? "open" : "close";
-  const following = text.slice(fact.end).match(/^\s*(开门|開門|关门|關門|闭店|閉店)/);
-  if (following) return /开门|開門/.test(following[1]) ? "open" : "close";
+    return /^(?:open|(?:di)?buka|开门|開門|திறக்கும்|திறக்கிறது)/i.test(last[0]) ? "open" : "close";
   return null;
 }
 
@@ -128,8 +132,17 @@ export function unsupportedGroundedValue(input: {
     const start = lastBoundary ? lastBoundary.index! + lastBoundary[0].length : 0;
     const nextBoundary = input.answer.slice(claim.end).search(/[.!?。！？](?:\s|$)|\n/);
     const sentence = input.answer.slice(start, nextBoundary < 0 ? undefined : claim.end + nextBoundary + 1);
+    // A sourced correction can explicitly reject a value supplied by the
+    // customer: "10pm, not 8pm". The positive replacement must independently
+    // match cited evidence; a customer's number alone never becomes evidence.
+    const negativeCorrection = /(?:\bnot\s+(?:at\s+)?|\brather than\s+|\binstead of\s+|不是\s*)$/i
+      .test(input.answer.slice(Math.max(start, claim.start - 30), claim.start));
+    if (claim.kind !== "url" && negativeCorrection && input.customerContext &&
+        extractGroundedValues(input.customerContext).some(fact => sameValue(claim, fact)) &&
+        extractGroundedValues(sentence).some(other => other.kind === claim.kind && !sameValue(claim, other) &&
+          evidence.some(source => source.facts.some(fact => sameValue(other, fact))))) continue;
     if (claim.kind !== "url" && input.customerContext &&
-        (/\?|？/.test(sentence) || /\b(you (?:said|mentioned|requested|asked)|your (?:requested|preferred))\b/i.test(sentence)) &&
+        (/\?|？/.test(sentence) || /\b(you (?:said|mentioned|requested|asked)|your (?:requested|preferred|request (?:for|to)))\b/i.test(sentence)) &&
         extractGroundedValues(input.customerContext).some(fact => sameValue(claim, fact))) continue;
     return `Unsupported ${claim.kind} value in the customer reply.`;
   }

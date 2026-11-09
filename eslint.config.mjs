@@ -11,6 +11,8 @@ const eslintConfig = defineConfig([
     ".next/**",
     "coverage/**",
     "out/**",
+    // Private, generated evaluation artifacts include a transient ledger lock.
+    "output/**",
     "build/**",
     "next-env.d.ts",
   ]),

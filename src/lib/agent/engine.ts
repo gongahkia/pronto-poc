@@ -1,9 +1,11 @@
 import { processingFailure } from "@/lib/agent/processing-error";
+import { businessClock } from "@/lib/agent/business-clock";
+import { requiresStaffFollowUp } from "@/lib/agent/decision-consistency";
 import { normalizeProviderError } from "@/lib/llm/errors";
 import { query, transaction } from "@/lib/db";
 import { assistWithRestaurantBooking } from "@/lib/reservations/chope";
 import { configuredChopeBrowserConnector } from "@/lib/reservations/chope-browser";
-import { mayNeedReservationContext, prepareReservationContext, reservationReplyError, type ReservationModelContext } from "@/lib/reservations/model-context";
+import { mayNeedReservationContext, prepareReservationContext, reservationReplyError, reservationClarificationContext, type ReservationModelContext } from "@/lib/reservations/model-context";
 import { plainMessageText } from "@/lib/message-text";
 import {
   evaluateAiDisclosure,
@@ -519,6 +521,7 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
     clientId: input.clientId,
     conversationId: input.conversationId,
     clientName: client.name,
+    currentDateTime: businessClock(client.business_profile ?? {}),
     brandVoice: client.brand_voice,
     brandVoiceDocument: brandVoiceProfile.document?.content ?? null,
     fewShotExamples: brandVoiceProfile.examples.map((example) => ({
@@ -571,6 +574,11 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
   // Normalize formatting before validation, persistence and outbound delivery.
   const originalAnswer = decision.answer;
   if (decision.answer) decision = { ...decision, answer: plainMessageText(decision.answer) };
+  if (requiresStaffFollowUp(decision, !!reservationContext)) {
+    trace.addStep("staff_followup_ownership_required", { originalAction: decision.action, originalReasonCode: decision.reasonCode });
+    decision = { ...decision, action: "escalate", reasonCode: "staff_followup_required",
+      reasonDetail: "The reply requires or promises team follow-up, so the conversation must be handed to staff." };
+  }
   const effectiveChunks = decision.contextChunkIds ? chunks.filter(chunk => decision.contextChunkIds!.includes(chunk.id)) : chunks;
   const citedChunks = effectiveChunks.filter((chunk) =>
     decision.citedChunkIds.includes(chunk.id),
@@ -608,12 +616,14 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
 
   trace.addStep("model_decision", { action: decision.action, reasonCode: decision.reasonCode,
     reasonDetail: decision.reasonDetail, confidence: decision.confidence, citedChunkCount: decision.citedChunkIds.length });
+  const bookingClarification = reservationContext ? reservationClarificationContext(decision.answer ?? "", reservationContext) : null;
   let selfCheck = evaluatePostGenerationSelfCheck({
     decision,
     retrievedChunks: effectiveChunks,
     customerContext: [input.customerMessage, ...recentMessages.filter(message => message.senderRole === "customer").map(message => message.body)].join("\n"),
     ...(generationInput.conversationalTurn ? { operationalContext:
-      `Business identity: ${client.name}. Role: AI assistant. Scope: greet and welcome customers; help with enquiries; direct customers to our team when needed.` } : {}),
+      `Business identity: ${client.name}. Role: AI assistant. Scope: greet, welcome and thank customers; acknowledge thanks and goodbyes; help with enquiries; direct customers to our team when needed.` } : {}),
+    ...(bookingClarification ?? {}),
   });
   if (selfCheck.passed && decision.action === "answer" && decision.answer && reservationContext) {
     const error = reservationReplyError(decision.answer, reservationContext);

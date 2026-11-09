@@ -44,7 +44,10 @@ const transactionalPatterns = [
 ];
 
 const privateLookupPatterns = [
-  /\b(order|parcel|shipment|tracking|delivery)\b.*(?:#\d{3,}|\b[A-Z0-9]{8,30}\b)/i,
+  // Private booking identifiers need verified staff access, including IDs
+  // presented in customer-supplied machine output.
+  /\b(?:booking|reservation)[_\s-]+(?:id|ref(?:erence)?|confirmation(?:\s+number)?)\s*[:=#]?\s*(?=[A-Z0-9-]{0,29}\d)[A-Z0-9-]{4,30}\b/i,
+  /\b(order|parcel|shipment|tracking|delivery)\b.*(?:#\d{3,}|\b(?=[A-Z0-9-]{0,29}\d)[A-Z0-9-]{8,30}\b)/i,
   /\b(where is my order|track my (order|parcel|shipment)|order status)\b/i,
 ];
 
@@ -92,7 +95,8 @@ const outOfScopePatterns = [
   /\binvestment advice\b/i,
   /\bweather\b/i,
   /\bnews\b/i,
-  /\bcode\b/i,
+  /\bcode\b(?!\s+block\b)/i,
+  /\b(write|generate|debug|execute|run)\b[^.!?\n]{0,45}\b(code|program|script|python|javascript)\b/i,
   /\bkaraoke\b/i,
   /作业|投资建议|天气|新闻|代码|卡拉OK/,
   /\b(kerja rumah|nasihat pelaburan|cuaca|berita|kod|karaoke)\b/i,
@@ -100,16 +104,17 @@ const outOfScopePatterns = [
 ];
 
 const aiDisclosurePatterns = [
-  /\bare you (a )?(bot|robot|ai|artificial intelligence)\b/i,
-  /\bam i (talking|speaking) to (a )?(bot|robot|ai|human|person)\b/i,
-  /\bis this (a )?(bot|robot|ai|human|person)\b/i,
+  /\bare (?:you|u) (?:an? )?(bot|robot|ai|artificial intelligence|human|real person)\b/i,
+  /\bam i (talking|speaking) to (an? )?(bot|robot|ai|human|person)\b/i,
+  /\bis this (an? )?(bot|robot|ai|human|person)\b/i,
   /\bhuman or (ai|bot|robot)\b/i,
   /你是(机器人|AI|人工智能|真人|人类)|这是(机器人|AI|人工智能|真人)/i,
   /\b(adakah|awak|kamu).*\b(bot|robot|ai|manusia)\b/i,
 ];
 
 const greetingOnlyPattern =
-  /^(hi|hello|hey|hiya|yo|good morning|good afternoon|good evening|morning|afternoon|evening)( there)?[!.?\s]*$/i;
+  /^(hi|hello|hey|hiya|yo|good morning|good afternoon|good evening|morning|afternoon|evening|你好|您好|வணக்கம்)( there)?[!.?！。？\s]*$/i;
+const acknowledgementOnlyPattern = /^(?:(?:thanks|thank you|thank you very much)(?:[,!\s]*(?:that is|that's|that’s) all)?|cheers|ok|okay|got it|noted|bye|goodbye|谢谢|謝謝|好的|再见|再見|terima kasih|நன்றி)[!.！。\s]*$/i;
 
 type GuardrailCheck = {
   patterns: RegExp[];
@@ -255,6 +260,8 @@ export function evaluateSmallTalkGreeting(
   clientName: string,
 ): SmallTalkGreetingResult {
   const compact = customerMessage.trim().replace(/\s+/g, " ");
+  if (acknowledgementOnlyPattern.test(compact)) return { shouldAnswer: true,
+    answer: `You're welcome. Our team at ${clientName} is here if you need anything else.` };
   if (!greetingOnlyPattern.test(compact)) {
     return { shouldAnswer: false, answer: null };
   }

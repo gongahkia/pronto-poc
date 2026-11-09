@@ -42,6 +42,12 @@ For what is deployed, how to run it, and its strengths and limits, see the [depl
 
 See [verification evidence and UI checks](docs/poc/insights-feedback-verification.md) for the model, persistence, permission and responsive checks behind these changes.
 
+For local OpenAI Luna with low reasoning and a bounded live conversation
+evaluation workflow, see [local live evaluations](docs/testing/local-live-evaluations.md).
+This is separate from the stubbed `pnpm eval` regression suite and keeps Groq as
+the hosted demo model. The [completed local evaluation review](docs/testing/local-live-evaluation-review.md)
+records coverage, fixes, acceptance results and remaining limits.
+
 Restaurant booking enquiries in the real-model path can check Chope and return a booking link with the requested date, time and party size. PostgreSQL stores availability observations and a shared cache; the worker refreshes recently requested combinations hourly and enquiries require observations no older than five minutes before claiming availability. See [Chope setup, scheduling and storage](docs/integrations/chope-live-read.md) for the required flags, tenant mapping, Chromium and worker setup.
 
 The old HQ operator frontend has been removed under PRON-87. Operator sign-in opens `/account`; administration uses the existing protected APIs through the [authenticated CLI](docs/ops/operator-cli.md). Business approvals, versioned assistant drafts and channel activation gates remain independent. An operator login does not grant access to the business inbox.
@@ -83,6 +89,8 @@ The [completed preparation checks](docs/poc/free-hosting-preparation.md) include
 The deployment fixes in [the POC deployment notes](docs/poc/deployment-fixes.md) remove the generated-file Docker dependency, add a clean-checkout Render image CI job, and support reviewed knowledge publication without an embedding service. Apply migrations through **054** before bootstrapping or updating the hosted demo. Readiness checks the Groq configuration and approved published knowledge without making a provider call.
 
 [Agent behavior and evaluation](docs/poc/agent-engineering.md) covers factual-value validation, bounded conversation retrieval, shared turn limits, operational retries and the 30-conversation `pnpm eval` suite using canned provider HTTP responses through the real execution path.
+
+[Local OpenAI setup](docs/testing/local-live-evaluations.md) explains private key configuration and the hosted Groq default. The [200-scenario hardening guide](docs/testing/200-scenario-hardening.md) covers real Luna conversations, scoped Chope website checks, repeated trials, calibrated critiques and the cumulative US$5 evaluation budget.
 
 Smart-triage JSON supports per-channel overrides under decision nodes, so clients can tune WhatsApp messages, Telegram bot messages, Instagram DMs, Messenger messages, and email differently.
 

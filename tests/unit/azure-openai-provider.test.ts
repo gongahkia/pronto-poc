@@ -17,6 +17,7 @@ vi.mock("openai", () => ({
 }));
 
 import { AzureOpenAiProvider } from "@/lib/llm/azure";
+import { OpenAiProvider } from "@/lib/llm/openai";
 import { normalizeProviderName } from "@/lib/llm";
 import { selectModel } from "@/lib/llm/catalog";
 import { envApiKeyForProvider } from "@/lib/llm/credentials";
@@ -123,5 +124,21 @@ describe("Azure OpenAI provider", () => {
       input: ["opening hours"],
     }, { signal: undefined, timeout: undefined });
     expect(embeddings).toEqual([[0.1, 0.2]]);
+  });
+
+  it("sets low OpenAI reasoning and retains real response identity and reasoning usage", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "synthetic-openai-key");
+    vi.stubEnv("OPENAI_REASONING_EFFORT", "low");
+    mocks.responsesCreate.mockResolvedValue({ id: "response-1", model: "gpt-6-luna",
+      output_text: JSON.stringify({ action: "answer", answer: "Hello!", confidence: 1,
+        reasonCode: "greeting", reasonDetail: "Greeting.", citedChunkIds: [] }),
+      usage: { input_tokens: 10, output_tokens: 20, output_tokens_details: { reasoning_tokens: 8 } } });
+    const result = await new OpenAiProvider().generateGroundedAnswer({ clientName: "Synthetic cafe", brandVoice: "Concise",
+      promptPreamble: "Use the supplied facts.", customerMessage: "Hi", recentMessages: [], retrievedChunks: [],
+      conversationalTurn: true, responseModel: "gpt-6-luna", maxOutputTokens: 2000 });
+    expect(mocks.responsesCreate).toHaveBeenCalledWith(expect.objectContaining({ model: "gpt-6-luna",
+      reasoning: { effort: "low" }, store: false }), expect.anything());
+    expect(result).toMatchObject({ providerResponseId: "response-1", actualModel: "gpt-6-luna",
+      usage: { inputTokens: 10, outputTokens: 20, reasoningTokens: 8 } });
   });
 });

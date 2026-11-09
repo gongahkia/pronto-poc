@@ -15,19 +15,20 @@ type Route = { request: () => { url: () => string; method: () => string; postDat
   continue: ReturnType<typeof vi.fn>; abort: ReturnType<typeof vi.fn> };
 
 function browserFixture(settings: { listingStatus?: number; readStatus?: number;
-  noResponse?: boolean; outletId?: string; unavailable?: boolean; malformed?: boolean } = {}) {
+  noResponse?: boolean; outletId?: string; unavailable?: boolean; malformed?: boolean; requestFields?: string } = {}) {
   let routeHandler: ((route: Route) => Promise<void>) | undefined;
+  const selectOption = vi.fn(async () => undefined);
   const locator = (selector: string) => ({
     count: vi.fn(async () => selector.startsWith("iframe") ? 0 : 1),
     inputValue: vi.fn(async () => settings.outletId ?? config.outletId),
-    click: vi.fn(async () => undefined), selectOption: vi.fn(async () => undefined),
+    click: vi.fn(async () => undefined), selectOption,
     dispatchEvent: vi.fn(async () => undefined), getAttribute: vi.fn(async () => ""),
     evaluateAll: vi.fn(async () => settings.malformed ? [] : settings.unavailable
       ? [{ value: "Not Available", text: "Not Available", disabled: false }]
       : [{ value: "7:00pm", text: "7:00pm", disabled: false }]),
   });
   const response = { url: () => endpoint,
-    request: () => ({ method: () => "POST", postData: () => fields }),
+    request: () => ({ method: () => "POST", postData: () => settings.requestFields ?? fields }),
     status: () => settings.readStatus ?? 200, ok: () => (settings.readStatus ?? 200) === 200 };
   const page = { setDefaultTimeout: vi.fn(), locator: vi.fn(locator),
     goto: vi.fn(async () => ({ status: () => settings.listingStatus ?? 200,
@@ -40,7 +41,7 @@ function browserFixture(settings: { listingStatus?: number; readStatus?: number;
     route: vi.fn(async (_pattern: string, handler: typeof routeHandler) => { routeHandler = handler; }) };
   const browser = { newContext: vi.fn(async () => context), close: vi.fn(async () => undefined) };
   mocks.launch.mockResolvedValue(browser);
-  return { browser, page, async route(url: string, method = "GET", body: string | null = null) {
+  return { browser, page, selectOption, async route(url: string, method = "GET", body: string | null = null) {
     const route = { request: () => ({ url: () => url, method: () => method, postData: () => body }),
       continue: vi.fn(async () => undefined), abort: vi.fn(async () => undefined) };
     await routeHandler?.(route);
@@ -96,6 +97,21 @@ describe("Chope browser reader with a simulated browser transport", () => {
       .toMatchObject({ status: "available", availableSlots: ["19:00"] });
     expect(fixture.page.goto).toHaveBeenCalledWith(config.listingUrl, expect.anything());
     expect(fixture.browser.close).toHaveBeenCalledOnce();
+  });
+  it("recognizes the live site's unpadded date in both the response and read-request gate", async () => {
+    const body = fields.replace("26-10-2026", "9-11-2026");
+    const fixture = browserFixture({ requestFields: body });
+    const { readChopeBrowserAvailability } = await import("@/lib/reservations/chope-browser");
+    expect(await readChopeBrowserAvailability({ ...request, date: "2026-11-09" }, config)).toMatchObject({ status: "available" });
+    expect((await fixture.route(endpoint, "POST", body.replace("9-11", "8-11"))).abort).toHaveBeenCalledOnce();
+    expect((await fixture.route(endpoint, "POST", body)).continue).toHaveBeenCalledOnce();
+    expect((await fixture.route(endpoint, "POST", body)).abort).toHaveBeenCalledOnce();
+  });
+  it("starts a read for the default today/two-adult selections when none started automatically", async () => {
+    const fixture = browserFixture({ requestFields: fields.replace("26-10-2026", "25-10-2026").replace("adults=4", "adults=2") });
+    const { readChopeBrowserAvailability } = await import("@/lib/reservations/chope-browser");
+    expect(await readChopeBrowserAvailability({ ...request, date: "2026-10-25", partySize: 2 }, config)).toMatchObject({ status: "available" });
+    expect(fixture.selectOption).toHaveBeenCalledWith("2");
   });
 
   it.each([

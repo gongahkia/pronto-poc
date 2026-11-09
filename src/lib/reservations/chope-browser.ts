@@ -18,6 +18,11 @@ export type ChopeBrowserConfig = {
 const unsupported: ReservationResult = { status: "unsupported",
   reason: "Chope booking writes are not enabled." };
 
+export function chopeDateMatches(raw: string | null, expectedDate: string): boolean {
+  const match = /^(\d{1,2})-(\d{1,2})-(20\d{2})$/.exec(raw ?? "");
+  return !!match && `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}` === expectedDate;
+}
+
 export function validChopeBrowserConfig(config: ChopeBrowserConfig): boolean {
   if (!config.clientId || !/^[a-z0-9-]{4,80}$/i.test(config.outletId) ||
       config.scope !== "demo_availability" || !Number.isFinite(Date.parse(config.authorizedAt))) return false;
@@ -130,7 +135,6 @@ export async function readChopeBrowserAvailability(request: ReservationAvailabil
     const page = await context.newPage();
     page.setDefaultTimeout(10_000);
     timeout = setTimeout(() => { timedOut = true; void browser?.close(); }, 20_000);
-    const providerDate = request.date.split("-").reverse().join("-");
     let allowedRead = false;
     await context.route("**/*", async (route) => {
       const call = route.request();
@@ -150,7 +154,7 @@ export async function readChopeBrowserAvailability(request: ReservationAvailabil
           call.method() === "POST" && !allowedRead) {
         const fields = new URLSearchParams(call.postData() ?? "");
         if (["rid", "date", "adults", "children"].every((key) => fields.getAll(key).length === 1) &&
-            fields.get("rid") === request.outletId && fields.get("date") === providerDate &&
+            fields.get("rid") === request.outletId && chopeDateMatches(fields.get("date"), request.date) &&
             fields.get("adults") === String(request.partySize) && fields.get("children") === "0") {
           allowedRead = true;
           await route.continue();
@@ -164,7 +168,7 @@ export async function readChopeBrowserAvailability(request: ReservationAvailabil
       const fields = new URLSearchParams(response.request().postData() ?? "");
       return url.hostname === "www.chope.co" && url.pathname === GET_TIMES_PATH &&
         response.request().method() === "POST" && fields.get("rid") === request.outletId &&
-        fields.get("date") === providerDate && fields.get("adults") === String(request.partySize);
+        chopeDateMatches(fields.get("date"), request.date) && fields.get("adults") === String(request.partySize);
     }, { timeout: 15_000 }).catch(() => null);
     const listing = await page.goto(config.listingUrl, { waitUntil: "domcontentloaded", timeout: 12_000 });
     if (listing?.status() === 429) return errorResult(request, "rate_limited");
@@ -176,7 +180,9 @@ export async function readChopeBrowserAvailability(request: ReservationAvailabil
     if (pageOutletId !== request.outletId) return errorResult(request, "missing_authorization");
     const todayInSingapore = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Singapore",
       year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-    if (request.partySize !== 2 || request.date !== todayInSingapore) {
+    // Default today/2 selections may not start a read until the form changes.
+    // Preserve an already-started matching read instead of issuing a duplicate.
+    if (request.partySize !== 2 || request.date !== todayInSingapore || !allowedRead) {
       await page.locator("#diners-field").click();
       await page.locator("#adults").selectOption(String(request.partySize));
     }

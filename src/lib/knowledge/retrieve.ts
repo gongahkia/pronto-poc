@@ -32,12 +32,12 @@ export async function retrieveKnowledgeText(clientId: string, searchQuery: strin
         'sourceVersion',v.version_number,'sourceContentHash',encode(sha256(convert_to(s.content,'UTF8')),'hex'),
         'approvalEvidence',case when s.metadata->>'approvedBy' is not null then 'business_review'
           else 'curated_public_demo_fact' end) as metadata,
-      ts_rank_cd(to_tsvector('simple',k.content),search.query) as keyword_rank
+      ts_rank_cd(to_tsvector('simple',s.title || E'\\n' || k.content),search.query) as keyword_rank
     from knowledge_chunks k join knowledge_sources s on s.id=k.source_id and s.client_id=k.client_id
     left join lateral (select version_number from knowledge_source_versions
       where source_id=s.id and client_id=s.client_id and content=s.content order by version_number desc limit 1) v on true,
     search where k.client_id=$1 and ${approvedTextSource}
-      and to_tsvector('simple',k.content) @@ search.query
+      and to_tsvector('simple',s.title || E'\\n' || k.content) @@ search.query
     order by keyword_rank desc,k.id limit $3`, [clientId,searchQuery,boundedLimit*4,LOCAL_TEXT_RETRIEVAL_PROFILE]);
   const chunks = dedupeChunks(result.rows.map(row => ({ ...row,
     score: Math.min(Number(row.keyword_rank) * 8, 1) })), boundedLimit);

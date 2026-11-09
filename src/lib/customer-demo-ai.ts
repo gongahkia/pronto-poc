@@ -7,11 +7,22 @@ import { demoModelChoice, demoModelChoices, GEMINI_EMBEDDING_MODEL, GEMINI_EMBED
   type DemoAiProfile } from "@/lib/llm/demo-models";
 import { freeProviderRequirements } from "@/lib/llm/free-providers";
 import { hasApprovedTextKnowledge } from "@/lib/knowledge/retrieve";
+import { protectedDemoDeployment } from "@/lib/deployment-profile";
+
+export function localOpenAiDemoEnabled(): boolean {
+  return process.env.PRONTO_DEMO_LOCAL_OPENAI === "1" &&
+    process.env.NODE_ENV !== "production" && !protectedDemoDeployment();
+}
 
 export function profileForDemoChoice(value: unknown): DemoAiProfile | undefined {
   const choice = demoModelChoice(value);
   if (!choice) throw new DemoError("Choose a supported demo model.");
   if (choice.id === "configured" || choice.id === "mock") return undefined;
+  if (choice.id === "openai-local") {
+    if (!localOpenAiDemoEnabled()) throw new DemoError("Local OpenAI evaluation is not enabled.", 403);
+    return { provider: "openai", model: choice.model,
+      embeddingProvider: "none", embeddingModel: "none", retrievalMode: "local_text" };
+  }
   if (choice.id === "groq-oss") return { provider: "groq", model: choice.model,
     embeddingProvider: "none", embeddingModel: "none", retrievalMode: "local_text" };
   return { provider: choice.provider, model: choice.model, embeddingProvider: "gemini", embeddingModel: GEMINI_EMBEDDING_MODEL };
@@ -28,9 +39,12 @@ export function storedDemoProfile(session: { ai_selection: string; ai_configurat
 export function realDemoConfiguration(config: AgentConfig, profile?: DemoAiProfile) {
   const provider = profile?.provider ?? process.env.PRONTO_LLM_PROVIDER ?? config.response_provider;
   const embeddingProvider = profile?.embeddingProvider ?? process.env.PRONTO_EMBEDDING_PROVIDER ?? config.embedding_provider;
-  const localText = profile?.retrievalMode === "local_text" && profile.provider === "groq" &&
+  const localText = profile?.retrievalMode === "local_text" &&
+    (profile.provider === "groq" || (profile.provider === "openai" && localOpenAiDemoEnabled())) &&
     embeddingProvider === "none" && profile.embeddingModel === "none";
   const missing: string[] = [];
+  if (localText && profile?.provider === "openai" && process.env.PRONTO_DEMO_REAL_AI_APPROVED !== "1")
+    missing.push("PRONTO_DEMO_REAL_AI_APPROVED=1");
   for (const current of new Set([provider, embeddingProvider])) {
     if (current === "none" && localText) continue;
     if (current === "gemini" || current === "groq") missing.push(...freeProviderRequirements(current));
@@ -89,7 +103,7 @@ export async function requireRealDemoConfiguration(requireKnowledge = true, prof
 }
 
 export async function demoModelAvailability() {
-  return Promise.all(demoModelChoices.map(async choice => {
+  return Promise.all(demoModelChoices.filter(choice => choice.id !== "openai-local" || localOpenAiDemoEnabled()).map(async choice => {
     if (choice.id === "mock") return { ...choice, available: true, detail: "Deterministic test; no inference provider is called." };
     try { const config = await requireRealDemoConfiguration(true, profileForDemoChoice(choice.id));
       return { ...choice, provider: config.provider, model: config.model, available: true,

@@ -109,7 +109,8 @@ export function CustomerSimulator() {
               <select aria-label="AI model" className="ui-input mt-2 w-full px-3 py-2" disabled={loading || sending}
                 value={availability?.available ? choice : ""} onChange={event => setChoice(event.target.value as DemoModelChoice)}>
                 <option value="" disabled>{state ? "Choose an available model" : "Checking models…"}</option>
-                {customerModelChoices.map(option => {
+                {customerModelChoices.filter(option => option.id !== "openai-local" ||
+                  state?.modelChoices.some(item => item.id === option.id)).map(option => {
                   const configuration = state?.modelChoices.find(item => item.id === option.id);
                   return <option key={option.id} value={option.id} disabled={!configuration?.available}
                     className="disabled:text-muted" title={configuration?.detail}>

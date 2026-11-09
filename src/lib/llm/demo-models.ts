@@ -5,6 +5,7 @@ export const DEFAULT_DEMO_MODEL = "groq-oss";
 export const LOCAL_TEXT_RETRIEVAL_PROFILE = "postgres-fts-simple-v1";
 export const demoModelChoices = [
   { id: "groq-oss", label: "Groq GPT-OSS 20B", provider: "groq", model: "openai/gpt-oss-20b" },
+  { id: "openai-local", label: "OpenAI Luna (local evaluation)", provider: "openai", model: "gpt-6-luna" },
   { id: "gemini-flash", label: "Gemini 3.8 Flash", provider: "gemini", model: "gemini-3.8-flash" },
   { id: "gemini-lite", label: "Gemini 3.5 Flash-Lite", provider: "gemini", model: "gemini-3.5-flash-lite" },
   { id: "mock", label: "Mock • deterministic test", provider: "mock", model: "mock" },

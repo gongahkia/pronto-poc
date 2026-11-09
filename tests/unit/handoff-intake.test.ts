@@ -111,6 +111,16 @@ describe("model-driven handoff intake", () => {
     expect(await run()).toBeNull();
     expect(mocks.generate).toHaveBeenCalledTimes(1);
   });
+  it("repairs a rejected draft once with a real acknowledgement and meters both calls", async () => {
+    mocks.generate.mockResolvedValueOnce({ action: "escalate", answer: "What is the weather forecast?", confidence: 0.9, citedChunkIds: [] })
+      .mockResolvedValueOnce({ action: "escalate", answer: "Our team will review this enquiry.", confidence: 0.9,
+        citedChunkIds: [], providerResponseId: "repaired-ack" });
+    expect(await run()).toMatchObject({ body: "Our team will review this enquiry.",
+      metadata: { generationMode: "real", providerResponseId: "repaired-ack" } });
+    expect(mocks.generate).toHaveBeenCalledTimes(2);
+    expect(mocks.generate.mock.calls[1][0]).toMatchObject({ handoffAskForDetails: false });
+    expect(mocks.usage).toHaveBeenCalledTimes(2);
+  });
 
   it("uses a real model acknowledgement without collecting details for critical handoffs", async () => {
     const original = mocks.query.getMockImplementation()!;

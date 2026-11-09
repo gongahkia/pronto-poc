@@ -27,4 +27,8 @@ describe("knowledge query normalization", () => {
     expect(normalized.categories).toEqual([]);
     expect(normalized.embeddingText).toBe("Tell me something interesting.");
   });
+  it.each(["wat tym u opn n cls?", "Pukul berapa tutup?", "எத்தனை மணிக்கு திறக்கும், மூடும்?"])("retrieves hours for informal and supported translated wording: %s", message => {
+    expect(normalizeKnowledgeQuery(message).categories).toContain("opening_hours");
+    expect(normalizeKnowledgeQuery(message).searchQuery).toContain("hours");
+  });
 });
