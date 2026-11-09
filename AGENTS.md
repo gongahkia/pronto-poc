@@ -38,8 +38,9 @@ below were moved from that README so they remain available to coding agents.
   metered by the shared evaluation cap.
 - The existing demo URL is https://pronto-ai-poc.onrender.com. It uses Render's
   web-only Dockerfile `deploy/render-web.Dockerfile`, Neon and protected-demo
-  request processing. Historical docs say auto-deploy is off: verify current
-  settings and deployed revision rather than assuming a Git push deploys it.
+  request processing. The user confirmed on 10 November 2026 that auto-deploy
+  from `main` is enabled; the older docs/Blueprint example say off. A push
+  triggers deployment, but verify completion and revision before claiming success.
   Do not provision new paid hosting to update this existing demo.
 - The real demonstration outlet is PS.Cafe Raffles City, not Raffles Place.
   Chope is read-only: never claim to create/confirm/cancel a booking or process

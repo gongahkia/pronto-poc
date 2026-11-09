@@ -56,7 +56,7 @@ Local evaluation uses OpenAI Luna; the hosted demo uses Groq. Paid local testing
 is stopped at about **US$1.76 of the original US$5 total limit**. The bounded
 worker shares that limit, so keep the existing budget ledger.
 
-Render was configured for manual deployment; check its dashboard after pushing
-to `main` rather than assuming the live site updated.
+Render auto-deploy is enabled for `main`. After pushing, wait for the deployment
+to finish in Render before checking the updated site.
 
 Technical guidance, checks and architecture references are in [AGENTS.md](AGENTS.md).
