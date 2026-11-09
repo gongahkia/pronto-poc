@@ -216,7 +216,40 @@ other channel reliability, production latency, business ROI or exhaustive
 security coverage. Do not reset the cumulative budget ledger to run another
 round under the same authorization.
 
-Campaign results and exact artifact paths are recorded below after completion.
+The [handoff](evaluation-handoff.md) records the completed results, language
+coverage and restart instructions. No additional paid batches are running.
+
+## Completed baseline and final focused correction
+
+The final full baseline covers **200 scenarios / 231 turns**, with all automated
+turn checks passing. Nineteen selected cases passed all three stress trials
+(72 turns). Three genuine Chope cases used two fresh reads and an intentional
+8.368-second-old cache reuse. The read-only delivery audit matched 294 actual
+replies to their own provider response IDs and verified nine human-owned silent
+turns. All **2,289 offline negative controls** were detected.
+
+Semantic review still found one real source-grounding issue in `mandarin-menu`:
+the outlet's vegetarian-friendly label did not establish the suitability of an
+individual featured pasta. A final prompt clarification separates those claims.
+Two fresh focused English/Chinese cases passed afterward. **No full 200-case
+rerun was made after that last prompt change.** The baseline release gate remains
+failed in its original evidence; the handoff records the focused correction
+separately rather than rewriting it as a clean full-suite acceptance.
+
+The [combined review](../../output/live-eval/hardening-review.html) links the full
+baseline, stress, website, critic, calibration, mutation and delivery evidence.
+The [focused correction](../../output/live-eval/2026-11-09T17-25-16-238Z-final-dietary-clarification/report.html)
+and [free language audit](../../output/live-eval/language-review.json) are separate.
+The latter checks 206 English, 10 Chinese/Mandarin, three Bahasa Melayu and two
+Tamil replies, with no obvious language mismatch. It tracks one mixed input
+separately. Malay/Tamil coverage is narrower; one Malay reply contains “Our
+team.” Script/keyword checks do not replace native-speaker review.
+
+Cumulative conservative accounting is **US$1.760242675 / US$5**, including the
+earlier 95-case work, interrupted reservations, all repair calls and critics.
+The final free language unit checks passed 13 tests; typecheck and lint were
+also verified. Paid workers and local services are stopped for handoff. No
+deployment, new full paid batch or native-fluency claim is implied.
 
 ## Retained diagnostic evidence
 

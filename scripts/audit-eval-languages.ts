@@ -8,7 +8,7 @@ import {writeEvalArtifact} from './eval-artifacts';
 const index=process.argv.indexOf('--reports'),inputs=index<0?[]:process.argv[index+1].split(',');
 if(!inputs.length)throw new Error('Use --reports <saved.json>,<optional-later-focused-run.json>. No model calls are made.');
 type Row=LiveObservation&{caseId:string;turn:number;customer:string};
-const latest=new Map<string,{row:Row;source:string}>(),sources=[];
+const latest=new Map<string,{row:Row;source:string}>(),sources:Array<{path:string;sha256:string}>=[];
 for(const input of inputs){
  const path=resolve(input);if(!path.startsWith(resolve('output/live-eval')+'/'))throw new Error('Use saved local evaluation reports.');
  const raw=await readFile(path,'utf8'),report=JSON.parse(raw);if(!report.complete)throw new Error('Use complete reports.');
@@ -17,7 +17,8 @@ for(const input of inputs){
 }
 const cases=new Map([...liveCustomerCases,...liveHoldoutCases,...chopeEvaluationCases,...chopeWebsiteCases,...hardeningCases,...hardeningChallengeCases].map(item=>[item.id,item]));
 const labels={english:'English',chinese:'Chinese / Mandarin',malay:'Bahasa Melayu',tamil:'Tamil'};
-const results=[],mixedInputCases:string[]=[];let correctSilences=0;
+type LanguageResult={caseId:string;turn:number;language:NonNullable<LiveExpectation['language']>;source:string;passed:boolean;failures:string[]};
+const results:LanguageResult[]=[],mixedInputCases:string[]=[];let correctSilences=0;
 for(const {row,source}of latest.values()){
  if(row.outcome==='skipped'){correctSilences++;continue;}
  const explicit=cases.get(row.caseId)?.turns[row.turn-1]?.expect.language;
