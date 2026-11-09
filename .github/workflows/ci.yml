@@ -18,7 +18,8 @@ jobs:
         run: |
           trap 'docker logs pronto-render-ci; docker rm -f pronto-render-ci' EXIT
           docker run -d --name pronto-render-ci -p 127.0.0.1:10000:10000 pronto-render:ci
-          curl --fail --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:10000/api/health
+          # Docker can reset the first connection before Node starts listening.
+          curl --fail --retry 20 --retry-all-errors --retry-delay 1 --connect-timeout 2 --max-time 10 http://127.0.0.1:10000/api/health
           curl --fail http://127.0.0.1:10000/login > /dev/null
 
   verify:
