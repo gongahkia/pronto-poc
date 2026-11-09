@@ -13,6 +13,9 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 # Explicit input list excludes dotenv files, private deployment JSON and Git.
 COPY src ./src
+# Source-side evaluation helpers import the corpus types during Next typechecking.
+# These fixtures are build inputs; the runner still copies only standalone output.
+COPY evals ./evals
 COPY public ./public
 COPY next.config.ts tsconfig.json postcss.config.mjs ./
 RUN pnpm exec next build --webpack
