@@ -63,3 +63,5 @@ Render auto-deploy is enabled for `main`. After pushing, wait for the deployment
 to finish in Render before checking the updated site.
 
 Technical guidance, checks and architecture references are in [AGENTS.md](AGENTS.md).
+
+To review Pronto using Huddle, follow [the opt-in dogfooding setup](docs/integrations/huddle.md).
