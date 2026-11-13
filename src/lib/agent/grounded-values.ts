@@ -56,11 +56,14 @@ export function extractGroundedValues(text: string): Fact[] {
     const currency = ({ "S$": "SGD", "US$": "USD", "€": "EUR", "£": "GBP" } as Record<string, string>)[symbol] ?? symbol;
     add("price", `${currency}:${Number(m[3].replace(/,/g, "")).toFixed(2)}`, m.index!, m[0].length);
   }
-  for (const m of text.matchAll(/\b(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?|pagi|petang|malam)\b/gi))
+  // A dotted clock needs an explicit period (10.00am / 10.00 pagi), so an
+  // ordinary decimal price or date is never promoted into a time. Consume the
+  // whole clock: the old pattern incorrectly matched the suffix "00am".
+  for (const m of text.matchAll(/\b(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?m\.?|p\.?m\.?|pagi|petang|malam)\b/gi))
     add("time", clock(Number(m[1]), Number(m[2] ?? 0), m[3].replace(/\./g, "")) ?? "invalid-time", m.index!, m[0].length);
-  for (const m of text.matchAll(/(上午|早上|中午|下午|晚上|傍晚)\s*(\d{1,2})[:：](\d{2})/g))
+  for (const m of text.matchAll(/(上午|早上|中午|下午|晚上|傍晚)\s*(\d{1,2})[:：.](\d{2})/g))
     add("time", clock(Number(m[2]), Number(m[3]), m[1]) ?? "invalid-time", m.index!, m[0].length);
-  for (const m of text.matchAll(/(காலை|பிற்பகல்|மாலை|இரவு)\s*(\d{1,2})(?::(\d{2}))?\s*மணி/g))
+  for (const m of text.matchAll(/(காலை|பிற்பகல்|மாலை|இரவு)\s*(\d{1,2})(?:[:.](\d{2}))?\s*மணி/g))
     add("time", clock(Number(m[2]), Number(m[3] ?? 0), m[1]) ?? "invalid-time", m.index!, m[0].length);
   for (const m of text.matchAll(/\b(\d{1,2}):(\d{2})\b/g))
     add("time", clock(Number(m[1]), Number(m[2])) ?? "invalid-time", m.index!, m[0].length);

@@ -25,8 +25,8 @@
         },
         {
           "customer": "when does the shop open?",
-          "response": { "action": "answer", "answer": "PS.Cafe Raffles City opens at 10:00am daily.", "citations": "all" },
-          "expect": { "outcome": "answered", "contains": ["10:00am"], "minCitations": 1 }
+          "response": { "action": "answer", "answer": "PS.Cafe Raffles City opens at 10.00am daily.", "citations": "all" },
+          "expect": { "outcome": "answered", "contains": ["10.00am"], "minCitations": 1 }
         }
       ]
     },

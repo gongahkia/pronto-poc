@@ -18,7 +18,11 @@ delivery path; this is separate from live Groq acceptance and the earlier
 200-case campaign.
 
 A focused live follow-up also exposed an hours draft rejected for an unsupported
-clock value. Hours questions now get at most one provider rewrite after that
+clock value. A separately reproduced parser defect read valid `10.00am` as
+`00am`; dotted times now retain their hour and minute when accompanied by an
+explicit AM/PM or language-specific period. Decimal prices remain prices.
+The greeting-followed-by-hours regression uses dotted time notation.
+Hours questions now get at most one provider rewrite after a clock validation
 failure, reusing the same supplied evidence and the existing turn budget. The
 rejected draft is counted separately in usage; only a rewrite that passes the
 ordinary final checks can be delivered. A second invalid draft still hands off.
