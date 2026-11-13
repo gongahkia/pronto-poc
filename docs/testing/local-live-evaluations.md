@@ -44,7 +44,7 @@ node --env-file=.env.local --import tsx scripts/ps-cafe-demo.ts setup
 node --env-file=.env.local --import tsx scripts/demo/customer-simulator.ts setup
 ```
 
-Apply migrations through **056**. The local database image forwards its published
+Apply migrations through **057**. The local database image forwards its published
 port to a loopback-only PostgreSQL listener inside Docker; it does not relax the
 application's database identity or tenant checks.
 

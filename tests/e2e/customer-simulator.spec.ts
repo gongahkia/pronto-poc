@@ -92,7 +92,7 @@ test("customer and owner share a durable conversation, independent triage, takeo
   await owner.getByLabel("Conversation urgency").selectOption("short_term");
   await owner.getByLabel("Owner action required").selectOption("true");
   await owner.getByRole("button",{name:"Save changes",exact:true}).click();
-  await expect(owner.getByText("Review requested",{exact:true})).toBeVisible();
+  await expect(owner.getByText("Needs team reply",{exact:true})).toBeVisible();
   await expect(owner.getByText("Assistant is handling this",{exact:true})).toBeVisible();
   await owner.getByRole("button",{name:"Take over and reply",exact:true}).click();
   await expect(owner.getByText("Your team is handling this",{exact:true})).toBeVisible();
@@ -119,7 +119,7 @@ test("customer and owner share a durable conversation, independent triage, takeo
   await startRealConversation(page);
   await expect(input).toBeEnabled();
   await input.fill("My order has a missing item and I want a refund."); await page.getByRole("button",{name:"Send message",exact:true}).click();
-  await expect(page.getByText(/Our team is handling your enquiry/)).toBeVisible({timeout:25000});
+  await expect(page.getByText(/Our team will review the questions/)).toBeVisible({timeout:25000});
   await expect(page.getByLabel("Message history")).not.toContainText("10:00pm");
   await owner.close();
 });

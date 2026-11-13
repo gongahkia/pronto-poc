@@ -162,6 +162,8 @@ export async function getDemoState(actor: SessionUser, sessionId?: string) {
       where o.client_id=$1 and o.conversation_id=$2 and o.status='sent' order by created_at,id`,
       [DEMO_CLIENT_ID, session.conversation_id]),
     query(`select j.status,j.attempt_count,j.created_at,j.failure_code,j.failure_provider,j.available_at,
+      exists(select 1 from inbound_jobs busy where busy.client_id=j.client_id and busy.conversation_id=j.conversation_id
+        and busy.status in ('processing','failed','dead')) as busy,
       (select o.status from outbound_messages o where o.client_id=j.client_id
         and o.metadata->>'customerMessageId'=j.message_id::text order by o.created_at desc limit 1) as delivery_status
       from inbound_jobs j where j.client_id=$1

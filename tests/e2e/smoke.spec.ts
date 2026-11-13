@@ -261,7 +261,7 @@ test("PS.Cafe responder claims, replies and explicitly releases a local email ha
     await expect(page.getByRole("heading", { name: "Inbox" })).toBeVisible();
     await page.locator(`a[href="/client/conversations/${conversationId}"]`).click();
     await expect(page).toHaveURL(new RegExp(`/client/conversations/${conversationId}`));
-    await page.getByRole("button", { name: "Claim", exact: true }).click();
+    await page.getByRole("button", { name: "Take over", exact: true }).click();
     await expect(page.getByText("claimed", { exact: true })).toBeVisible();
     await page.getByPlaceholder("Write the reply the customer will receive").fill("We can help with this request.");
     await page.getByRole("button", { name: "Send reply and resolve" }).click();
