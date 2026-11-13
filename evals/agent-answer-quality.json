@@ -4,6 +4,30 @@
   "synthetic": true,
   "cases": [
     {
+      "id": "casual-greeting-then-closing",
+      "category": "context",
+      "turns": [
+        { "customer": "Hey what's up", "response": { "action": "answer", "answer": "Hey! How can I help you today?", "citations": "none" },
+          "expect": { "outcome": "answered", "contains": ["help"], "minCitations": 0, "maxCalls": 1 } },
+        { "customer": "What time do u close", "response": { "action": "answer", "answer": "We close at 10:00pm daily.", "citations": "hours" },
+          "expect": { "outcome": "answered", "contains": ["10:00pm"], "minCitations": 1 } }
+      ]
+    },
+    {
+      "id": "provider-truncated-output",
+      "category": "recovery",
+      "turns": [{ "customer": "What time do u close", "response": { "action": "answer", "answer": "We close at", "citations": "all" },
+        "finishReason": "length", "expectJobStatus": "failed",
+        "expect": { "outcome": "failed", "reason": "output_truncated", "maxCalls": 1 } }]
+    },
+    {
+      "id": "provider-generated-json-failure",
+      "category": "recovery",
+      "turns": [{ "customer": "What time do u close", "response": { "action": "answer", "answer": null, "citations": "all" },
+        "http": { "status": 400, "code": "json_validate_failed" }, "expectJobStatus": "failed",
+        "expect": { "outcome": "failed", "reason": "malformed_response", "maxCalls": 1 } }]
+    },
+    {
       "id": "opening-hours-draft-repaired",
       "category": "recovery",
       "turns": [{

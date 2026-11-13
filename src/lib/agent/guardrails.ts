@@ -113,7 +113,7 @@ const aiDisclosurePatterns = [
 ];
 
 const greetingOnlyPattern =
-  /^(hi|hello|hey|hiya|yo|good morning|good afternoon|good evening|morning|afternoon|evening|你好|您好|வணக்கம்)( there)?[!.?！。？\s]*$/i;
+  /^(?:(hi|hello|hey|hiya|yo|good morning|good afternoon|good evening|morning|afternoon|evening|你好|您好|வணக்கம்)( there)?(?:[,!.\s]+(?:what['’]?s up|how are you|how['’]?s it going))?|what['’]?s up)[!.?！。？\s]*$/i;
 const acknowledgementOnlyPattern = /^(?:(?:thanks|thank you|thank you very much)(?:[,!\s]*(?:that is|that's|that’s) all)?|cheers|ok|okay|got it|noted|bye|goodbye|谢谢|謝謝|好的|再见|再見|terima kasih|நன்றி)[!.！。\s]*$/i;
 
 type GuardrailCheck = {

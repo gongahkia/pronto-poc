@@ -5,7 +5,7 @@ export class LlmConfigurationError extends Error {
   }
 }
 
-export type ProviderFailure = "quota_exhausted" | "rate_limited" | "authentication" | "timeout" | "unavailable" | "invalid_response";
+export type ProviderFailure = "quota_exhausted" | "rate_limited" | "authentication" | "timeout" | "unavailable" | "invalid_response" | "malformed_response" | "output_truncated";
 // Never retain provider payloads, headers, keys or prompts in an Error message.
 export class ProviderRequestError extends Error {
   constructor(public readonly provider: string, public readonly code: ProviderFailure,
@@ -13,7 +13,7 @@ export class ProviderRequestError extends Error {
     super(`${provider}: ${code}${status ? ` (HTTP ${status})` : ""}. No provider or mock fallback was used.`);
     this.name = "ProviderRequestError";
   }
-  get retryable(): boolean { return ["rate_limited", "timeout", "unavailable"].includes(this.code); }
+  get retryable(): boolean { return ["rate_limited", "timeout", "unavailable", "malformed_response", "output_truncated"].includes(this.code); }
 }
 
 export function providerRetryAfter(value: unknown, now = Date.now()): number | undefined {
@@ -35,7 +35,8 @@ export function normalizeProviderError(provider: string, error: unknown): Provid
   const headers = info.headers;
   const retryAfter = headers && typeof headers === "object" && "get" in headers && typeof headers.get === "function"
     ? headers.get("retry-after") : headers && typeof headers === "object" ? (headers as Record<string,unknown>)["retry-after"] : undefined;
-  const failure: ProviderFailure = quota ? "quota_exhausted" : status === 429 ? "rate_limited" :
+  const generatedJsonFailure = provider === 'groq' && /\bjson_validate_failed\b/.test(code);
+  const failure: ProviderFailure = quota ? "quota_exhausted" : generatedJsonFailure ? 'malformed_response' : status === 429 ? "rate_limited" :
     status === 401 || status === 403 ? "authentication" : /Abort|Timeout/.test(name) || status === 408 ? "timeout" :
     /SyntaxError|ZodError/.test(name) || status && status >= 400 && status < 500 ? "invalid_response" : "unavailable";
   return new ProviderRequestError(provider, failure, status, providerRetryAfter(retryAfter));

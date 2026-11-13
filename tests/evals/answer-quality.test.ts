@@ -16,7 +16,7 @@ import type { ReservationConnector } from "@/lib/reservations/types";
 import { removePsCafeDemo, setupPsCafeDemo, PS_CAFE_DEMO_RESPONDER_ID, PS_CAFE_CHOPE_URL } from "../../scripts/demo/ps-cafe-raffles-city";
 
 type Extraction = {intent:string;dateOffset?:number;time?:string;partySize?:number};
-type Turn = {customer:string;staffTakeover?:boolean;response:{action:string;answer:string|null;citations:string}; repairResponse?:{action:string;answer:string|null;citations:string};repairKind?:'hours'; expect: Omit<QualityExpectation,"outcome"> & {outcome:string};
+type Turn = {customer:string;staffTakeover?:boolean;finishReason?:'length';expectJobStatus?:'failed'|'dead';response:{action:string;answer:string|null;citations:string}; repairResponse?:{action:string;answer:string|null;citations:string};repairKind?:'hours'; expect: Omit<QualityExpectation,"outcome"> & {outcome:string};
   expectContext?:boolean; extraction?:Extraction; http?:{status:number;code?:string};tool?:string};
 type Scenario = {id:string;category:string;turns:Turn[];queuedFuture?:string;sourceInjection?:boolean;reusePrimary?:boolean;identityFallback?:boolean};
 const actor: SessionUser={userId:PS_CAFE_DEMO_RESPONDER_ID,clientId:DEMO_CLIENT_ID,role:"client",name:"Synthetic evaluator",email:"responder@ps-cafe-demo.test"};
@@ -73,7 +73,7 @@ describe("answer-quality corpus: real engine and SDK, canned HTTP responses, iso
             reasonCode:response.action==="escalate"?current.expect.reason??"knowledge_gap":"grounded_answer",
             reasonDetail:"Canned response for policy and answer-quality regression testing.",citedChunkIds:cited};
       }
-      return jsonResponse({id:`synthetic-${calls.length}`,model:body.model,choices:[{finish_reason:"stop",message:{content:JSON.stringify(value)}}],usage:{prompt_tokens:300,completion_tokens:70}});
+      return jsonResponse({id:`synthetic-${calls.length}`,model:body.model,choices:[{finish_reason:current.finishReason??"stop",message:{content:JSON.stringify(value)}}],usage:{prompt_tokens:300,completion_tokens:70}});
     });
     vi.stubGlobal("fetch",transport);
     const read=vi.fn<ReservationConnector["getAvailability"]>(async request=>({...request,provider:"chope",timezone:"Asia/Singapore",observedAt:new Date().toISOString(),availableSlots:[],status:"error",errorCode:"provider_timeout"}));
@@ -113,7 +113,7 @@ describe("answer-quality corpus: real engine and SDK, canned HTTP responses, iso
       expect(outbound.rows.every(row=>row.status==="sent")).toBe(true);
       if(outcome==="answered") expect(agent.rows[0].metadata).toMatchObject({generationMode:"real",responseProvider:"groq"});
       if(outcome==="failed") {
-        expect(processing.rows[0]).toMatchObject({status:turn.http?.status===503?"failed":"dead",failure_code:turn.expect.reason});
+        expect(processing.rows[0]).toMatchObject({status:turn.expectJobStatus??(turn.http?.status===503?"failed":"dead"),failure_code:turn.expect.reason});
         expect(outbound.rows).toHaveLength(0);
         expect((await getPool().query("select id from escalations where client_id=$1 and message_id=$2",[DEMO_CLIENT_ID,job.messageId])).rows).toHaveLength(0);
       }

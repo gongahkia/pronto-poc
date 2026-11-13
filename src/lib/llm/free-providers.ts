@@ -56,10 +56,12 @@ export class FreeTierProvider implements LlmProvider {
       if (typeof response.model !== "string" || response.model.replace(/^models\//, "") !== input.responseModel)
         throw new ProviderRequestError(this.provider, "invalid_response");
       const choice = response.choices[0];
-      if (!choice?.message.content || choice.finish_reason !== "stop") throw new ProviderRequestError(this.provider, "invalid_response");
+      if(choice?.finish_reason==='length')throw new ProviderRequestError(this.provider,'output_truncated');
+      if(!choice||choice.finish_reason!=='stop'||choice.message.refusal)throw new ProviderRequestError(this.provider,'invalid_response');
+      if (!choice.message.content) throw new ProviderRequestError(this.provider, "malformed_response");
       let decision: z.infer<typeof decisionSchema>;
       try { decision = input.reservationExtraction ? decisionSchema.parse(parseReservationExtraction(choice.message.content)) : decisionSchema.parse(JSON.parse(choice.message.content)); }
-      catch { throw new ProviderRequestError(this.provider, "invalid_response"); }
+      catch { throw new ProviderRequestError(this.provider, "malformed_response"); }
       if (decision.action === "answer" && (!decision.answer || (!decision.citedChunkIds.length && !input.conversationalTurn)))
         decision = { ...decision, action: "escalate", answer: null, reasonCode: "ungrounded_answer",
           reasonDetail: "Provider returned an answer without source citations.", confidence: Math.min(decision.confidence, 0.4) };

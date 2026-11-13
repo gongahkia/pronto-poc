@@ -52,12 +52,18 @@ describe("bounded Gemini and Groq adapters using injected transport",()=>{
   it.each(["invalid json",JSON.stringify({...decision,citedChunkIds:[],answer:"No citations"}),JSON.stringify({...decision,confidence:7})])("fails safely for malformed or ungrounded output",async text=>{
     vi.stubGlobal("fetch",async()=>response({model:base.responseModel,choices:[{finish_reason:"stop",message:{content:text}}]}));
     if(text.includes("No citations"))expect(await real(()=>new FreeTierProvider("gemini").generateGroundedAnswer(base))).toMatchObject({action:"escalate",reasonCode:"ungrounded_answer"});
-    else await expect(real(()=>new FreeTierProvider("gemini").generateGroundedAnswer(base))).rejects.toMatchObject({code:"invalid_response"});
+    else await expect(real(()=>new FreeTierProvider("gemini").generateGroundedAnswer(base))).rejects.toMatchObject({code:"malformed_response",retryable:true});
   });
   it("rejects truncated output and recognizes timeouts",async()=>{
     vi.stubGlobal("fetch",async()=>response({model:base.responseModel,choices:[{finish_reason:"length",message:{content:JSON.stringify(decision)}}]}));
-    await expect(real(()=>new FreeTierProvider("gemini").generateGroundedAnswer(base))).rejects.toMatchObject({code:"invalid_response"});
+    await expect(real(()=>new FreeTierProvider("gemini").generateGroundedAnswer(base))).rejects.toMatchObject({code:"output_truncated",retryable:true});
     expect(normalizeProviderError("gemini",new DOMException("private detail","TimeoutError"))).toMatchObject({code:"timeout"});
+  });
+  it('does not retry explicit refusals or unsupported tool finishes',async()=>{
+    for(const choice of [{finish_reason:'stop',message:{content:null,refusal:'Refused'}},{finish_reason:'tool_calls',message:{content:null}}]){
+      vi.stubGlobal('fetch',async()=>response({model:base.responseModel,choices:[choice]}));
+      await expect(real(()=>new FreeTierProvider('gemini').generateGroundedAnswer(base))).rejects.toMatchObject({code:'invalid_response',retryable:false});
+    }
   });
   it("preserves a model-generated greeting grounded in the assistant's operating identity",async()=>{
     const greeting={...decision,answer:"Hello! Welcome to Synthetic cafe. How can I help?",citedChunkIds:[]};

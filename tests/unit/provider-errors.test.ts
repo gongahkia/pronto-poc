@@ -5,6 +5,13 @@ import { processingFailure } from "@/lib/agent/processing-error";
 import { TurnBudgetExceededError } from "@/lib/agent/turn-budget";
 
 describe("operational failure classification", () => {
+  it('retries transient generated JSON failures but keeps bad requests and identity failures terminal',()=>{
+    const error=normalizeProviderError('groq',{status:400,error:{code:'json_validate_failed',message:'PRIVATE MODEL OUTPUT'}});
+    expect(error).toMatchObject({code:'malformed_response',retryable:true});expect(JSON.stringify(error)).not.toContain('PRIVATE');
+    expect(normalizeProviderError('groq',{status:400,error:{code:'invalid_request_error'}})).toMatchObject({code:'invalid_response',retryable:false});
+    expect(new ProviderRequestError('groq','output_truncated')).toMatchObject({retryable:true});
+    expect(new ProviderRequestError('groq','invalid_response')).toMatchObject({retryable:false});
+  });
   it("distinguishes rate limits from exhausted billing/quota and retains only sanitized retry hints", () => {
     const rate = normalizeProviderError("groq", { status: 429, headers: new Headers({ "retry-after": "32" }), error: { message: "SECRET", code: "rate_limit_exceeded" } });
     expect(rate).toMatchObject({ code: "rate_limited", retryable: true, retryAfterSeconds: 32 });
