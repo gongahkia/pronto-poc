@@ -20,7 +20,7 @@ if (process.env.PRONTO_TEST_LOCAL_MAIL === "1" && process.env.PRONTO_LOCAL_EMAIL
 }
 const loopbackHosts = new Set(["localhost", "127.0.0.1", "::1"]);
 // Next's build worker uses an ephemeral loopback TCP port for local IPC.
-// This opt-in is used for the build check only, never for the E2E command.
+// Build/dev-server children may opt in; the E2E driver itself keeps fixed ports.
 const allowBuildIpc = process.env.PRONTO_TEST_ALLOW_BUILD_IPC === "1";
 const originalConnect = net.Socket.prototype.connect;
 net.Socket.prototype.connect = function (...args) {

@@ -11,6 +11,8 @@ export default defineConfig({
     timeout: 10_000,
   },
   fullyParallel: false,
+  // Files share seeded accounts and PS.Cafe fixtures in one disposable DB.
+  workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
