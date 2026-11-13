@@ -14,7 +14,7 @@ const views=[
  {href:'/client/inbox',title:'Client / business',description:'Review the inbox, reply as the business and manage restaurant knowledge.',action:'Open business inbox',Icon:Store},
 ];
 
-export default async function DemoEntryPage({searchParams=Promise.resolve({})}:{searchParams?:Promise<{error?:string}>}={}) {
+export default async function DemoEntryPage({searchParams}:{searchParams:Promise<{error?:string}>}) {
   if(!guestAccessEnabled())notFound();
   const user=await getSessionUser();
   if(user){

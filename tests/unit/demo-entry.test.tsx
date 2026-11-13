@@ -16,7 +16,7 @@ beforeEach(()=>{vi.clearAllMocks();mocks.requireUser.mockResolvedValue(user);moc
 afterEach(()=>{cleanup();vi.unstubAllEnvs();});
 describe('guided demo entry',()=>{
   it('offers both views after checking the existing authenticated demo identity',async()=>{
-    render(await DemoEntryPage());
+    render(await DemoEntryPage({searchParams:Promise.resolve({})}));
     expect(mocks.assertDemoActor).toHaveBeenCalledWith(user);
     expect(screen.getByRole('link',{name:/Guest \/ customer/}).getAttribute('href')).toBe('/demo/customer');
     expect(screen.getByRole('link',{name:/Client \/ business/}).getAttribute('href')).toBe('/client/inbox');
@@ -24,7 +24,7 @@ describe('guided demo entry',()=>{
   });
   it('lets a new visitor choose either view directly with an optional name',async()=>{
     mocks.getSessionUser.mockResolvedValue(null);
-    render(await DemoEntryPage());
+    render(await DemoEntryPage({searchParams:Promise.resolve({})}));
     expect(screen.getByRole('button',{name:/Guest \/ customer/}).getAttribute('value')).toBe('/demo/customer');
     expect(screen.getByRole('button',{name:/Client \/ business/}).getAttribute('value')).toBe('/client/inbox');
     expect(screen.getByLabelText(/Your name/).hasAttribute('required')).toBe(false);
@@ -44,12 +44,12 @@ describe('guided demo entry',()=>{
     render(await LoginPage({searchParams:Promise.resolve({})}));
     expect(screen.getByLabelText('Email')).toBeTruthy();
     expect(screen.getByLabelText('Password')).toBeTruthy();
-    await expect(DemoEntryPage()).rejects.toThrow('not-found');
+    await expect(DemoEntryPage({searchParams:Promise.resolve({})})).rejects.toThrow('not-found');
     await expect(EnterDemoPage({searchParams:Promise.resolve({})})).rejects.toThrow('not-found');
   });
   it('does not render the chooser for an unavailable or unauthorized demo',async()=>{
     mocks.assertDemoActor.mockRejectedValue(new DemoError('Unavailable',404));
-    await expect(DemoEntryPage()).rejects.toThrow('not-found');
+    await expect(DemoEntryPage({searchParams:Promise.resolve({})})).rejects.toThrow('not-found');
   });
   it('sends returning demo reviewers to the chooser without changing normal account routing',async()=>{
     await expect(Home()).rejects.toThrow('redirect:/demo');
