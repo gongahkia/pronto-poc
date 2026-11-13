@@ -54,6 +54,7 @@ const privateLookupPatterns = [
 const humanHandoffPatterns = [
   /\b(hop|jump|get) on (a )?(quick|short )?call\b/i,
   /\b(can|could|may) (i|we) (speak|talk|chat) (to|with) (a )?(human|person|staff|team|manager|owner|representative|agent)\b/i,
+  /\b(?:i|we)\s+(?:want|need|would like|would prefer)\s+to\s+(?:speak|talk|chat)\s+(?:to|with)\s+(?:(?:a|an|the)\s+)?(?:real\s+)?(?:human|person|staff|team|manager|owner|representative|agent)\b/i,
   /\b(connect|put|pass|transfer) me (to|with) (a )?(human|person|staff|team|manager|owner|representative|agent)\b/i,
   /\b(call me|phone me|ring me)\b/i,
   /\b(human|person|staff|team|manager|owner|representative) please\b/i,

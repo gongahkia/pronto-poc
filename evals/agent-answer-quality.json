@@ -3,6 +3,10 @@
   "mode": "stubbed-provider-real-engine",
   "synthetic": true,
   "cases": [
+    {"id":"explicit-person-request-pauses","category":"handoff","turns":[
+      {"customer":"I want to speak to a person, please.","response":{"action":"escalate","answer":"Our team will help with this enquiry.","citations":"none"},
+       "expect":{"outcome":"escalated","reason":"human_handoff_requested","handoffMode":"pause","contains":["Our team will review"],"excludes":["I can still help"],"maxCalls":1}}
+    ]},
     {
       "id":"halal-handoff-then-hours","category":"handoff","reusePrimary":true,
       "turns":[

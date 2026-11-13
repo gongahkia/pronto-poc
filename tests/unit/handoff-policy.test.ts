@@ -13,6 +13,7 @@ describe('issue-scoped staff reviews',()=>{
       ['provider_error','What time do you close?'],
       ['private_lookup_unverified','What is my order status?'],
       ['unverified_price','Can I talk to a human about the price?'],
+      ['arbitrary_model_label','I want to speak to a person, please.'],
     ])expect(allowsSupportedFollowups(reason,message)).toBe(false);
   });
 });

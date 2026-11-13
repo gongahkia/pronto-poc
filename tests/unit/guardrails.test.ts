@@ -48,6 +48,14 @@ describe("agent guardrails", () => {
     expect(result.shouldEscalate).toBe(false);
     expect(result.reasonCode).toBe("in_scope");
   });
+  it.each(['I want to speak to a person, please.','We need to talk with the manager.','I would like to chat with a real person.'])(
+    'recognizes a direct request for a person: %s',message=>{
+      expect(evaluatePreGenerationGuardrails(message)).toMatchObject({shouldEscalate:true,reasonCode:'human_handoff_requested'});
+    });
+  it('keeps identity questions and negated requests separate from asking for a person',()=>{
+    expect(evaluatePreGenerationGuardrails('Are you a real person?').shouldEscalate).toBe(false);
+    expect(evaluatePreGenerationGuardrails("I do not want to speak to a person. When do you close?").shouldEscalate).toBe(false);
+  });
 
   it("escalates clearly unrelated scope requests", () => {
     const result = evaluatePreGenerationGuardrails(
