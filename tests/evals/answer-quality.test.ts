@@ -1,3 +1,4 @@
+import {updateConversationAction} from '@/lib/conversation-actions';
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import corpus from "../../evals/agent-answer-quality.json";
@@ -15,7 +16,7 @@ import type { ReservationConnector } from "@/lib/reservations/types";
 import { removePsCafeDemo, setupPsCafeDemo, PS_CAFE_DEMO_RESPONDER_ID, PS_CAFE_CHOPE_URL } from "../../scripts/demo/ps-cafe-raffles-city";
 
 type Extraction = {intent:string;dateOffset?:number;time?:string;partySize?:number};
-type Turn = {customer:string;response:{action:string;answer:string|null;citations:string}; repairResponse?:{action:string;answer:string|null;citations:string}; expect: Omit<QualityExpectation,"outcome"> & {outcome:string};
+type Turn = {customer:string;staffTakeover?:boolean;response:{action:string;answer:string|null;citations:string}; repairResponse?:{action:string;answer:string|null;citations:string}; expect: Omit<QualityExpectation,"outcome"> & {outcome:string};
   expectContext?:boolean; extraction?:Extraction; http?:{status:number;code?:string};tool?:string};
 type Scenario = {id:string;category:string;turns:Turn[];queuedFuture?:string;sourceInjection?:boolean;reusePrimary?:boolean;identityFallback?:boolean};
 const actor: SessionUser={userId:PS_CAFE_DEMO_RESPONDER_ID,clientId:DEMO_CLIENT_ID,role:"client",name:"Synthetic evaluator",email:"responder@ps-cafe-demo.test"};
@@ -80,6 +81,7 @@ describe("answer-quality corpus: real engine and SDK, canned HTTP responses, iso
       createReservation:mutation,getReservation:mutation,updateReservation:mutation,cancelReservation:mutation};
     for(const turn of scenario.turns){
       current=turn;const before=calls.length;
+      if(turn.staffTakeover) await updateConversationAction({actor,clientId:DEMO_CLIENT_ID,conversationId:session.conversationId,action:"takeover"});
       if(turn.tool) await getPool().query("delete from reservation_provider_limits where provider='chope'");
       const job=await sendDemoMessage(actor,{sessionId:session.id,requestId:randomUUID(),text:turn.customer});
       if(scenario.queuedFuture) await ingestInboundMessage({channelId:DEMO_CHANNEL_ID,channelKind:"console",
@@ -94,7 +96,7 @@ describe("answer-quality corpus: real engine and SDK, canned HTTP responses, iso
         getPool().query("select * from agent_traces where client_id=$1 and customer_message_id=$2 order by created_at desc limit 1",[DEMO_CLIENT_ID,job.messageId]),
         getPool().query("select body,metadata from messages where client_id=$1 and metadata->>'customerMessageId'=$2 and sender_role='agent' order by created_at",[DEMO_CLIENT_ID,job.messageId]),
         getPool().query("select body,status from outbound_messages where client_id=$1 and metadata->>'customerMessageId'=$2",[DEMO_CLIENT_ID,job.messageId]),
-        getPool().query("select status from conversations where client_id=$1 and id=$2",[DEMO_CLIENT_ID,session.conversationId]),
+        getPool().query("select c.status,c.owner_action_required,exists(select 1 from escalations e where e.client_id=c.client_id and e.conversation_id=c.id and e.message_id=$3 and e.status in ('open','claimed')) as pending_staff_review from conversations c where c.client_id=$1 and c.id=$2",[DEMO_CLIENT_ID,session.conversationId,job.messageId]),
         getPool().query("select status,failure_code from inbound_jobs where client_id=$1 and id=$2",[DEMO_CLIENT_ID,job.jobId]),
       ]);
       if(turn.expect.outcome==="skipped") {expect(outcome).toBe("skipped");expect(calls.length).toBe(before);continue;}
@@ -103,7 +105,7 @@ describe("answer-quality corpus: real engine and SDK, canned HTTP responses, iso
       const answer=agent.rows.map(row=>row.body).join("\n");
       const failures=gradeQualityTurn(turn.expect as QualityExpectation,{outcome,reason:record.reason_code,answer,
         citations:record.cited_chunk_ids??[],calls:calls.length-before,tokens:budget?.consumedTokens??0,
-        ownership:ownership.rows[0].status,queuedBodies:outbound.rows.map(row=>row.body)});
+        ownership:ownership.rows[0].status,ownerActionRequired:ownership.rows[0].owner_action_required,pendingStaffReview:ownership.rows[0].pending_staff_review,queuedBodies:outbound.rows.map(row=>row.body)});
       expect(failures,JSON.stringify({scenario:scenario.id,turn:turn.customer,outcome,reason:record.reason_code,answer})).toEqual([]);
       expect(record.used_failover).toBe(false);
       expect(budget?.calls).toBeLessThanOrEqual(3);

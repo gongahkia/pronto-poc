@@ -381,6 +381,7 @@
           },
           "expect": {
             "outcome": "escalated",
+            "handoffMode": "review",
             "reason": "knowledge_gap",
             "excludes": [
               "guaranteed refund"
@@ -402,6 +403,7 @@
           },
           "expect": {
             "outcome": "escalated",
+            "handoffMode": "review",
             "reason": "low_retrieval_confidence",
             "excludes": [
               "parking is available"
@@ -423,6 +425,7 @@
           },
           "expect": {
             "outcome": "escalated",
+            "handoffMode": "review",
             "reason": "knowledge_conflict",
             "excludes": [
               "cutoff is"
@@ -660,6 +663,7 @@
           },
           "expect": {
             "outcome": "escalated",
+            "handoffMode": "review",
             "reason": "complaint_or_refund",
             "contains": [
               "order details"
@@ -668,6 +672,7 @@
         },
         {
           "customer": "The order was takeaway.",
+          "staffTakeover": true,
           "response": {
             "action": "answer",
             "answer": null,
@@ -757,6 +762,7 @@
           },
           "expect": {
             "outcome": "escalated",
+            "handoffMode": "review",
             "reason": "staff_followup_required",
             "contains": ["Our team will review"]
           }

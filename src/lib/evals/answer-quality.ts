@@ -6,10 +6,12 @@ export type QualityExpectation = {
   minCitations?: number;
   maxCalls?: number;
   maxTokens?: number;
+  handoffMode?: 'review' | 'pause';
 };
 export type QualityObservation = {
   outcome: string; reason: string; answer: string; citations: string[];
   calls: number; tokens: number; ownership: string; queuedBodies: string[];
+  ownerActionRequired?: boolean; pendingStaffReview?: boolean;
 };
 // Routing and citation presence alone cannot pass an answer-quality evaluation.
 // Match required/forbidden answer content independently of the runtime validator.
@@ -24,6 +26,11 @@ export function gradeQualityTurn(expected: QualityExpectation, actual: QualityOb
   if (actual.calls > (expected.maxCalls ?? 3)) failures.push("turn call limit exceeded");
   if (actual.tokens > (expected.maxTokens ?? 12000)) failures.push("turn token limit exceeded");
   if (expected.outcome === "failed" && actual.ownership !== "active") failures.push("operational failure transferred ownership");
-  if (expected.outcome === "escalated" && actual.ownership !== "escalated") failures.push("business handoff did not transfer ownership");
+  if (expected.outcome === 'escalated') {
+    if (expected.handoffMode === 'review') {
+      if (actual.ownership !== 'active' || !actual.ownerActionRequired || !actual.pendingStaffReview)
+        failures.push('staff review must remain open while supported follow-ups are allowed');
+    } else if (actual.ownership !== 'escalated') failures.push('business handoff did not transfer ownership');
+  }
   return failures;
 }
