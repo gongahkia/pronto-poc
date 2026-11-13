@@ -34,7 +34,7 @@ export async function getConversationDecisionTraces(clientId: string, conversati
       and a.sender_role='agent' and a.metadata->>'customerMessageId'=m.id::text order by a.created_at desc limit 1) reply on true
     left join lateral (select o.status from outbound_messages o where o.client_id=m.client_id and o.conversation_id=m.conversation_id
       and o.metadata->>'agentMessageId'=reply.id::text order by o.created_at desc limit 1) delivery on true
-    left join lateral (select j.status from inbound_jobs j where j.client_id=m.client_id and j.conversation_id=m.conversation_id
+    left join lateral (select j.status,j.failure_code from inbound_jobs j where j.client_id=m.client_id and j.conversation_id=m.conversation_id
       and j.message_id=m.id order by j.created_at desc limit 1) job on true
     where m.client_id=$1 and m.conversation_id=$2 and m.sender_role='customer'
     order by m.created_at desc limit 50`, [clientId, conversationId]);

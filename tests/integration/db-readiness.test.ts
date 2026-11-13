@@ -4,12 +4,17 @@ import { promisify } from "node:util";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { getPool, query } from "@/lib/db";
 import { enterTenantContext } from "@/lib/tenant-context";
+import { getConversationDecisionTraces } from "@/lib/conversation-decision-traces";
 
 const execFileAsync = promisify(execFile);
 const dbDescribe = process.env.PRONTO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 const seedClientId = "00000000-0000-4000-8000-000000000001";
 
 dbDescribe("DB-backed release readiness", () => {
+  it("loads the business decision diagnostics against the real schema", async () => {
+    enterTenantContext({role:'client',clientId:seedClientId});
+    await expect(getConversationDecisionTraces(seedClientId,randomUUID())).resolves.toEqual([]);
+  });
   afterEach(() => {
     enterTenantContext({ role: "operator", clientId: null });
   });
