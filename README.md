@@ -5,10 +5,9 @@ approved business knowledge. The sample outlet is **PS.Cafe Raffles City**.
 
 ## Try the hosted demo
 
-Open **https://pronto-ai-poc.onrender.com/enter**, enter your name and continue.
-No password is needed. Choose **Guest / customer** to try the chat or
+Open **https://pronto-ai-poc.onrender.com**. No sign-in is needed. Choose **Guest / customer** to try the chat or
 **Client / business** to open the inbox. Use **Switch demo view** to change sides. Anyone with the link can view/change the
-shared synthetic demo data. The free host may take about a minute to wake up.
+shared synthetic demo data. Your name is optional for feedback attribution. The free host may take about a minute to wake up.
 
 Check **[Service status](https://pronto-ai-poc.onrender.com/status)** when replies
 fail. It shows app/database health and the last saved AI result without using AI credits.
@@ -35,7 +34,7 @@ In a second terminal, start the worker for local customer replies:
 pnpm local:worker:bounded
 ```
 
-Open **http://localhost:3000/login**. Stop the app and worker with **Ctrl+C**;
+Open **http://localhost:3000**. Stop the app and worker with **Ctrl+C**;
 stop the database with `docker compose -f deploy/local-eval.compose.yml stop`.
 Do not rerun fixture setup on a database whose conversations you want to keep.
 
@@ -49,7 +48,8 @@ Do not rerun fixture setup on a database whose conversations you want to keep.
 
 These are **local fixture accounts**, available after the corresponding setup
 or seed. Use the PS.Cafe responder for `/demo/customer` and `/client/inbox`.
-They are not hosted account passwords; hosted reviewers should use `/enter`.
+These are for local account-based testing; ordinary non-demo deployments retain
+`/login`. Hosted reviewers choose a demo view directly and need no credentials.
 
 ## Handoff
 

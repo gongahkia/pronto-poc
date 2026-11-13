@@ -29,11 +29,10 @@ test.beforeEach(async({page})=>{
   await page.context().route("**/*",route=>new URL(route.request().url()).origin===expected?route.continue():route.abort());
 });
 async function login(page:Page){
-  await page.goto("/login");
-  await page.getByLabel("Email",{exact:true}).fill("responder@ps-cafe-demo.test");
-  await page.getByLabel("Password",{exact:true}).fill("pronto-ps-demo");
-  await page.getByRole("button",{name:"Sign in",exact:true}).click();
-  await expect(page).toHaveURL(/\/client\/inbox$/);
+  const response=await page.request.post('/api/auth/login',{headers:{origin:new URL(process.env.PLAYWRIGHT_BASE_URL??'http://localhost:3000').origin},
+    form:{email:'responder@ps-cafe-demo.test',password:'pronto-ps-demo'},maxRedirects:0});
+  expect(response.status()).toBe(303);
+  await page.goto('/client/inbox');
 }
 
 // Live inference is opt-in for the browser workflow; runtime API requests cannot create mock sessions.

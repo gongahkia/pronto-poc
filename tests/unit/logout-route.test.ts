@@ -23,11 +23,11 @@ describe("logout route", () => {
   });
   afterEach(()=>vi.unstubAllEnvs());
 
-  it('returns a guest reviewer to name entry on the enabled demo',async()=>{
+  it('returns a guest reviewer to the chooser on the enabled demo',async()=>{
     vi.stubEnv('PRONTO_CUSTOMER_DEMO_ENABLED','1');
     mocks.getSessionUser.mockResolvedValueOnce({userId:'guest',clientId:'demo',role:'client',email:'guest@guest.invalid'});
     const response=await POST(new Request('http://localhost/api/auth/logout',{method:'POST',headers:{origin:'http://localhost',host:'localhost'}}));
-    expect(response.headers.get('location')).toBe('http://localhost/enter');
+    expect(response.headers.get('location')).toBe('http://localhost/demo');
   });
 
   it("audits logout when a session exists", async () => {

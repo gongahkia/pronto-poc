@@ -42,11 +42,19 @@ describe("guest access", () => {
 });
 
 describe("request proxy", () => {
-  it("sends visitors without a session to the name page on a demo deployment, and to sign-in elsewhere", () => {
+  it("sends visitors without a session to the chooser on a demo deployment, and to sign-in elsewhere", () => {
     guestEnv();
-    expect(proxy(req("/client/inbox")).headers.get("location")).toContain("/enter");
+    expect(proxy(req("/client/inbox")).headers.get("location")).toContain("/demo?");
     vi.stubEnv("PRONTO_CUSTOMER_DEMO_ENABLED", "");
     expect(proxy(req("/client/inbox")).headers.get("location")).toContain("/login");
+  });
+  it('exposes only the exact demo chooser and retains protected screen/API boundaries',()=>{
+    guestEnv();expect(proxy(req('/demo')).status).toBe(200);
+    expect(proxy(req('/demo/customer')).headers.get('location')).toContain('/demo?');
+    expect(proxy(req('/api/demo/customer')).status).toBe(401);
+    expect(proxy(req('/api/client/settings')).status).toBe(401);
+    vi.stubEnv('PRONTO_CUSTOMER_DEMO_ENABLED','');
+    expect(proxy(req('/demo')).headers.get('location')).toContain('/login');
   });
   it("treats a guest session like any other signed-in business user", () => {
     guestEnv();
@@ -65,6 +73,15 @@ describe("POST /api/auth/guest", () => {
     expect(response.status).toBe(303); expect(response.headers.get("location")).toBe("http://localhost:3000/client/knowledge");
     expect(mocks.establish).toHaveBeenCalledWith({ id: "u1" });
   });
+  it('starts either demo view without requiring a name or accepting a supplied account role',async()=>{
+    guestEnv();mocks.create.mockResolvedValue({id:'u1',role:'client'});
+    for(const next of ['/demo/customer','/client/inbox']){
+      const response=await post({next,role:'operator'});
+      expect(response.headers.get('location')).toBe('http://localhost:3000'+next);
+      expect(mocks.create).toHaveBeenLastCalledWith('Demo reviewer',expect.any(String));
+      expect(mocks.establish).toHaveBeenLastCalledWith({id:'u1',role:'client'});
+    }
+  });
   it("opens the view chooser after name entry with no requested destination",async()=>{
     guestEnv(); mocks.create.mockResolvedValue({id:"u1",role:"client"});
     expect((await post({name:"Keith",role:"operator"})).headers.get("location")).toBe("http://localhost:3000/demo");
@@ -74,10 +91,10 @@ describe("POST /api/auth/guest", () => {
     guestEnv(); mocks.create.mockResolvedValue({ id: "u1" });
     expect((await post({ name: "Keith", next: "https://evil.example" })).headers.get("location")).toBe("http://localhost:3000/demo");
   });
-  it("shows the reason on the name page when a visitor is refused, and creates no session", async () => {
+  it("shows the reason on the chooser when a visitor is refused, and creates no session", async () => {
     guestEnv(); mocks.create.mockRejectedValue(new DemoError("Too many new visitors right now.", 429));
     const response = await post({ name: "Keith" });
-    expect(response.status).toBe(303); expect(response.headers.get("location")).toContain("/enter?error=");
+    expect(response.status).toBe(303); expect(response.headers.get("location")).toContain("/demo?error=");
     expect(mocks.establish).not.toHaveBeenCalled();
   });
   it("rejects cross-site submissions", async () => {

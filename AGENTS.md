@@ -60,8 +60,11 @@ below were moved from that README so they remain available to coding agents.
 
 ## Product behaviour and reference guides
 
-Demo entry is `/enter` (name) → `/demo` (view chooser) → `/demo/customer` or
-`/client/inbox`. Both screens link back via **Switch demo view**. The choice is
+Demo entry is `/` → public `/demo` (view chooser) → `/demo/customer` or
+`/client/inbox`. Anonymous view selection POSTs to the existing CSRF-protected
+guest-session endpoint; the name is optional (default "Demo reviewer"). The
+chooser GET never creates an identity or a session. Legacy `/enter` and `/login`
+redirect to the chooser on enabled demos; ordinary deployments retain sign-in. Both screens link back via **Switch demo view**. The choice is
 navigation within one reviewer session, not an authorization/role change.
 Safe deep links continue to work; ordinary deployments do not enable the chooser.
 
