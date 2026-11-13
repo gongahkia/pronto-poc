@@ -7,6 +7,7 @@ import { DEMO_CLIENT_ID, DEMO_CHANNEL_ID } from "@/lib/customer-demo-boundary";
 import { processInboundJob } from "@/lib/channels/inbox-worker";
 import { flushRetryableOutboundMessages } from "@/lib/channels/outbox";
 import { updateConversationAction } from "@/lib/conversation-actions";
+import {bulkClaimEscalations,bulkResolveEscalations} from '@/lib/escalations-bulk';
 import { getFilteredConversations } from "@/lib/reporting";
 import { canViewBusinessConversation } from "@/lib/staff-permissions";
 import { retrieveKnowledge } from "@/lib/knowledge/retrieve";
@@ -65,6 +66,22 @@ dbDescribe("authenticated simulator through the existing durable backend", () =>
     expect(replay.rows[0].available_at).toEqual(before.rows[0].available_at);
     await getPool().query("update inbound_jobs set available_at=now()-interval '1 second' where conversation_id=$1",[session.conversationId]);
     expect(await processInboundJob({jobId:first.jobId})).toMatchObject({outcome:'answered'});
+  });
+
+  it('pauses on bulk claim and retains other unanswered issues when one is resolved',async()=>{
+    const session=await createDemoSession(actor,'mock');
+    for(const text of ['My order has a missing item and I want a refund.','Please cancel my order.']){
+      const job=await send(session.id,text);
+      expect(await processInboundJob({jobId:job.jobId})).toMatchObject({outcome:'escalated'});
+    }
+    const reviews=await getPool().query('select id from escalations where conversation_id=$1 order by created_at',[session.conversationId]);
+    expect(reviews.rows).toHaveLength(2);
+    await bulkClaimEscalations({escalationIds:[reviews.rows[0].id],clientId:DEMO_CLIENT_ID,actorUserId:actor.userId});
+    await bulkResolveEscalations({escalationIds:[reviews.rows[0].id],clientId:DEMO_CLIENT_ID,actorUserId:actor.userId});
+    const pending=await getPool().query('select status,owner_action_required from conversations where id=$1',[session.conversationId]);
+    expect(pending.rows[0]).toMatchObject({status:'escalated',owner_action_required:true});
+    const backlog=await send(session.id,'What time do you close?');
+    expect(await processInboundJob({jobId:backlog.jobId})).toMatchObject({outcome:'skipped'});
   });
 
   it("persists one enquiry and job, retrieves tenant knowledge, delivers locally and appears in the business inbox", async () => {

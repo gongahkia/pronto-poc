@@ -28,7 +28,7 @@ beforeEach(() => {
 describe("bulk escalation actions", () => {
   it("claims open escalations for a client", async () => {
     const txClient = {
-      query: vi.fn().mockResolvedValueOnce({
+      query: vi.fn().mockResolvedValue({rows:[],rowCount:0}).mockResolvedValueOnce({rows:[],rowCount:0}).mockResolvedValueOnce({
         rows: [{ id: "esc-1" }, { id: "esc-2" }],
         rowCount: 2,
       }),
@@ -88,8 +88,8 @@ describe("bulk escalation actions", () => {
     expect(result.applied).toBe(1);
     expect(txClient.query).toHaveBeenNthCalledWith(
       2,
-      expect.stringContaining("update conversations set status = 'closed'"),
-      [["conv-1"]],
+      expect.stringContaining("c.client_id=$2"),
+      [["conv-1"], "client-1"],
     );
   });
 });

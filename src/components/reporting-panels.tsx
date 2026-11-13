@@ -121,7 +121,7 @@ export function ConversationList({
             <div className={`min-w-0 ${resolved ? "opacity-60 group-hover:opacity-100 group-focus-visible:opacity-100" : ""}`}>
               <div className="flex flex-wrap items-center gap-2">
                 <p className={`flex items-center gap-2 ${needsReply ? "font-semibold" : "font-medium"}`}>
-                  {needsReply && <span aria-label="Needs team reply" className="h-2 w-2 shrink-0 rounded-full bg-amber-600"/>}
+                  {needsReply && <span aria-label={conversation.active_escalation_id ? "Needs team reply" : "Needs review"} className="h-2 w-2 shrink-0 rounded-full bg-amber-600"/>}
                   {conversation.customer_name ?? conversation.customer_handle}
                 </p>
                 {showClient ? <Badge>{conversation.client_name}</Badge> : null}
