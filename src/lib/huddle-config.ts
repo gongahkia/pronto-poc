@@ -4,7 +4,7 @@ import type { HuddleOptions } from '@huddle/browser/react';
 // cross the client boundary; Huddle credentials never come from Pronto.
 export type HuddleReviewConfig = Pick<HuddleOptions, 'serverUrl' | 'projectId' | 'environment' | 'release'>;
 
-export function huddleReviewConfig(env: NodeJS.ProcessEnv = process.env): HuddleReviewConfig | null {
+export function huddleReviewConfig(env: Record<string, string | undefined> = process.env): HuddleReviewConfig | null {
   if (env.PRONTO_HUDDLE_ENABLED !== '1' || env.PRONTO_CUSTOMER_DEMO_ENABLED !== '1') return null;
   try {
     const url = new URL(env.PRONTO_HUDDLE_SERVER_URL?.trim() ?? '');

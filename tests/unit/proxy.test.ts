@@ -42,6 +42,7 @@ describe("proxy", () => {
 
     expect(nonce).toBeTruthy();
     expect(response.headers.get("x-middleware-request-x-nonce")).toBe(nonce);
+    expect(response.headers.get('x-middleware-request-content-security-policy')).toContain(`'nonce-${nonce}'`);
     expect(response.headers.get("Content-Security-Policy")).toContain(
       `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
     );
@@ -74,5 +75,19 @@ describe("proxy", () => {
     expect(config.matcher[0]).toContain("_next/image");
     expect(config.matcher[0]).toContain("favicon.ico");
     expect(config.matcher[0]).toContain("svg|png|jpg|jpeg|gif|webp|ico");
+  });
+
+  it('allows the configured Huddle connection and popup without adding wildcard HTTP access', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('PRONTO_CUSTOMER_DEMO_ENABLED', '1'); vi.stubEnv('PRONTO_HUDDLE_ENABLED', '1');
+    vi.stubEnv('PRONTO_HUDDLE_SERVER_URL', 'http://localhost:4310');
+    vi.stubEnv('PRONTO_HUDDLE_PROJECT_ID', '11111111-1111-4111-8111-111111111111');
+    const response = proxy(new NextRequest('http://localhost:3000/login'));
+    expect(response.headers.get('Content-Security-Policy')).toContain("connect-src 'self' https: http://localhost:4310;");
+    expect(response.headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin-allow-popups');
+    vi.stubEnv('PRONTO_HUDDLE_SERVER_URL', 'http://localhost:4310/;connect-src *');
+    const invalid = proxy(new NextRequest('http://localhost:3000/login'));
+    expect(invalid.headers.get('Content-Security-Policy')).not.toContain('4310');
+    expect(invalid.headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
   });
 });
