@@ -18,7 +18,9 @@ describe("customer simulator states", () => {
     vi.stubGlobal('fetch',vi.fn((url:string)=>response(url.includes('sessionId')?snapshot:state)));
     render(<CustomerSimulator/>);
     await userEvent.click(await screen.findByRole('button',{name:/Conversation 1/}));
-    await userEvent.type(await screen.findByLabelText('Message PS.Cafe Raffles City'),'And when do you close?');
+    const input=await screen.findByLabelText('Message PS.Cafe Raffles City') as HTMLTextAreaElement;
+    await waitFor(()=>expect(input.disabled).toBe(false));
+    await userEvent.type(input,'And when do you close?');
     expect((screen.getByRole('button',{name:'Send message'}) as HTMLButtonElement).disabled).toBe(false);
     expect(screen.getByText(/I can still answer other questions/)).toBeTruthy();
     expect(screen.getByText(/You can add another message before we reply/)).toBeTruthy();
