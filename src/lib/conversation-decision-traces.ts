@@ -6,13 +6,13 @@ export async function getConversationDecisionTraces(clientId: string, conversati
     select m.id as message_id, m.body, m.created_at, coalesce(m.metadata->>'aiPausedAtIngestion'='true',false) as ai_paused,
       t.id as trace_id, t.status, t.reason_code, e.reason_detail, coalesce(t.retrieval_chunk_count,0) as retrieval_chunk_count,
       t.cited_chunk_ids, t.steps,
-      sources.items as sources, usage.provider as model_provider, usage.model as model_name,
+      sources.items as sources, coalesce(usage.provider,t.response_provider) as model_provider, coalesce(usage.model,t.response_model) as model_name,
       reply.metadata->>'responseProvider' as intake_provider, reply.metadata->>'responseModel' as intake_model,
       exists(select 1 from agent_usage_events usage where usage.client_id=m.client_id and usage.conversation_id=m.conversation_id
         and usage.operation='generation' and usage.metadata->>'customerMessageId'=m.id::text
         and coalesce(usage.metadata->>'purpose','')<>'handoff_intake') as model_ran,
       reply.body as reply_body, coalesce(reply.metadata->>'handoffIntake'='true',false) as handoff_intake,
-      delivery.status as delivery_status, job.status as job_status
+      delivery.status as delivery_status, job.status as job_status, job.failure_code as job_failure_code
     from messages m
     join conversations c on c.id=m.conversation_id and c.client_id=m.client_id and c.deleted_at is null
     left join lateral (select * from agent_traces trace where trace.client_id=m.client_id

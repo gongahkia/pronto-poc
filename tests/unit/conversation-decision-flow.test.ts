@@ -10,6 +10,12 @@ const record: DecisionRecord = { message_id: "customer-1", body: "What time do y
     { chunkId: "menu", sourceId: "source-2", title: "Menu", url: null, excerpt: "Food and drinks.", version: null, snapshot: false }] };
 
 describe("recorded conversation decision flow", () => {
+  it('shows a failed provider attempt as failed, without claiming the enquiry was handled',()=>{
+    const result=buildConversationDecision({...record,status:'failed',reason_code:'output_truncated',job_status:'dead',model_ran:false,steps:[],delivery_status:null});
+    expect(result.status).toBe('Reply failed');
+    expect(result.steps.find(step=>step.title==='Reply processing failed')?.description).toMatch(/ended before/);
+    expect(result.steps.some(step=>step.title==='Assistant handled enquiry')).toBe(false);
+  });
   it("shows actual retrieved documents, separates citations from context, and names the recorded model", () => {
     const result = buildConversationDecision(record);
     expect(result.steps.find(step => step.kind === "knowledge")?.sources).toMatchObject([
@@ -47,7 +53,8 @@ describe("recorded conversation decision flow", () => {
 
   it("does not invent a successful decision when no trace was saved", () => {
     const result = buildConversationDecision({ ...record, trace_id: null, model_ran: false, job_status: "failed", delivery_status: null });
-    expect(result.steps.at(-1)?.title).toBe("No decision trace recorded");
+    expect(result.steps.at(-1)?.title).toBe("Reply processing failed");
+    expect(result.status).toBe('Reply failed');
   });
 });
 

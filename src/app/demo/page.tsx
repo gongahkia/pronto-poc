@@ -5,6 +5,7 @@ import {requireUser} from '@/lib/auth';
 import {assertDemoActor} from '@/lib/customer-demo';
 import {DemoError} from '@/lib/customer-demo-boundary';
 import {isGuestEmail} from '@/lib/guest-policy';
+import {ServiceStatusLink} from '@/components/service-status';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,7 @@ export default async function DemoEntryPage() {
       </div>
       <p className="mt-5 text-sm leading-6 text-muted">You can switch demo views at any time. Both views share the same synthetic workspace; nothing is sent to real customers.</p>
       <form action="/api/auth/logout" method="post" className="mt-4"><button className="text-sm text-accent underline underline-offset-4">{isGuestEmail(user.email) ? 'Use a different name' : 'Sign out'}</button></form>
+      <div className="mt-4"><ServiceStatusLink/></div>
     </section>
   </main>;
 }

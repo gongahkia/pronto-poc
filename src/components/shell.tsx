@@ -9,6 +9,7 @@ import { WorkspaceMenu } from "@/components/workspace-menu";
 import { DemoFeedback } from "@/components/demo-feedback";
 import { isGuestEmail, guestAccessEnabled } from "@/lib/guest-policy";
 import {DemoViewSwitch} from '@/components/demo-view-switch';
+import {ServiceStatusLink} from '@/components/service-status';
 import {DemoQueuePump} from '@/components/demo-queue-pump';
 import {requestDrivenDemoProcessing} from '@/lib/deployment-profile';
 
@@ -55,7 +56,7 @@ export function AppShell({ user, children, clientActive = "inbox", workspaceName
           <ClientMobileNav active={clientActive}/>
         </header>
         <main id="main-content" className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
-          {psCafe && guestAccessEnabled() && <div className="mb-4 flex justify-end"><DemoViewSwitch/></div>}
+          {psCafe && guestAccessEnabled() && <div className="mb-4 flex flex-wrap justify-end gap-2"><ServiceStatusLink/><DemoViewSwitch/></div>}
           {children}
         </main>
       </div>

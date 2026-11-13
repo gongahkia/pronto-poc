@@ -1,3 +1,4 @@
+import {replyFailure} from '@/lib/reply-failure';
 export type DecisionStep = {
   id: string;
   title: string;
@@ -27,7 +28,7 @@ export type DecisionRecord = {
   created_at: Date | string;
   ai_paused: boolean;
   trace_id: string | null;
-  status: "answered" | "escalated" | null;
+  status: "answered" | "escalated" | 'failed' | null;
   reason_code: string | null;
   reason_detail: string | null;
   retrieval_chunk_count: number;
@@ -38,6 +39,7 @@ export type DecisionRecord = {
   handoff_intake: boolean;
   delivery_status: string | null;
   job_status: string | null;
+  job_failure_code?:string|null;
   sources?: Omit<DecisionSource, "cited">[] | null;
   model_provider?: string | null;
   model_name?: string | null;
@@ -57,6 +59,7 @@ export function buildConversationDecision(record: DecisionRecord): ConversationD
     steps.push({ id: `${record.message_id}-${steps.length}`, title, description, kind, tone });
   add("Customer message", record.body, "message");
   const events = record.steps ?? [];
+  const failed=record.status==='failed'||['failed','dead'].includes(record.job_status??'');
   const rule = events.find(step => step.label === "pre_generation_escalated");
   const model = events.find(step => step.label === "model_decision");
   const context = events.find(step => step.label === "knowledge_context")?.detail?.sources;
@@ -70,7 +73,8 @@ export function buildConversationDecision(record: DecisionRecord): ConversationD
   if (record.ai_paused && !record.trace_id) {
     add("Assistant paused", "Your team already owns this conversation. This message was saved for staff without another AI reply.", "rule", "attention");
   } else if (!record.trace_id) {
-    add(record.job_status === "pending" || record.job_status === "processing" ? "Processing" : "No decision trace recorded",
+    if(failed)add('Reply processing failed',replyFailure(record.job_failure_code??record.reason_code).detail,'outcome','attention');
+    else add(record.job_status === "pending" || record.job_status === "processing" ? "Processing" : "No decision trace recorded",
       record.job_status === "pending" || record.job_status === "processing" ? "The enquiry is waiting for a decision."
         : "There is no saved decision trace for this message. No model decision is inferred here.", "outcome");
   } else {
@@ -97,14 +101,17 @@ export function buildConversationDecision(record: DecisionRecord): ConversationD
     if (model || record.model_ran) {
       const explanation = typeof model?.detail?.reasonDetail === "string" ? model.detail.reasonDetail : record.reason_detail;
       add("Model decision", explanation ?? `Recorded result: ${humanize(record.reason_code ?? record.status ?? "decision")}. No detailed explanation was saved for this older turn.`,
-        "model", record.status === "escalated" ? "attention" : "success");
+        "model", record.status === "escalated"||failed ? "attention" : "success");
       steps[steps.length - 1].modelLabel = modelLabel(record.model_provider, record.model_name);
     }
     const check = events.find(step => step.label === "self_check_passed" || step.label === "self_check_escalated");
     if (check) add(check.label === "self_check_passed" ? "Reply checks passed" : "Reply checks requested review",
       typeof check.detail?.reasonDetail === "string" ? check.detail.reasonDetail : humanize(String(check.detail?.reasonCode ?? "grounding and policy checks")),
       "check", check.label === "self_check_passed" ? "success" : "attention");
-    add(record.status === "escalated" ? "Team review required" : "Assistant handled enquiry",
+    if(failed){const failure=replyFailure(record.job_failure_code??record.reason_code);
+      add('Reply processing failed',failure.detail+' No completed answer is inferred from this failed attempt.','outcome','attention');
+      steps[steps.length-1].modelLabel=modelLabel(record.model_provider,record.model_name);
+    }else add(record.status === "escalated" ? "Team review required" : "Assistant handled enquiry",
       record.status === "escalated" ? "The conversation was handed to your team. The assistant stays paused until an authorized release."
         : "The assistant recorded a response. Future customer messages can still be handled in this chat.",
       "outcome", record.status === "escalated" ? "attention" : "success");
@@ -119,6 +126,6 @@ export function buildConversationDecision(record: DecisionRecord): ConversationD
       "delivery", record.delivery_status === "sent" ? "success" : "attention");
   }
   return { id: record.message_id, message: record.body, createdAt: new Date(record.created_at).toISOString(),
-    status: record.ai_paused && !record.trace_id ? "With your team" : record.status === "answered" ? "Answered"
+    status: failed?'Reply failed':record.ai_paused && !record.trace_id ? "With your team" : record.status === "answered" ? "Answered"
       : record.status === "escalated" ? "Needs attention" : "Awaiting a decision", steps };
 }

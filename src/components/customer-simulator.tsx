@@ -7,6 +7,8 @@ import { MessageText } from "@/components/message-text";
 import { DEFAULT_DEMO_MODEL, demoModelChoices, type DemoModelChoice, type DemoAiProfile } from "@/lib/llm/demo-models";
 import {DEMO_MESSAGE_QUEUED} from '@/components/demo-queue-pump';
 import {DemoViewSwitch} from '@/components/demo-view-switch';
+import {ServiceStatusLink} from '@/components/service-status';
+import {replyFailure} from '@/lib/reply-failure';
 
 const customerModelChoices = demoModelChoices.filter(option => option.id !== "mock" && option.id !== "configured");
 const messageTime = new Intl.DateTimeFormat('en-SG', {timeZone:'Asia/Singapore',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
@@ -116,6 +118,8 @@ export function CustomerSimulator({feedback}:{feedback?:ReactNode}={}) {
   const deliveryPending = state?.job?.status === "completed" && ["pending", "sending","failed"].includes(state.job.delivery_status ?? "");
   const delayed = processing && Date.parse(state!.now) - Date.parse(state!.job!.created_at) > 120_000;
   const humanOwned = state?.session && state.session.status !== "active";
+  const stopped=state?.job?.status==='dead'||state?.job?.delivery_status==='dead';
+  const failure=replyFailure(state?.providerFailureCode??state?.job?.failure_code);
   const awaitingReply=!!state?.session && !humanOwned && !state.providerError &&
     (sending || ['pending','processing'].includes(state.job?.status??'') || ['pending','sending'].includes(state.job?.delivery_status??''));
   const replyLabel=sending?'Sending your message…':deliveryPending?'Sending reply…':state?.job?.status==='pending'&&!state.job.busy?'Preparing a reply…':'PS.Cafe is replying…';
@@ -126,7 +130,7 @@ export function CustomerSimulator({feedback}:{feedback?:ReactNode}={}) {
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div><p className="text-xs font-semibold uppercase tracking-wide text-accent">Pronto</p>
           <h1 className="text-xl font-semibold">Messages</h1></div>
-        <div className="flex items-center gap-2"><DemoViewSwitch/>{feedback}</div>
+        <div className="flex flex-wrap items-center gap-2"><DemoViewSwitch/><ServiceStatusLink/>{feedback}</div>
       </header>
       <div className="grid gap-4 md:grid-cols-[15rem_minmax(0,1fr)]">
         <aside className="ui-panel min-w-0 space-y-4 p-4">
@@ -179,15 +183,14 @@ export function CustomerSimulator({feedback}:{feedback?:ReactNode}={}) {
             {awaitingReply && <ReplyIndicator label={replyLabel}/>}
             {!humanOwned && state?.job?.status==='pending'&&!state.job.busy && <p className="text-xs text-muted">Your message is saved. You can add another message before we reply.</p>}
             {!humanOwned && delayed && <p role="status" className="text-sm text-muted">Our reply is taking longer than expected. Your message is saved; updates appear automatically.</p>}
-            {!humanOwned && (state?.job?.status === "dead"||state?.job?.delivery_status==='dead') && <div role="alert" className="text-sm text-danger">We couldn’t complete your reply. Your message is saved.
-              <button className="ml-2 underline" disabled={sending} onClick={() => void retryProcessing()}>Try again</button></div>}
             {["failed", "uncertain"].includes(state?.job?.delivery_status ?? "") &&
               <p role="alert" className="text-sm text-danger">Your message is saved, but the reply has not been delivered. Updates appear automatically; ask the business team to review delivery if this continues.</p>}
-            {state?.providerError && <p role="alert" className="text-sm text-danger">{state.providerFailureCode === "quota_exhausted" ? "The AI provider’s quota is exhausted. Ask the demo operator to check the provider account before retrying." :
-                state.providerFailureCode === "authentication" || state.providerFailureCode === "configuration" ? "The assistant configuration needs attention. Ask the demo operator to check it before retrying." :
-                state.job?.status === "failed" ? "The AI provider is temporarily unavailable. Your message is saved and will retry automatically after the recovery delay." :
-                state.providerFailureCode?.includes("budget") ? "This request exceeded the assistant’s processing limit. Try a shorter request in a new conversation." :
-                "The assistant could not complete this request. Your message is saved; you can retry when the provider recovers."}</p>}
+            {(state?.providerError||stopped)&&<div role="alert" className="space-y-2 rounded-lg border border-danger/25 bg-danger-bg p-3 text-sm">
+              <p>{state?.job?.delivery_status==='dead'?'The saved reply could not be delivered.':failure.detail} Your message is saved.</p>
+              <p>{state?.job?.status==='failed'?'This page will retry automatically after the recovery delay.':'The reply is stopped and needs a retry.'}</p>
+              <div className="flex flex-wrap items-center gap-3">{stopped&&!humanOwned&&<button className="font-medium text-accent underline" disabled={sending} onClick={()=>void retryProcessing()}>Try again</button>}
+                <a href="/status" target="_blank" rel="noopener noreferrer" className="text-accent underline">View service status</a></div>
+            </div>}
             {state?.session?.staff_review_pending && !humanOwned && <p className="rounded-md bg-warning-bg p-3 text-sm">Our team will review the questions that need their help. I can still answer other questions about the restaurant.</p>}
             {humanOwned && <div className="rounded-md bg-warning-bg p-3 text-sm">{state?.session?.status === "closed" ? <>
               <p>Our team has resolved this conversation. Start a new conversation if you need anything else.</p>

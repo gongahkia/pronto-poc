@@ -10,6 +10,9 @@ No password is needed. Choose **Guest / customer** to try the chat or
 **Client / business** to open the inbox. Use **Switch demo view** to change sides. Anyone with the link can view/change the
 shared synthetic demo data. The free host may take about a minute to wake up.
 
+Check **[Service status](https://pronto-ai-poc.onrender.com/status)** when replies
+fail. It shows app/database health and the last saved AI result without using AI credits.
+
 ## Run locally
 
 Requirements: **Node 24**, **pnpm 10** and **Docker**.

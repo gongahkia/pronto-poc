@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth";
 import { safeReturnTo, signedInDestination } from "@/lib/auth-navigation";
 import { guestAccessEnabled } from "@/lib/guest-policy";
 import {DEMO_CLIENT_ID} from '@/lib/customer-demo-boundary';
+import {ServiceStatusLink} from '@/components/service-status';
 
 // The guest switch depends on server settings that do not exist at build time, so never prerender this page.
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ export default async function EnterDemoPage({ searchParams }: { searchParams: Pr
           <button type="submit" className="ui-primary-button w-full px-3 py-2 text-sm">Continue to demo</button>
         </form>
         <p className="mt-5 text-xs leading-5 text-muted">Have a team account? <a className="text-accent" href="/login">Sign in instead</a>.</p>
+        <div className="mt-4"><ServiceStatusLink/></div>
       </section>
     </main>
   );
