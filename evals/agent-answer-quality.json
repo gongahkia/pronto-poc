@@ -4,6 +4,22 @@
   "synthetic": true,
   "cases": [
     {
+      "id": "plain-greeting-then-opening-hours",
+      "category": "context",
+      "turns": [
+        {
+          "customer": "hello",
+          "response": { "action": "answer", "answer": "Hi!", "citations": "none" },
+          "expect": { "outcome": "answered", "contains": ["Hi!"], "maxCalls": 1, "minCitations": 0 }
+        },
+        {
+          "customer": "when does the shop open?",
+          "response": { "action": "answer", "answer": "PS.Cafe Raffles City opens at 10:00am daily.", "citations": "all" },
+          "expect": { "outcome": "answered", "contains": ["10:00am"], "minCitations": 1 }
+        }
+      ]
+    },
+    {
       "id": "hours-correct",
       "category": "facts",
       "turns": [

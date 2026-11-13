@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, cleanup, within,act } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, within,act,fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CustomerSimulator } from "@/components/customer-simulator";
 
@@ -12,6 +12,62 @@ const response = (value: unknown, status=200) => Promise.resolve(new Response(JS
 beforeEach(() => { cleanup(); HTMLElement.prototype.scrollIntoView=vi.fn(); });
 
 describe("customer simulator states", () => {
+  it('automatically replaces the typing indicator with the delivered reply and Singapore timestamps',async()=>{
+    vi.useFakeTimers();
+    let snapshot={...state,session:{id,conversation_id:id,ai_mode:'real',status:'active'},job:{status:'processing',created_at:state.now},messages:[] as unknown[]};
+    vi.stubGlobal('fetch',vi.fn((url:string)=>response(url.includes('sessionId')?snapshot:state)));
+    try{
+      render(<CustomerSimulator/>);await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
+      fireEvent.click(screen.getByRole('button',{name:'Conversation 1'}));await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
+      expect(screen.getByRole('status',{name:'PS.Cafe is replying…'})).toBeTruthy();
+      expect(screen.queryByRole('button',{name:'Refresh status'})).toBeNull();
+      snapshot={...snapshot,job:{status:'completed',created_at:state.now},messages:[
+        {id:'customer',sender:'customer',body:'When do you open?',created_at:state.now},
+        {id:'assistant',sender:'business',body:'We open at 10:00am daily.',created_at:state.now},
+        {id:'staff',sender:'human',body:'Our team can help too.',created_at:state.now}]};
+      await act(async()=>{await vi.advanceTimersByTimeAsync(2500);});
+      expect(screen.getByText('We open at 10:00am daily.')).toBeTruthy();
+      expect(screen.queryByRole('status',{name:'PS.Cafe is replying…'})).toBeNull();
+      const times=document.querySelectorAll('time');expect(times).toHaveLength(3);
+      for(const time of times){expect(time.dateTime).toBe(state.now.replace('Z','.000Z'));expect(time.textContent).toMatch(/1:00\s?pm SGT/);}
+      snapshot={...snapshot,messages:[...snapshot.messages,{id:'focus',sender:'human',body:'A new reply while away.',created_at:state.now}]};
+      fireEvent(window,new Event('focus'));await act(async()=>{});
+      expect(screen.getByText('A new reply while away.')).toBeTruthy();
+    }finally{cleanup();vi.useRealTimers();}
+  });
+  it('recovers from a polling failure automatically without retaining a stale error',async()=>{
+    vi.useFakeTimers();vi.stubGlobal('fetch',vi.fn().mockRejectedValueOnce(new Error('Offline')).mockImplementation(()=>response(state)));
+    try{
+      render(<CustomerSimulator/>);await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
+      expect(screen.getByText(/Reconnecting automatically/)).toBeTruthy();
+      await act(async()=>{await vi.advanceTimersByTimeAsync(2500);});
+      expect(screen.queryByText(/Reconnecting automatically/)).toBeNull();
+      expect(screen.getByRole('button',{name:'Conversation 1'})).toBeTruthy();
+    }finally{cleanup();vi.useRealTimers();}
+  });
+  it('loads a different conversation while the previous poll is slow and ignores the late response',async()=>{
+    vi.useFakeTimers();const other='00000000-0000-4000-8000-000000000002';let finish!:(response:Response)=>void;
+    const list={...state,sessions:[state.sessions[0],{...state.sessions[0],id:other,conversation_id:other}]};
+    const selected=(selectedId:string,body:string)=>({...list,session:{id:selectedId,conversation_id:selectedId,status:'active',ai_mode:'real'},messages:[{id:selectedId,sender:'business',body,created_at:state.now}]});
+    vi.stubGlobal('fetch',vi.fn((url:string)=>url.includes(`sessionId=${id}`)?new Promise(resolve=>{finish=resolve;}):response(url.includes('sessionId')?selected(other,'Current conversation'):list)));
+    try{
+      render(<CustomerSimulator/>);await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
+      fireEvent.click(screen.getByRole('button',{name:'Conversation 2'}));await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
+      fireEvent.click(screen.getByRole('button',{name:'Conversation 1'}));await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
+      expect(screen.getByText('Current conversation')).toBeTruthy();
+      await act(async()=>{finish(new Response(JSON.stringify(selected(id,'Late previous conversation'))));});
+      expect(screen.queryByText('Late previous conversation')).toBeNull();
+      expect(screen.getByText('Current conversation')).toBeTruthy();
+    }finally{cleanup();vi.useRealTimers();}
+  });
+  it.each(['escalated','closed'])('does not show assistant typing while a conversation is %s',async status=>{
+    const snapshot={...state,session:{id,conversation_id:id,ai_mode:'real',status},job:{status:'pending',created_at:state.now}};
+    vi.stubGlobal('fetch',vi.fn((url:string)=>response(url.includes('sessionId')?snapshot:state)));
+    render(<CustomerSimulator/>);await userEvent.click(await screen.findByRole('button',{name:'Conversation 1'}));
+    await screen.findByText(status==='closed'?/Our team has resolved/:/Our team is handling/);
+    expect(screen.queryByRole('status',{name:/replying|Preparing a reply/})).toBeNull();
+    if(status==='closed')expect(screen.getByRole('button',{name:'Start a new conversation'})).toBeTruthy();
+  });
   it('allows another message during the pending quiet window and explains the staff review',async()=>{
     const snapshot={...state,session:{id,conversation_id:id,ai_mode:'mock',status:'active',staff_review_pending:true},
       job:{status:'pending',created_at:state.now}};
@@ -93,7 +149,8 @@ describe("customer simulator states", () => {
     vi.stubGlobal("fetch",vi.fn((url:string)=>response(url.includes("sessionId")?snapshot:state)));
     render(<CustomerSimulator/>); await userEvent.click(await screen.findByRole("button",{name:/Conversation 1/}));
     await screen.findByText(/Our team is handling your enquiry/);
-    expect(screen.getByText(/Our reply is taking longer/)).toBeTruthy();
+    expect(screen.queryByText(/Our reply is taking longer/)).toBeNull();
+    expect(screen.getByText(/assistant is paused/)).toBeTruthy();
     expect(screen.getByRole("link",{name:/https:\/\/www.chope.co/}).getAttribute("rel")).toContain("noopener");
     expect(screen.queryByText(/mock response/)).toBeNull();
   });

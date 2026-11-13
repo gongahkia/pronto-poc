@@ -5,6 +5,18 @@ import type { KnowledgeChunk } from "@/lib/types";
 import { reservationClarificationContext, type ReservationModelContext } from "@/lib/reservations/model-context";
 
 describe("post-generation self-check", () => {
+  it.each(['Hi!', 'Hello! 👋', 'Hello there! How can I assist you today?', 'How may I help you?', '您好！', 'Hai!', 'வணக்கம்!'])('accepts a pure social reply using operating context: %s', answer => {
+    expect(evaluatePostGenerationSelfCheck({decision:answerDecision({answer,citedChunkIds:[]}),retrievedChunks:[],
+      operationalContext:'Role: AI assistant. Scope: greet, welcome and thank customers; help with enquiries.'}).passed).toBe(true);
+  });
+  it.each(['Hello! We open at 8am.', 'Hello! Free parking is available.', 'Hello! Your reservation is confirmed.', 'Hello! Visit https://evil.example/pay'])('does not exempt a greeting containing business claims: %s', answer => {
+    expect(evaluatePostGenerationSelfCheck({decision:answerDecision({answer,citedChunkIds:[]}),retrievedChunks:[],
+      operationalContext:'Role: AI assistant. Scope: greet and welcome customers.'}).passed).toBe(false);
+  });
+  it('still requires trusted context and valid citations for social replies',()=>{
+    expect(evaluatePostGenerationSelfCheck({decision:answerDecision({answer:'Hi!',citedChunkIds:[]}),retrievedChunks:[]}).reasonCode).toBe('post_check_missing_citations');
+    expect(evaluatePostGenerationSelfCheck({decision:answerDecision({answer:'Hi!',citedChunkIds:['invented']}),retrievedChunks:[],operationalContext:'Greet customers.'}).reasonCode).toBe('post_check_invalid_citations');
+  });
   it("passes a cited answer grounded in retrieved source text", () => {
     const result = evaluatePostGenerationSelfCheck({
       decision: answerDecision({

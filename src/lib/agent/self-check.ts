@@ -99,7 +99,10 @@ export function evaluatePostGenerationSelfCheck(input: {
   if (unsupported) return failed("post_check_unsupported_fact", unsupported);
   const overlap = sourceOverlapScore(input.decision.answer, citedChunks,
     [input.clarificationContext, input.operationalContext].filter(Boolean).join("\n"));
-  if (overlap < 0.08) {
+  // A pure social reply is grounded in the assistant's operating instructions,
+  // not restaurant facts. Keep this exemption whole-answer and narrowly scoped:
+  // adding a price, policy, URL or other business claim must still fail checks.
+  if (overlap < 0.08 && !(input.operationalContext && isPlainSocialReply(input.decision.answer))) {
     return failed(
       "post_check_low_source_overlap",
       `The answer has low lexical overlap with cited sources (${overlap.toFixed(3)}).`,
@@ -114,6 +117,16 @@ export function evaluatePostGenerationSelfCheck(input: {
       : "The answer cited retrieved source chunks and passed local policy checks.",
     confidence: input.decision.confidence,
   };
+}
+
+function isPlainSocialReply(answer: string): boolean {
+  if (answer.length > 240) return false;
+  const text = answer.normalize('NFKC').toLowerCase()
+    .replace(/[^\p{L}\p{M}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+  const greeting = '(?:hello|hi|hey|good morning|good afternoon|good evening)(?: there)?';
+  const help = 'how (?:can|may) (?:i|we) (?:help|assist)(?: you)?(?: today)?';
+  return new RegExp(`^(?:${greeting}(?: ${help})?|${help}|thank you|thanks|you(?: re| are) welcome)$`).test(text)
+    || /^(?:你好|您好|嗨|哈囉|哈喽|謝謝|谢谢|不客气|不客氣|hai|helo|selamat pagi|selamat petang|selamat malam|terima kasih|sama sama|வணக்கம்|நன்றி)$/.test(text);
 }
 
 function failed(reasonCode: string, reasonDetail: string): PostGenerationSelfCheckResult {

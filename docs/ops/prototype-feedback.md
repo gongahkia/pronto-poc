@@ -1,5 +1,31 @@
 # Reading prototype feedback with Codex
 
+## Customer chat follow-up, 13 November 2026
+
+The hosted decision trace for a plain `hello` showed
+`post_check_low_source_overlap`: a harmless model greeting was compared with
+restaurant source wording, causing a full pause. Subsequent opening-hours
+messages were correctly retained for staff under that pause; they did not
+reach generation. Approved knowledge already contained the 10:00am daily
+opening time. A later staff reply resolved the thread.
+
+The validator now accepts a narrow whole-answer set of pure social replies
+when trusted assistant operating context is present. Citation integrity,
+numeric/URL grounding and mutation checks still run first. A greeting with an
+additional business claim gets no exemption. The 34-case canned-provider
+suite includes `hello` → opening hours through the real SDK, worker and console
+delivery path; this is separate from live Groq acceptance and the earlier
+200-case campaign.
+
+Customer chat polls without a refresh button and refreshes on focus/visibility
+return. A failed poll reconnects automatically without clearing an unsuccessful
+send's retry information. Conversation switching preserves the sidebar and
+ignores late responses from the previous selection. Reply dots distinguish
+queued preparation, processing and delivery, stop on completion or handoff,
+and respect reduced motion. Each delivered customer/assistant/staff message
+shows a Singapore timestamp. Resolved chats offer a direct new-conversation
+action; existing staff-owned or resolved threads are not silently reopened.
+
 ## 13 November 2026 feedback triage
 
 Reviewed the complete `pronto-feedback.json` export dated 13 November: four
