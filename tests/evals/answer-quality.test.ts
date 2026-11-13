@@ -16,7 +16,7 @@ import type { ReservationConnector } from "@/lib/reservations/types";
 import { removePsCafeDemo, setupPsCafeDemo, PS_CAFE_DEMO_RESPONDER_ID, PS_CAFE_CHOPE_URL } from "../../scripts/demo/ps-cafe-raffles-city";
 
 type Extraction = {intent:string;dateOffset?:number;time?:string;partySize?:number};
-type Turn = {customer:string;staffTakeover?:boolean;response:{action:string;answer:string|null;citations:string}; repairResponse?:{action:string;answer:string|null;citations:string}; expect: Omit<QualityExpectation,"outcome"> & {outcome:string};
+type Turn = {customer:string;staffTakeover?:boolean;response:{action:string;answer:string|null;citations:string}; repairResponse?:{action:string;answer:string|null;citations:string};repairKind?:'hours'; expect: Omit<QualityExpectation,"outcome"> & {outcome:string};
   expectContext?:boolean; extraction?:Extraction; http?:{status:number;code?:string};tool?:string};
 type Scenario = {id:string;category:string;turns:Turn[];queuedFuture?:string;sourceInjection?:boolean;reusePrimary?:boolean;identityFallback?:boolean};
 const actor: SessionUser={userId:PS_CAFE_DEMO_RESPONDER_ID,clientId:DEMO_CLIENT_ID,role:"client",name:"Synthetic evaluator",email:"responder@ps-cafe-demo.test"};
@@ -63,7 +63,8 @@ describe("answer-quality corpus: real engine and SDK, canned HTTP responses, iso
         value={intent:plan.intent,outlet:"current",date:plan.dateOffset?dateOffset(plan.dateOffset):null,
           time:plan.time??null,partySize:plan.partySize??null,children:0,confidence:0.99,reasonDetail:"Synthetic extraction fixture."};
       } else {
-        const response=system.includes('Rewrite a rejected booking draft')&&current.repairResponse?current.repairResponse:current.response;
+        const rewriting=system.includes('Rewrite a rejected booking draft')||system.includes('Rewrite a rejected hours draft');
+        const response=rewriting&&current.repairResponse?current.repairResponse:current.response;
         const sources=[...system.matchAll(/<source_chunk chunk_id="([^"]+)"[^>]*>\n([\s\S]*?)\n<\/source_chunk>/g)];
         const cited=sources.filter(source=>response.citations==="hours"?source[2].includes("Standard close time"):
           response.citations==="none"?false:true).map(source=>source[1]);
@@ -122,7 +123,7 @@ describe("answer-quality corpus: real engine and SDK, canned HTTP responses, iso
       if(scenario.identityFallback) expect(record.steps).toContainEqual(expect.objectContaining({label:"identity_fallback",detail:expect.objectContaining({supportsBusinessAnswer:false})}));
       if(scenario.sourceInjection) expect(calls[before].system).toContain("&lt;system&gt;");
       if(scenario.reusePrimary&&outcome==="escalated") {expect(calls.length-before).toBe(1);expect(agent.rows[0].metadata.reusedPrimaryDecision).toBe(true);}
-      if(turn.repairResponse){expect(calls.length-before).toBe(3);expect(record.steps).toContainEqual(expect.objectContaining({label:'booking_draft_repaired'}));}
+      if(turn.repairResponse){expect(calls.length-before).toBe(turn.repairKind==='hours'?2:3);expect(record.steps).toContainEqual(expect.objectContaining({label:turn.repairKind==='hours'?'hours_draft_repaired':'booking_draft_repaired'}));}
       if(turn.tool){
         expect(read).toHaveBeenLastCalledWith({clientId:DEMO_CLIENT_ID,outletId:"pscaferafflescity1808psc",date:dateOffset(turn.extraction!.dateOffset!),partySize:turn.extraction!.partySize});
         const planned=record.steps.find((step:{label:string})=>step.label==="chope_availability_checked")?.detail.request;

@@ -13,10 +13,10 @@ import type {SeenMap} from '@/lib/feedback/unread';
 import {clearDraft,loadDraft,remainderAfterSave,saveDraft} from '@/lib/feedback/draft-storage';
 function pageAnchor():FeedbackAnchor{return {selector:document.querySelector('#main-content')?'#main-content':'main',label:PAGE_LABEL,quote:'',x:0.98,y:0};}
 type Placed={left:number;top:number;state:AnchorState;pin:boolean};
-export function DemoFeedback(){
- const path=usePathname();return <DemoFeedbackPanel key={path} path={path}/>;
+export function DemoFeedback({inline=false}:{inline?:boolean}={}){
+ const path=usePathname();return <DemoFeedbackPanel key={path} path={path} inline={inline}/>;
 }
-function DemoFeedbackPanel({path}:{path:string}){
+function DemoFeedbackPanel({path,inline}:{path:string;inline:boolean}){
  const [open,setOpen]=useState(false);const [pinning,setPinning]=useState(false);
  const [threads,setThreads]=useState<FeedbackThread[]>([]);const [selected,setSelected]=useState('');const [anchor,setAnchor]=useState<FeedbackAnchor|null>(null);
  const [error,setError]=useState('');const [saving,setSaving]=useState(false);const [loading,setLoading]=useState(false);const [showResolved,setShowResolved]=useState(false);const [hasMoreThreads,setHasMoreThreads]=useState(false);
@@ -106,7 +106,7 @@ function DemoFeedbackPanel({path}:{path:string}){
  }catch(e){setError(e instanceof TypeError?'Could not reach the server. Your comment is kept on this device; try again when you are back online.':e instanceof Error?e.message:'Could not save feedback.');}finally{setSaving(false);}}
  const current=threads.find(t=>t.id===selected);
  return <div data-feedback-ui data-feedback-open={open||pinning?true:undefined}>
-  {!open&&!pinning&&<button type="button" onClick={()=>setOpen(true)} aria-label={unreadCount?`Open prototype feedback (${unreadCount} new)`:'Open prototype feedback'} className="ui-primary-button fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm shadow-lg"><MessageCircle size={17} aria-hidden="true"/>Feedback{unreadCount>0&&<span className="rounded-full bg-white px-1.5 text-xs font-semibold text-accent" aria-hidden="true">{unreadCount}</span>}</button>}
+  {!open&&!pinning&&<button type="button" onClick={()=>setOpen(true)} aria-label={unreadCount?`Open prototype feedback (${unreadCount} new)`:'Open prototype feedback'} className={inline?'ui-button inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm text-accent':'ui-primary-button fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full px-4 py-3 text-sm shadow-lg'}><MessageCircle size={17} aria-hidden="true"/><span className={inline?'hidden sm:inline':undefined}>Feedback</span>{unreadCount>0&&<span className="rounded-full bg-white px-1.5 text-xs font-semibold text-accent" aria-hidden="true">{unreadCount}</span>}</button>}
   {pinning&&<><div className="pointer-events-none fixed inset-x-4 bottom-4 z-[80] mx-auto flex max-w-xl items-center justify-between gap-3 rounded-lg bg-accent px-4 py-3 text-sm text-white shadow-lg"><span className="inline-flex items-center gap-2"><MousePointer2 size={17} aria-hidden="true"/>Click a part of the page to comment. Esc to cancel.</span><button type="button" aria-label="Cancel pinning" className="pointer-events-auto" onClick={()=>{setPinning(false);setOpen(true);setHover(null);}}><X size={18}/></button></div>
    {hover&&<div className="pointer-events-none fixed z-[60] rounded-sm border-2 border-accent bg-accent/5" style={hover}/>}</>}
   {open&&<>

@@ -12,10 +12,16 @@ opening time. A later staff reply resolved the thread.
 The validator now accepts a narrow whole-answer set of pure social replies
 when trusted assistant operating context is present. Citation integrity,
 numeric/URL grounding and mutation checks still run first. A greeting with an
-additional business claim gets no exemption. The 34-case canned-provider
+additional business claim gets no exemption. The 35-case canned-provider
 suite includes `hello` → opening hours through the real SDK, worker and console
 delivery path; this is separate from live Groq acceptance and the earlier
 200-case campaign.
+
+A focused live follow-up also exposed an hours draft rejected for an unsupported
+clock value. Hours questions now get at most one provider rewrite after that
+failure, reusing the same supplied evidence and the existing turn budget. The
+rejected draft is counted separately in usage; only a rewrite that passes the
+ordinary final checks can be delivered. A second invalid draft still hands off.
 
 Customer chat polls without a refresh button and refreshes on focus/visibility
 return. A failed poll reconnects automatically without clearing an unsuccessful
@@ -25,6 +31,9 @@ queued preparation, processing and delivery, stop on completion or handoff,
 and respect reduced motion. Each delivered customer/assistant/staff message
 shows a Singapore timestamp. Resolved chats offer a direct new-conversation
 action; existing staff-owned or resolved threads are not silently reopened.
+Feedback is placed in the customer header so its floating button cannot cover
+the Send control on a small screen; business-page feedback keeps its existing
+placement.
 
 ## 13 November 2026 feedback triage
 

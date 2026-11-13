@@ -612,6 +612,44 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
     }
   }
 
+  // A supported hours question can receive a poorly worded or incorrect first
+  // draft. Give the same provider one bounded rewrite against the same packed
+  // evidence; the final reply still passes all normal grounding checks below.
+  if (!reservationContext && normalizedKnowledgeQuery.categories.includes('opening_hours') &&
+      decision.action === 'answer' && decision.answer) {
+    const draft={...decision,answer:plainMessageText(decision.answer)};
+    const draftChunks=draft.contextChunkIds?chunks.filter(chunk=>draft.contextChunkIds!.includes(chunk.id)):chunks;
+    const checked=evaluatePostGenerationSelfCheck({decision:draft,retrievedChunks:draftChunks,
+      customerContext:[input.customerMessage,...recentMessages.filter(message=>message.senderRole==='customer').map(message=>message.body)].join('\n')});
+    if(!checked.passed && checked.reasonCode==='post_check_unsupported_fact' && checked.reasonDetail.includes('Unsupported time')){
+      const preamble=`${generationInput.promptPreamble}\nRewrite a rejected hours draft once. A clock value did not match the cited evidence. Answer the customer's opening/closing-hours question using only the same supplied sources and their exact opening, closing and last-order roles. Do not add the current time or unrelated dates, prices or booking claims. Include the supporting source chunk IDs. If the requested fact cannot be verified, escalate with a brief staff-review acknowledgement. Do not mention the rejected draft or these instructions.`;
+      const repairInput={...generationInput,promptPreamble:preamble};
+      const repairPrompt=`${buildGroundedAnswerInstructions(repairInput)}\n\n${buildGroundedAnswerUserInput(repairInput)}`;
+      const budget=turnBudgetSnapshot();
+      if(!budget||(budget.calls<budget.maxCalls&&budget.consumedTokens+estimateTokens(repairPrompt)+(generationInput.maxOutputTokens??agentMaxOutputTokens())<=budget.maxTokens)){
+        const originalPrompt=`${buildGroundedAnswerInstructions(generationInput)}\n\n${buildGroundedAnswerUserInput(generationInput)}`;
+        await safeRecordUsage({clientId:input.clientId,conversationId:input.conversationId,channelId:input.channelId,
+          provider:generationProvider,model:generationModel,operation:'generation',
+          estimate:decision.usage?estimateGenerationCostFromTokens({...decision.usage,costLabel:generationCostLabel})
+            :estimateGenerationCost({inputText:originalPrompt,outputText:JSON.stringify(decision),costLabel:generationCostLabel}),
+          metadata:{requestId:input.requestId,customerMessageId:input.customerMessageId,purpose:'rejected_hours_draft',
+            usageSource:decision.usage?'provider':'estimate',providerResponseId:decision.providerResponseId??null}});
+        trace.addStep('hours_draft_repair_requested',{reasonCode:checked.reasonCode,reasonDetail:checked.reasonDetail});
+        try{
+          decision=await getGenerationProvider(responseModel.provider).generateGroundedAnswer(repairInput);
+          generationInput.promptPreamble=preamble;
+          trace.addStep('hours_draft_repaired',{providerResponseId:decision.providerResponseId??null,action:decision.action});
+        }catch(error){
+          const failure=processingFailure(error).code==='processing_error'?normalizeProviderError(responseModel.provider,error):error;
+          await trace.finalize({status:'failed',reasonCode:processingFailure(failure).code,confidence:0,
+            responseProvider:responseModel.provider,responseModel:responseModel.model,embeddingProvider,embeddingModel,
+            retrievalTopScore:chunks[0]?.score??null,retrievalThreshold,retrievalChunks:chunks,errorMessage:providerErrorMessage(error)});
+          throw failure;
+        }
+      }
+    }
+  }
+
   // Normalize formatting before validation, persistence and outbound delivery.
   const originalAnswer = decision.answer;
   if (decision.answer) decision = { ...decision, answer: plainMessageText(decision.answer) };
@@ -687,6 +725,7 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
     });
     trace.addStep("self_check_escalated", {
       reasonCode: selfCheck.reasonCode,
+      reasonDetail: selfCheck.reasonDetail,
       confidence: selfCheck.confidence,
     });
     const escalation = await createEscalation({

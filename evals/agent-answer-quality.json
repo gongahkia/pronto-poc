@@ -4,6 +4,17 @@
   "synthetic": true,
   "cases": [
     {
+      "id": "opening-hours-draft-repaired",
+      "category": "recovery",
+      "turns": [{
+        "customer": "when does the shop open?",
+        "response": { "action": "answer", "answer": "PS.Cafe Raffles City opens at 11:00am daily.", "citations": "hours" },
+        "repairResponse": { "action": "answer", "answer": "PS.Cafe Raffles City opens at 10:00am daily.", "citations": "hours" },
+        "repairKind": "hours",
+        "expect": { "outcome": "answered", "contains": ["10:00am"], "excludes": ["11:00am"], "minCitations": 1, "maxCalls": 2 }
+      }]
+    },
+    {
       "id": "plain-greeting-then-opening-hours",
       "category": "context",
       "turns": [
