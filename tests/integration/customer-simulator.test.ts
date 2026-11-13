@@ -33,6 +33,40 @@ dbDescribe("authenticated simulator through the existing durable backend", () =>
   const send = (sessionId: string, text = "What time do you close today?", requestId = randomUUID()) =>
     sendDemoMessage(actor, { sessionId, text, requestId });
 
+  it('keeps a routine issue flagged while answering a supported follow-up, until staff take over', async () => {
+    const session = await createDemoSession(actor, 'mock');
+    const refund = await send(session.id, 'My order has a missing item and I want a refund.');
+    expect(await processInboundJob({jobId:refund.jobId})).toMatchObject({outcome:'escalated'});
+    const review = await getPool().query('select status,owner_action_required from conversations where id=$1',[session.conversationId]);
+    expect(review.rows[0]).toMatchObject({status:'active',owner_action_required:true});
+    const hours = await send(session.id, 'What time do you close?');
+    expect(await processInboundJob({jobId:hours.jobId})).toMatchObject({outcome:'answered'});
+    await flushRetryableOutboundMessages();
+    const inbox = await getFilteredConversations({clientId:DEMO_CLIENT_ID,status:'needs_reply'});
+    expect(inbox.find(row=>row.id===session.conversationId)).toMatchObject({owner_action_required:true,is_resolved:false});
+    expect((await getDemoState(actor,session.id)).messages.some(row=>String(row.body).includes('10:00pm'))).toBe(true);
+    await updateConversationAction({actor,clientId:DEMO_CLIENT_ID,conversationId:session.conversationId,action:'takeover'});
+    const next = await send(session.id, 'Where are you located?');
+    expect(await processInboundJob({jobId:next.jobId})).toMatchObject({outcome:'skipped'});
+  });
+
+  it('waits for a short message burst, preserves ordering and does not extend the wait on replay', async () => {
+    vi.stubEnv('PRONTO_DEMO_REPLY_QUIET_MS','3000');
+    const session=await createDemoSession(actor,'mock');
+    const requestId=randomUUID();
+    const first=await send(session.id,'What time do you close?',requestId);
+    await send(session.id,'Where are you located?');
+    const before=await getPool().query('select id,available_at from inbound_jobs where conversation_id=$1 order by sequence',[session.conversationId]);
+    expect(before.rows).toHaveLength(2);
+    expect(before.rows[0].available_at.getTime()).toBe(before.rows[1].available_at.getTime());
+    expect(await processInboundJob({jobId:first.jobId})).toBeNull();
+    await send(session.id,'What time do you close?',requestId);
+    const replay=await getPool().query('select available_at from inbound_jobs where id=$1',[first.jobId]);
+    expect(replay.rows[0].available_at).toEqual(before.rows[0].available_at);
+    await getPool().query("update inbound_jobs set available_at=now()-interval '1 second' where conversation_id=$1",[session.conversationId]);
+    expect(await processInboundJob({jobId:first.jobId})).toMatchObject({outcome:'answered'});
+  });
+
   it("persists one enquiry and job, retrieves tenant knowledge, delivers locally and appears in the business inbox", async () => {
     const session = await createDemoSession(actor, "mock");
     const requestId = randomUUID();
@@ -103,7 +137,8 @@ dbDescribe("authenticated simulator through the existing durable backend", () =>
     const first = await send(session.id, "What time do you close today?", id);
     await expect(send(session.id, "Changed", id)).rejects.toThrow(/retry/);
     await expect(send(session.id, "x".repeat(4001))).rejects.toThrow(/4000/);
-    await expect(send(session.id)).rejects.toThrow(/still processing/);
+    await getPool().query("update inbound_jobs set status='processing', lease_expires_at=now()+interval '1 minute' where id=$1",[first.jobId]);
+    await expect(send(session.id)).rejects.toThrow(/processing/);
     await getPool().query("update inbound_jobs set status='dead' where id=$1", [first.jobId]);
     await retryDemoProcessing(actor, session.id);
     expect(await processInboundJob({ jobId: first.jobId })).toMatchObject({ outcome: "answered" });
@@ -164,7 +199,7 @@ dbDescribe("authenticated simulator through the existing durable backend", () =>
     const refund = await createDemoSession(actor, "mock"); const refundJob = await send(refund.id, "My order has a missing item and I want a refund.");
     expect(await processInboundJob({ jobId: refundJob.jobId })).toMatchObject({ outcome: "escalated" });
     await flushRetryableOutboundMessages();
-    expect((await getDemoState(actor, refund.id)).session?.status).toBe("escalated");
+    expect((await getDemoState(actor, refund.id)).session?.status).toBe("active");
     expect((await getFilteredConversations({ clientId: DEMO_CLIENT_ID, status: "pending" })).some(row => row.id === refund.conversationId)).toBe(true);
   });
 });

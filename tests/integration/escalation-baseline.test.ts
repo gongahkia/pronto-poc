@@ -45,7 +45,7 @@ dbDescribe("isolated PostgreSQL escalation baseline", () => {
     await getPool().end();
   });
 
-  it("creates a tenant-scoped escalation and marks its conversation escalated", async () => {
+  it("creates a tenant-scoped review and keeps routine follow-ups available", async () => {
     const result = await createEscalation({
       clientId, channelId, conversationId, customerMessageId: messageId,
       customerMessage: "Please cancel my booking",
@@ -63,7 +63,7 @@ dbDescribe("isolated PostgreSQL escalation baseline", () => {
     const conversation = await db.query<{ status: string }>(
       "select status from conversations where id = $1", [conversationId],
     );
-    expect(conversation.rows[0].status).toBe("escalated");
+    expect(conversation.rows[0].status).toBe("active");
   });
 
   it("reuses an escalation for the same customer message without a unique index", async () => {

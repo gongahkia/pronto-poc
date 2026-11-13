@@ -8,7 +8,7 @@ import type { Conversation } from "@/lib/types";
 export async function recordConversationOutcome(clientId: string, conversationId: string,
   outcome: "answered" | "escalated" | "skipped"): Promise<void> {
   await query(`update conversations c set
-    ai_should_respond=(c.status='active' and $3='answered'),
+    ai_should_respond=(c.status='active' and ($3='answered' or exists(select 1 from escalations e where e.client_id=c.client_id and e.conversation_id=c.id and e.status='open' and e.allow_ai_followups))),
     owner_action_required=case when c.status='escalated' then true when c.status='closed' then false else c.owner_action_required end,
     urgency=coalesce(c.urgency, case when exists(select 1 from escalations e
       where e.client_id=$1 and e.conversation_id=c.id and e.reason_code='urgent_or_negative_sentiment')
@@ -26,7 +26,8 @@ export async function updateConversationAction(input: { actor: SessionUser; clie
     const conversation = result.rows[0];
     if (!conversation) throw new DemoError("Conversation not found.", 404);
     if (input.action === "classify") {
-      if (conversation.status === "escalated" && !input.ownerActionRequired)
+      const pending = await db.query("select id from escalations where client_id=$1 and conversation_id=$2 and status in ('open','claimed') limit 1", [input.clientId, conversation.id]);
+      if ((conversation.status === "escalated" || pending.rows.length > 0) && !input.ownerActionRequired)
         throw new DemoError("Resolve the human handoff before clearing owner action.", 409);
       if (conversation.status === "closed" && input.ownerActionRequired)
         throw new DemoError("This conversation is resolved.", 409);

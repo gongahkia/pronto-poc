@@ -58,6 +58,14 @@ describe("ConversationReviewPanel", () => {
     expect(screen.getByText("No conversations yet.")).toBeTruthy();
   });
 
+  it('keeps a staff-review notice visible after an assistant acknowledgement',()=>{
+    render(<ConversationReviewPanel conversation={{...conversation,active_escalation_id:'pending-review'}} messages={[
+      ...messages,{...messages[0],id:'acknowledgement',sender_role:'agent',body:'Our team will review your refund request.'},
+    ]}/>);
+    expect(screen.getByRole('status').textContent).toContain('Needs your reply');
+    expect(screen.getByRole('status').textContent).toContain('Pronto can answer other supported questions');
+  });
+
   it("places replies in chat bubbles without technical generation labels", () => {
     const reply: Message = { ...messages[0], id: "reply_1", sender_role: "agent", body: "Our team is here to help.",
       metadata: { generationMode: "real", responseProvider: "groq", responseModel: "openai/gpt-oss-20b" } };

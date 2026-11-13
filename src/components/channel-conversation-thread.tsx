@@ -32,6 +32,7 @@ export function ChannelConversationThread({
           {conversation.active_escalation_id ? "Needs attention" : conversation.status}
         </Badge>
       </div>
+      {conversation.active_escalation_id && <p role="status" className="border-b border-line bg-warning-bg px-4 py-3 text-sm">Needs your reply. {conversation.status === "active" ? "Pronto can answer other supported questions; this issue stays open for your team." : "AI replies are paused while your team handles this conversation."}</p>}
       <ChatHistory lastMessageId={messages.at(-1)?.id}>
       {messages.length ? (
         <ol className="space-y-4" aria-label="Message history">

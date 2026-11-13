@@ -60,8 +60,9 @@ export async function createDemoSession(actor: SessionUser, mode: AiExecutionMod
 async function ownedSession(actor: SessionUser, id: string, db: Queryable = { query }) {
   if (!uuidPattern.test(id)) throw new DemoError("Conversation not found.", 404);
   const result = await db.query<{ id: string; conversation_id: string; ai_mode: AiExecutionMode; status: string;
-    ai_selection: string; ai_configuration: DemoAiProfile | null }>(
-    `select s.id,s.conversation_id,s.ai_mode,s.ai_selection,s.ai_configuration,c.status from customer_demo_sessions s
+    ai_selection: string; ai_configuration: DemoAiProfile | null; staff_review_pending:boolean }>(
+    `select s.id,s.conversation_id,s.ai_mode,s.ai_selection,s.ai_configuration,c.status,
+     exists(select 1 from escalations e where e.client_id=c.client_id and e.conversation_id=c.id and e.status in ('open','claimed')) as staff_review_pending from customer_demo_sessions s
      join conversations c on c.id=s.conversation_id and c.client_id=s.client_id
      where s.id=$1 and s.client_id=$2 and s.user_id=$3 and c.channel_id=$4 and c.deleted_at is null`,
     [id, DEMO_CLIENT_ID, actor.userId, DEMO_CHANNEL_ID]);
@@ -92,14 +93,21 @@ export async function sendDemoMessage(actor: SessionUser, input: { sessionId: st
         where m.client_id=$1 and s.user_id=$2 and m.sender_role='customer' and m.created_at>now()-interval '1 minute'`,
         [DEMO_CLIENT_ID, actor.userId]);
       if (Number(count.rows[0]?.count ?? 0) >= 10) throw new DemoError("Please wait before sending more demo messages.", 429);
-      const pending = await db.query<{ id: string }>(`select id from inbound_jobs where client_id=$1
-        and conversation_id=$2 and status in ('pending','processing','failed','dead') limit 1`, [DEMO_CLIENT_ID, session.conversation_id]);
-      if (pending.rows[0]) throw new DemoError("Your previous message is still processing.", 409);
+      const pending = await db.query<{ id: string; status:string }>(`select id,status from inbound_jobs where client_id=$1
+        and conversation_id=$2 and status in ('pending','processing','failed','dead')`, [DEMO_CLIENT_ID, session.conversation_id]);
+      if (pending.rows.some(row => row.status !== 'pending') || pending.rows.length >= 5)
+        throw new DemoError("Please wait for the current messages to finish processing.", 409);
     }
-    return ingestInboundMessage({ channelId: DEMO_CHANNEL_ID, channelKind: "console",
+    const ingested = await ingestInboundMessage({ channelId: DEMO_CHANNEL_ID, channelKind: "console",
       externalMessageId: externalId, externalThreadId: session.id, customerHandle: `demo:${actor.userId}`,
       customerName: "Customer", occurredAt: new Date().toISOString(), text: input.text.trim(),
       raw: { synthetic: true } }, db);
+    // Retries must not extend the quiet window or revive failed/dead work.
+    const requestedQuiet = Number(process.env.PRONTO_DEMO_REPLY_QUIET_MS ?? 3000);
+    const quietMs = Number.isFinite(requestedQuiet) ? Math.min(10000, Math.max(0, requestedQuiet)) : 3000;
+    if (!ingested.duplicate) await db.query(`update inbound_jobs set available_at=now()+make_interval(secs => $3::double precision/1000)
+      where client_id=$1 and conversation_id=$2 and status='pending'`, [DEMO_CLIENT_ID, session.conversation_id, quietMs]);
+    return ingested;
   }, { isolationLevel: "serializable", retries: 2 });
 }
 

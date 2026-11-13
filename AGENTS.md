@@ -15,6 +15,13 @@ below were moved from that README so they remain available to coding agents.
 
 ## Current handoff and working boundaries
 
+- November 13 feedback changes routine automated handoffs to issue-scoped review:
+  grounded follow-ups may continue until explicit staff claim/assignment/takeover.
+  Critical safety/privacy, human requests and operational failures still pause.
+  Migration 057 is required; pre-existing handoffs retain their previous pause.
+  See `docs/ops/prototype-feedback.md` for the triage and demo quiet-window scope.
+  Earlier 200-case evidence predates this policy and is not acceptance of it.
+
 - Runtime: Node 24, pnpm 10.33.0, Next.js 16.4.1, PostgreSQL with pgvector.
 - Local OpenAI evaluation: GPT-6 Luna, low reasoning, private `.env.local`.
   Hosted customer-demo model remains Groq `openai/gpt-oss-20b`.

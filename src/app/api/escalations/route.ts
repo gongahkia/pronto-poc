@@ -129,6 +129,7 @@ export async function POST(request: Request) {
 
   if (action === "claim") {
     await transaction(async (client) => {
+      await client.query("update conversations set status='escalated', ai_should_respond=false, owner_action_required=true where id=$1 and client_id=$2", [escalation.conversation_id, escalation.client_id]);
       await client.query(
         "update escalations set status = 'claimed', assigned_to_user_id = $3 where id = $1 and client_id = $2 and status = 'open'",
         [escalation.id, escalation.client_id, user.userId],
@@ -236,7 +237,7 @@ export async function POST(request: Request) {
       }
 
       await client.query(
-        "update conversations set status = 'closed', ai_should_respond=false, owner_action_required=false, last_message_at = now() where id = $1 and client_id = $2",
+        "update conversations c set status=case when exists(select 1 from escalations e where e.client_id=c.client_id and e.conversation_id=c.id and e.status in ('open','claimed')) then 'escalated'::conversation_status else 'closed'::conversation_status end, ai_should_respond=false, owner_action_required=exists(select 1 from escalations e where e.client_id=c.client_id and e.conversation_id=c.id and e.status in ('open','claimed')), last_message_at=now() where c.id=$1 and c.client_id=$2",
         [escalation.conversation_id, escalation.client_id],
       );
       await client.query(

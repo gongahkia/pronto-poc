@@ -49,10 +49,11 @@ export function ConversationTriagePanel({
               <input type="hidden" name="escalationId" value={escalation.id} />
               <input type="hidden" name="returnTo" value={returnTo} />
               <button className="ui-button px-3 py-2">
-                Claim
+                Take over
               </button>
             </form>
           ) : null}
+          {escalation.status === 'open' && canRespond && <p className="text-xs text-muted">Take over to pause Pronto while you write your reply.</p>}
           {escalation.status !== "resolved" && canRespond ? (
             <form action="/api/escalations" method="post" className="flex flex-wrap items-end gap-3">
               <input type="hidden" name="action" value="resolve" />

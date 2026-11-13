@@ -1,3 +1,4 @@
+import { allowsSupportedFollowups } from './handoff-policy';
 import { processingFailure } from "@/lib/agent/processing-error";
 import { businessClock } from "@/lib/agent/business-clock";
 import { requiresStaffFollowUp } from "@/lib/agent/decision-consistency";
@@ -869,6 +870,7 @@ export async function createEscalation(input: {
   handoffReply?: HandoffIntakeReply;
 }): Promise<AgentRunResult> {
   assertTurnActive();
+  const followups = allowsSupportedFollowups(input.reasonCode, input.customerMessage);
   return transaction(async (client) => {
     const customerMessage = await client.query<{ id: string }>(
       "select id from messages where id = $1 and client_id = $2 and conversation_id = $3 for update",
@@ -877,11 +879,12 @@ export async function createEscalation(input: {
     if (!customerMessage.rows[0]) throw new Error("Escalation customer message was not found.");
     assertTurnActive();
     await client.query(
-      `update conversations set status = 'escalated', last_message_at = now(), ai_should_respond=false,
+      `update conversations set status = case when $4 and status='active' then 'active'::conversation_status else 'escalated'::conversation_status end,
+       last_message_at = now(), ai_should_respond=($4 and status='active'),
        owner_action_required=true, urgency=coalesce(urgency,
          case when $3='urgent_or_negative_sentiment' then 'short_term' else 'long_term' end)
        where id = $1 and client_id = $2`,
-      [input.conversationId, input.clientId, input.reasonCode],
+      [input.conversationId, input.clientId, input.reasonCode, followups],
     );
 
     const existing = await client.query<{ id: string }>(
@@ -891,8 +894,8 @@ export async function createEscalation(input: {
     );
     const escalation = existing.rows[0] ? existing : await client.query<{ id: string }>(
       `
-        insert into escalations (client_id, conversation_id, message_id, reason_code, reason_detail, confidence)
-        values ($1, $2, $3, $4, $5, $6)
+        insert into escalations (client_id, conversation_id, message_id, reason_code, reason_detail, confidence, allow_ai_followups)
+        values ($1, $2, $3, $4, $5, $6, $7)
         returning id
       `,
       [
@@ -902,6 +905,7 @@ export async function createEscalation(input: {
         input.reasonCode,
         input.reasonDetail,
         input.confidence,
+        followups,
       ],
     );
 

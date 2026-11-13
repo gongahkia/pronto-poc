@@ -1,5 +1,35 @@
 # Reading prototype feedback with Codex
 
+## 13 November 2026 feedback triage
+
+Reviewed the complete `pronto-feedback.json` export dated 13 November: four
+threads, two open. The inbox-is-client-facing question was already answered by
+Gabriel; the two resolved smoke/test threads need no changes. The remaining
+thread (`dff1856f-22b0-4360-afaf-e11519fb5c5b`) led to these changes:
+
+- Pending staff replies have persistent inbox and conversation indicators,
+  including after an AI acknowledgement. These mean **needs a reply**, not an
+  external provider's read receipt; opening the thread does not clear them.
+- Gabriel selected **answer supported questions while flagging the rest**.
+  New routine automated handoffs keep the issue open while permitting grounded
+  follow-ups. Claiming, assigning or taking over pauses AI, including delivery
+  of already queued answers. Explicit human requests, critical safety/privacy
+  and operational failures retain a full pause. Old handoffs remain unchanged.
+- Routine multi-question prompts may include source-supported answers alongside
+  the staff-review acknowledgement; unsupported facts and transactions remain
+  forbidden. Staff review is never cleared by an AI answer.
+- Customer-demo messages have a three-second quiet window after the latest
+  message and permit up to five pending messages. Processing stays ordered and
+  idempotent; it does not merge future messages into earlier prompts. The window
+  uses persisted job deadlines and survives a process restart. It does not
+  consume external-channel typing events or interrupt inference already started.
+  `PRONTO_DEMO_REPLY_QUIET_MS` can set 0–10000ms; synchronous tests explicitly use
+  zero and dedicated tests cover a nonzero window.
+
+Apply migration **057_issue_scoped_handoffs.sql** before running this revision.
+Only the isolated regression database was migrated during implementation.
+The export and hosted feedback-thread statuses are retained unchanged.
+
 Feedback is stored as structured PostgreSQL records, so Codex can read it directly once its environment has authorized database access. No screenshot transcription or model call is needed to serialize it. Read-only access is sufficient for review; changing a thread's status still uses the existing authenticated application controls.
 
 Open **Feedback → Export workspace feedback** to download JSON, or use the authenticated endpoint:

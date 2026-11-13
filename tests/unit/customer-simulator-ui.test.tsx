@@ -12,6 +12,17 @@ const response = (value: unknown, status=200) => Promise.resolve(new Response(JS
 beforeEach(() => { cleanup(); HTMLElement.prototype.scrollIntoView=vi.fn(); });
 
 describe("customer simulator states", () => {
+  it('allows another message during the pending quiet window and explains the staff review',async()=>{
+    const snapshot={...state,session:{id,conversation_id:id,ai_mode:'mock',status:'active',staff_review_pending:true},
+      job:{status:'pending',created_at:state.now}};
+    vi.stubGlobal('fetch',vi.fn((url:string)=>response(url.includes('sessionId')?snapshot:state)));
+    render(<CustomerSimulator/>);
+    await userEvent.click(await screen.findByRole('button',{name:/Conversation 1/}));
+    await userEvent.type(await screen.findByLabelText('Message PS.Cafe Raffles City'),'And when do you close?');
+    expect((screen.getByRole('button',{name:'Send message'}) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByText(/I can still answer other questions/)).toBeTruthy();
+    expect(screen.getByText(/You can add another message before we reply/)).toBeTruthy();
+  });
   it('lets a slow poll finish instead of repeatedly superseding its response',async()=>{
     vi.useFakeTimers();let finish!:(value:Response)=>void;
     const fetcher=vi.fn().mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;})).mockImplementation(()=>response(state));vi.stubGlobal('fetch',fetcher);

@@ -14,7 +14,7 @@ type State = {
   sessions: { id: string; conversation_id: string; ai_mode: "real" | "mock"; ai_selection: string; ai_configuration: DemoAiProfile | null; created_at: string }[];
   modelChoices: { id: string; available: boolean; detail: string }[];
   realAi: { available: boolean; detail: string; provider?: string; model?: string };
-  session: { id: string; conversation_id: string; ai_mode: "real" | "mock"; ai_selection: string; ai_configuration: DemoAiProfile | null; status: string } | null;
+  session: { id: string; conversation_id: string; ai_mode: "real" | "mock"; ai_selection: string; ai_configuration: DemoAiProfile | null; status: string; staff_review_pending?:boolean } | null;
   messages: { id: string; body: string; sender: string; created_at: string; generation_mode: string | null;
     response_provider: string | null; response_model: string | null }[];
   job: { status: string; created_at: string; delivery_status?: string | null; available_at?: string; failure_code?: string; failure_provider?: string } | null;
@@ -78,7 +78,7 @@ export function CustomerSimulator() {
     retry.current = pending; setSending(true); setError("");
     try {
       await demoRequest("/api/demo/customer", { action: "send", ...pending });
-      window.dispatchEvent(new Event(DEMO_MESSAGE_QUEUED));
+      window.setTimeout(() => window.dispatchEvent(new Event(DEMO_MESSAGE_QUEUED)), 3200);
       retry.current = null; setText(""); await load();
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Send failed. Retry uses the same message ID."); }
     finally { setSending(false); }
@@ -146,7 +146,7 @@ export function CustomerSimulator() {
                 <p className="mb-1 text-xs opacity-75">{message.sender === "customer" ? "You" : message.sender === "human" ? "Our team" : "PS.Cafe assistant"}</p>
                 <p className="whitespace-pre-wrap break-words leading-6"><MessageText text={message.body} fromCustomer={message.sender === "customer"}/></p>
               </div></div>)}
-            {(processing || deliveryPending) && <p role="status" className="text-sm text-muted">{delayed ? "Our reply is taking longer than expected. Your message is saved; please check back shortly." : "PS.Cafe is replying…"}</p>}
+            {(processing || deliveryPending) && <p role="status" className="text-sm text-muted">{state?.job?.status === "pending" ? "Your message is saved. You can add another message before we reply." : delayed ? "Our reply is taking longer than expected. Your message is saved; please check back shortly." : "PS.Cafe is replying…"}</p>}
             {(state?.job?.status === "dead"||state?.job?.delivery_status==='dead') && <div role="alert" className="text-sm text-danger">We couldn’t complete your reply. Your message is saved.
               <button className="ml-2 underline" disabled={sending} onClick={() => void retryProcessing()}>Try again</button></div>}
             {["failed", "uncertain"].includes(state?.job?.delivery_status ?? "") &&
@@ -156,6 +156,7 @@ export function CustomerSimulator() {
                 state.job?.status === "failed" ? "The AI provider is temporarily unavailable. Your message is saved and will retry automatically after the recovery delay." :
                 state.providerFailureCode?.includes("budget") ? "This request exceeded the assistant’s processing limit. Try a shorter request in a new conversation." :
                 "The assistant could not complete this request. Your message is saved; you can retry when the provider recovers."}</p>}
+            {state?.session?.staff_review_pending && !humanOwned && <p className="rounded-md bg-warning-bg p-3 text-sm">Our team will review the questions that need their help. I can still answer other questions about the restaurant.</p>}
             {humanOwned && <p className="rounded-md bg-warning-bg p-3 text-sm">{state?.session?.status === "closed" ? "Our team has resolved this conversation. Start a new conversation if you need anything else." : "Our team is handling your enquiry. You can continue to send messages here."}</p>}
             <div ref={end}/>
           </div>
@@ -165,7 +166,7 @@ export function CustomerSimulator() {
             <label className="sr-only" htmlFor="customer-message">Message PS.Cafe Raffles City</label>
             <textarea id="customer-message" rows={2} maxLength={4000} value={text} onChange={event => setText(event.target.value)}
               disabled={loading || sending || !state?.session || state.session.id !== sessionId || state.session.status === "closed"} placeholder="Message PS.Cafe Raffles City…" className="ui-input min-w-0 flex-1 resize-none rounded-xl px-3 py-2 text-sm"/>
-            <button aria-label="Send message" className="ui-primary-button self-end px-3 py-3" disabled={loading || !text.trim() || sending || !!processing || !state?.session || state.session.id !== sessionId || state.session.status === "closed"}><Send size={18}/></button>
+            <button aria-label="Send message" className="ui-primary-button self-end px-3 py-3" disabled={loading || !text.trim() || sending || (!!processing && state?.job?.status !== "pending") || !state?.session || state.session.id !== sessionId || state.session.status === "closed"}><Send size={18}/></button>
           </form>
           <button onClick={() => { setError(""); void load(); }} className="flex items-center justify-center gap-1 pb-3 text-xs text-muted"><RefreshCw size={12}/>Refresh status</button>
         </section>

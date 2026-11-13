@@ -18,6 +18,9 @@ export async function bulkClaimEscalations(input: {
   if (!ids.length) return { attempted: 0, applied: 0, skipped: [] };
 
   return transaction(async (client) => {
+    await client.query(`select c.id from conversations c where c.client_id=$2 and exists
+      (select 1 from escalations e where e.conversation_id=c.id and e.client_id=c.client_id and e.id=any($1::uuid[]))
+      order by c.id for update`, [ids, input.clientId]);
     const updated = await client.query<{ id: string }>(
       `
         update escalations
@@ -42,6 +45,9 @@ export async function bulkClaimEscalations(input: {
         client,
       );
     }
+    await client.query(`update conversations c set status='escalated', ai_should_respond=false, owner_action_required=true
+      where c.client_id=$2 and exists(select 1 from escalations e where e.client_id=c.client_id and e.conversation_id=c.id
+      and e.id=any($1::uuid[]) and e.status='claimed')`, [ids, input.clientId]);
     const appliedSet = new Set(updated.rows.map((row) => row.id));
     return {
       attempted: ids.length,
@@ -61,6 +67,9 @@ export async function bulkAssignEscalations(input: {
   if (!ids.length) return { attempted: 0, applied: 0, skipped: [] };
 
   return transaction(async (client) => {
+    await client.query(`select c.id from conversations c where c.client_id=$2 and exists
+      (select 1 from escalations e where e.conversation_id=c.id and e.client_id=c.client_id and e.id=any($1::uuid[]))
+      order by c.id for update`, [ids, input.clientId]);
     const assigneeCheck = await client.query<{ id: string }>(
       "select id from users where id = $1 and client_id = $2",
       [input.assigneeUserId, input.clientId],
@@ -101,6 +110,9 @@ export async function bulkAssignEscalations(input: {
         client,
       );
     }
+    await client.query(`update conversations c set status='escalated', ai_should_respond=false, owner_action_required=true
+      where c.client_id=$2 and exists(select 1 from escalations e where e.client_id=c.client_id and e.conversation_id=c.id
+      and e.id=any($1::uuid[]) and e.status='claimed')`, [ids, input.clientId]);
     const appliedSet = new Set(updated.rows.map((row) => row.id));
     return {
       attempted: ids.length,
@@ -134,8 +146,8 @@ export async function bulkResolveEscalations(input: {
     );
     if (updated.rowCount) {
       await client.query(
-        "update conversations set status = 'closed', ai_should_respond=false, owner_action_required=false, last_message_at = now() where id = any($1::uuid[])",
-        [updated.rows.map((row) => row.conversation_id)],
+        "update conversations c set status=case when exists(select 1 from escalations e where e.client_id=c.client_id and e.conversation_id=c.id and e.status in ('open','claimed')) then 'escalated'::conversation_status else 'closed'::conversation_status end, ai_should_respond=false, owner_action_required=exists(select 1 from escalations e where e.client_id=c.client_id and e.conversation_id=c.id and e.status in ('open','claimed')), last_message_at=now() where c.id=any($1::uuid[]) and c.client_id=$2",
+        [updated.rows.map((row) => row.conversation_id), input.clientId],
       );
     }
     for (const row of updated.rows) {

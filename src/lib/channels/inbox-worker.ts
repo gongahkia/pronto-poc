@@ -90,7 +90,7 @@ async function execute(job: InboundJob, requestId?: string,
   const active = await query<{ id: string }>(
     `select c.id from conversations c where c.id = $1 and c.client_id = $2 and c.status = 'active'
       and not exists (select 1 from escalations e where e.conversation_id = c.id and e.client_id = c.client_id
-        and e.status in ('open', 'claimed'))`,
+        and (e.status='claimed' or (e.status='open' and not e.allow_ai_followups)))`,
     [conversation.id, job.client_id],
   );
   if (!active.rows[0]) return "skipped";
@@ -159,7 +159,7 @@ async function queueAnswer(job: InboundJob, conversation: Conversation, answer: 
     );
     if (owner.rows[0]?.status !== "active") return;
     const open = await db.query<{ id: string }>(
-      "select id from escalations where client_id = $1 and conversation_id = $2 and status in ('open', 'claimed') limit 1",
+      "select id from escalations where client_id = $1 and conversation_id = $2 and (status='claimed' or (status='open' and not allow_ai_followups)) limit 1",
       [job.client_id, conversation.id],
     );
     if (open.rows[0]) return;

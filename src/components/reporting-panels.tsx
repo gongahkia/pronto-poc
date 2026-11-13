@@ -108,17 +108,20 @@ export function ConversationList({
         <p className="p-4 text-sm text-muted">{emptyText}</p>
       ) : (
         conversations.map((conversation) => {
-          const resolved = conversation.is_resolved === true;
+          const needsReply = Boolean(conversation.active_escalation_id || conversation.owner_action_required);
+          const resolved = conversation.is_resolved === true && !needsReply;
           return (
           <Link
             key={conversation.id}
             href={hrefForConversation(conversation)}
             data-resolved={resolved}
-            className={`group flex flex-col gap-4 p-4 hover:bg-surface-hover sm:flex-row sm:items-center sm:justify-between ${resolved ? "bg-surface/40" : ""}`}
+            data-needs-reply={needsReply}
+            className={`group flex flex-col gap-4 p-4 hover:bg-surface-hover sm:flex-row sm:items-center sm:justify-between ${needsReply ? "bg-warning-bg/40" : resolved ? "bg-surface/40" : ""}`}
           >
             <div className={`min-w-0 ${resolved ? "opacity-60 group-hover:opacity-100 group-focus-visible:opacity-100" : ""}`}>
               <div className="flex flex-wrap items-center gap-2">
-                <p className="font-medium">
+                <p className={`flex items-center gap-2 ${needsReply ? "font-semibold" : "font-medium"}`}>
+                  {needsReply && <span aria-label="Needs team reply" className="h-2 w-2 shrink-0 rounded-full bg-amber-600"/>}
                   {conversation.customer_name ?? conversation.customer_handle}
                 </p>
                 {showClient ? <Badge>{conversation.client_name}</Badge> : null}
@@ -131,6 +134,7 @@ export function ConversationList({
                 {showClient && conversation.delivery_status && ["failed", "dead", "uncertain"].includes(conversation.delivery_status)
                   ? <Badge tone="red">Delivery {conversation.delivery_status}</Badge> : null}
               </div>
+              {conversation.active_escalation_id && <p className="mt-1 text-xs font-medium text-amber-800">Team reply needed · {conversation.status === "active" ? "Pronto can answer other questions" : "AI paused"}</p>}
               <p className="mt-1 line-clamp-2 text-sm text-muted">
                 {conversation.last_message ? conversation.last_sender_role === "customer" ? conversation.last_message : plainMessageText(conversation.last_message) : "No message yet."}
               </p>

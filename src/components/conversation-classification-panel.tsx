@@ -17,7 +17,7 @@ export function ConversationClassificationPanel({ conversation, canRespond, poli
     </div>
     <p className="text-sm leading-6 text-muted">{resolved ? "This conversation has been resolved."
       : teamOwned ? "A team member needs to review and reply. The assistant is paused."
-      : conversation.owner_action_required ? "Review this conversation when you can. Take over to reply."
+      : conversation.owner_action_required ? "An unanswered question needs your team. Pronto can answer other supported questions until you take over."
       : "No team reply is needed. The assistant will continue answering."}</p>
     {policy?.targetMinutes != null && <p className="mt-2 text-xs text-muted">Team response target: {policy.targetMinutes} minutes.</p>}
     {canRespond && !resolved && <>

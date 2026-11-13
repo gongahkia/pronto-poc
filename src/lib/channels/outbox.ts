@@ -164,7 +164,7 @@ export async function flushOutboundMessage(
           [outbound.conversation_id, outbound.client_id],
         );
         const open = await db.query<{ id: string }>(
-          "select id from escalations where conversation_id = $1 and client_id = $2 and status in ('open', 'claimed') limit 1",
+          "select id from escalations where conversation_id = $1 and client_id = $2 and (status='claimed' or (status='open' and not allow_ai_followups)) limit 1",
           [outbound.conversation_id, outbound.client_id],
         );
         if (conversation.rows[0]?.status !== "active" || open.rows[0]) {

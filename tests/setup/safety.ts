@@ -11,6 +11,8 @@ if (dbEnabled) {
   process.env.DATABASE_URL = "postgres://blocked:blocked@127.0.0.1:1/pronto_test";
 }
 process.env.PRONTO_USE_MOCK_AI = "1";
+// Existing agent tests drive jobs synchronously; quiet-window tests opt in explicitly.
+process.env.PRONTO_DEMO_REPLY_QUIET_MS = "0";
 
 const originalConnect = net.Socket.prototype.connect;
 net.Socket.prototype.connect = function (...args: unknown[]) {
