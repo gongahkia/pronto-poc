@@ -126,6 +126,9 @@ the customer chat. A reported last successful AI reply is historical evidence,
 not a fresh provider availability test. Render's safe commit SHA is shown when
 available. Truncated/malformed provider replies use bounded durable retries;
 wrong model identities, credentials and bad request configuration stay terminal.
+Opening, closing and last-order clock values are separate evidence roles; do
+not let a last-order phrase inherit an earlier opening/closing label. The
+casual-greeting regression includes all three hours in one grounded reply.
 
 [Local OpenAI setup](docs/testing/local-live-evaluations.md) explains private key configuration and the hosted Groq default. The [200-scenario hardening guide](docs/testing/200-scenario-hardening.md) covers real Luna conversations, scoped Chope website checks, repeated trials, calibrated critiques and the cumulative US$5 evaluation budget.
 

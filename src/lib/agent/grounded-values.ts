@@ -85,11 +85,14 @@ function sameValue(claim: Fact, evidence: Fact): boolean {
     /^(SGD|USD):/.test(evidence.value) && claim.value.split(":")[1] === evidence.value.split(":")[1];
 }
 
-function timeRole(text: string, fact: Fact): "open" | "close" | null {
+function timeRole(text: string, fact: Fact): "open" | "close" | "last_order" | null {
   if (fact.kind !== "time" && fact.kind !== "date") return null;
   const before = text.slice(Math.max(0, fact.start - 100), fact.start);
-  const labels = [...before.matchAll(/\b(open(?:s|ed|ing)?|clos(?:e|es|ed|ing)|(?:di)?buka|(?:di)?tutup)\b|开门|開門|关门|關門|闭店|閉店|திறக்கும்|திறக்கிறது|மூடும்|மூடப்படும்/gi)];
+  const labels = [...before.matchAll(/\b(last\s+(?:food\s+)?orders?|open(?:s|ed|ing)?|clos(?:e|es|ed|ing)|(?:di)?buka|(?:di)?tutup)\b|开门|開門|关门|關門|闭店|閉店|திறக்கும்|திறக்கிறது|மூடும்|மூடப்படும்/gi)];
   const last = labels.at(-1);
+  // A last-order value is a separate fact. It must not inherit an earlier
+  // opening/closing label in the same sentence or borrow the closing time.
+  if(last && /^last\s/i.test(last[0]) && !/[.!?\n]/.test(before.slice(last.index!+last[0].length))) return 'last_order';
   const times = extractGroundedValues(text).filter(value => value.kind === "time");
   const index = times.findIndex(value => value.start === fact.start);
   const previous = times[index - 1], next = times[index + 1];

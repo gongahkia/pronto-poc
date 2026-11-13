@@ -9,6 +9,8 @@
       "turns": [
         { "customer": "Hey what's up", "response": { "action": "answer", "answer": "Hey! How can I help you today?", "citations": "none" },
           "expect": { "outcome": "answered", "contains": ["help"], "minCitations": 0, "maxCalls": 1 } },
+        { "customer": "What time does the cafe open?", "response": { "action": "answer", "answer": "We open at 10am and close at 10pm, with last food orders at 9pm.", "citations": "hours" },
+          "expect": { "outcome": "answered", "contains": ["10am", "10pm", "9pm"], "minCitations": 1, "maxCalls": 1 } },
         { "customer": "What time do u close", "response": { "action": "answer", "answer": "We close at 10:00pm daily.", "citations": "hours" },
           "expect": { "outcome": "answered", "contains": ["10:00pm"], "minCitations": 1 } }
       ]
