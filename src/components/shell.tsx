@@ -6,7 +6,7 @@ import type { SessionUser } from "@/lib/auth";
 import { DEMO_CLIENT_ID } from "@/lib/customer-demo-boundary";
 import { PsCafeLogo } from "@/components/ps-cafe-logo";
 import { WorkspaceMenu } from "@/components/workspace-menu";
-import { DemoFeedback } from "@/components/demo-feedback";
+import { PrototypeFeedback } from "@/components/prototype-feedback";
 import { isGuestEmail, guestAccessEnabled } from "@/lib/guest-policy";
 import {DemoViewSwitch} from '@/components/demo-view-switch';
 import {ServiceStatusLink} from '@/components/service-status';
@@ -61,7 +61,7 @@ export function AppShell({ user, children, clientActive = "inbox", workspaceName
         </main>
       </div>
     </div>
-    {psCafe && process.env.PRONTO_CUSTOMER_DEMO_ENABLED === "1" && <DemoFeedback/>}
+    {psCafe && process.env.PRONTO_CUSTOMER_DEMO_ENABLED === "1" && <PrototypeFeedback actor={user}/>}
   </>;
 }
 

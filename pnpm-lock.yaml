@@ -21,6 +21,9 @@ importers:
 
   .:
     dependencies:
+      '@huddle/browser':
+        specifier: file:vendor/huddle-browser-0.1.0.tgz
+        version: file:vendor/huddle-browser-0.1.0.tgz(react@19.2.4)
       '@vercel/functions':
         specifier: ^3.10.3
         version: 3.10.3
@@ -500,6 +503,30 @@ packages:
       '@noble/hashes': ^1.8.0 || ^2.0.0
     peerDependenciesMeta:
       '@noble/hashes':
+        optional: true
+
+  '@huddle/browser@file:vendor/huddle-browser-0.1.0.tgz':
+    resolution: {integrity: sha512-IVWQorC+JYkgiPpfjv6Kyulh/RrBE3jF89ICY6mbkJ8GA1DQqmwqBLVZU4UKNsa8dwZswuGFD8GslC/AqYMnsA==, tarball: file:vendor/huddle-browser-0.1.0.tgz}
+    version: 0.1.0
+    peerDependencies:
+      '@angular/core': '>=20 <23'
+      preact: '>=10 <12'
+      react: '>=18 <20'
+      solid-js: '>=1.8 <2'
+      svelte: '>=4 <6'
+      vue: '>=3.3 <4'
+    peerDependenciesMeta:
+      '@angular/core':
+        optional: true
+      preact:
+        optional: true
+      react:
+        optional: true
+      solid-js:
+        optional: true
+      svelte:
+        optional: true
+      vue:
         optional: true
 
   '@humanfs/core@0.19.2':
@@ -4068,6 +4095,10 @@ snapshots:
       levn: 0.4.1
 
   '@exodus/bytes@1.15.0': {}
+
+  '@huddle/browser@file:vendor/huddle-browser-0.1.0.tgz(react@19.2.4)':
+    optionalDependencies:
+      react: 19.2.4
 
   '@humanfs/core@0.19.2':
     dependencies:

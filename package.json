@@ -58,6 +58,7 @@
     "eval:languages": "node --import tsx scripts/audit-eval-languages.ts"
   },
   "dependencies": {
+    "@huddle/browser": "file:vendor/huddle-browser-0.1.0.tgz",
     "@vercel/functions": "^3.10.3",
     "@xyflow/react": "^12.12.0",
     "lucide-react": "^1.16.0",
