@@ -191,11 +191,10 @@ export function CustomerSimulator({feedback}:{feedback?:ReactNode}={}) {
               <div className="flex flex-wrap items-center gap-3">{stopped&&!humanOwned&&<button className="font-medium text-accent underline" disabled={sending} onClick={()=>void retryProcessing()}>Try again</button>}
                 <a href="/status" target="_blank" rel="noopener noreferrer" className="text-accent underline">View service status</a></div>
             </div>}
-            {state?.session?.staff_review_pending && !humanOwned && <p className="rounded-md bg-warning-bg p-3 text-sm">Our team will review the questions that need their help. I can still answer other questions about the restaurant.</p>}
-            {humanOwned && <div className="rounded-md bg-warning-bg p-3 text-sm">{state?.session?.status === "closed" ? <>
-              <p>Our team has resolved this conversation. Start a new conversation if you need anything else.</p>
-              <button onClick={()=>void start()} disabled={loading||sending||!availability?.available} className="mt-2 font-medium text-accent underline underline-offset-4">Start a new conversation</button>
-            </> : <p>Our team is handling your enquiry, so the assistant is paused. You can continue to send messages here.</p>}</div>}
+            {state?.session?.status==='closed'&&<div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
+              <span>Conversation closed</span>
+              <button onClick={()=>void start()} disabled={loading||sending||!availability?.available} className="font-medium text-accent underline underline-offset-4">Start a new conversation</button>
+            </div>}
             <div ref={end}/>
           </div>
           {refreshError && <p role="status" className="border-t border-line bg-warning-bg p-3 text-sm">Connection interrupted. Reconnecting automatically; your saved messages will appear when the connection returns.</p>}

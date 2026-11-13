@@ -15,6 +15,7 @@ import { requireRealDemoConfiguration, storedDemoProfile } from "@/lib/customer-
 import type { DemoAiProfile } from "@/lib/llm/demo-models";
 import { evaluatePreGenerationGuardrails } from "@/lib/agent/guardrails";
 import { evaluatePostGenerationSelfCheck } from "@/lib/agent/self-check";
+import {hasCommittedHandoff} from '@/lib/agent/handoff-wording';
 import { agentMaxConversationTokens, agentMaxOutputTokens, agentMaxPromptTokens, agentTimeoutMs } from "@/lib/agent/runtime-limits";
 import { buildGroundedAnswerInstructions, buildGroundedAnswerUserInput } from "@/lib/llm/prompt";
 import { estimateEmbeddingCost, estimateGenerationCost, estimateGenerationCostFromTokens, recordAgentUsageEvent } from "@/lib/costing";
@@ -36,8 +37,8 @@ export function handoffReplyFromDecision(input: {
 }): HandoffIntakeReply | null {
   const decision = { ...input.decision, answer: input.decision.answer ? plainMessageText(input.decision.answer) : null };
   const check = evaluatePostGenerationSelfCheck({ decision: { ...decision, action: "answer" }, retrievedChunks: input.chunks,
-    clarificationContext: `${input.customerMessage}\nOur team will review this enquiry. The assistant is paused.`, requireQuestion: false });
-  if (decision.action !== "escalate" || !decision.answer?.trim() || !check.passed || (!input.askForDetails && /[?？]/.test(decision.answer))) return null;
+    clarificationContext: `${input.customerMessage}\nOur team will help, assist with and review this enquiry.`, requireQuestion: false });
+  if (decision.action !== "escalate" || !decision.answer?.trim() || !hasCommittedHandoff(decision.answer) || !check.passed || (!input.askForDetails && /[?？]/.test(decision.answer))) return null;
   // Acknowledgement reuse cannot promise a mutation or approval on staff's behalf.
   if (/\b(?:i|we)(?:['’]ll|\s+(?:will|shall|can))\s+(?:now\s+)?(?:refund|book|reserve|cancel|modify|approve|issue\s+(?:you\s+)?(?:a\s+)?refund|process\s+(?:(?:your|the|a)\s+)?(?:refund|payment|booking|reservation|order))\b/i.test(decision.answer) ||
       /\b(?:refund|payment|booking|reservation|order)\s+(?:will|shall)\s+be\s+(?:approved|processed|confirmed|cancelled|canceled|changed|modified)\b/i.test(decision.answer)) return null;
@@ -50,8 +51,8 @@ export function handoffReplyFromDecision(input: {
       version: chunk.metadata.sourceVersion ?? null, contentHash: chunk.metadata.sourceContentHash ?? null })) } };
 }
 
-// Generate one acknowledgement/intake question for the handoff. Ownership stays
-// with staff; later customer details are saved without restarting the assistant.
+// Generate one committed acknowledgement and optional useful detail question.
+// The persisted escalation policy determines whether other questions can continue.
 export async function generateHandoffIntake(input: {
   channel: Channel; conversation: Conversation; escalation: Escalation; customerMessageId: string;
 }): Promise<HandoffIntakeReply | null> {

@@ -80,8 +80,8 @@ test("customer and owner share a durable conversation, independent triage, takeo
   await expect(page.getByLabel("Message history").getByText("PS.Cafe assistant",{exact:true})).toBeVisible();
   const state=await(await page.request.get("/api/demo/customer")).json();
   const conversationId=state.sessions[0].conversation_id;
-  const owner=await page.context().newPage(); await owner.goto("/demo/customer");
-  await owner.getByRole("link", { name: "Open business inbox", exact: true }).click();
+  const owner=await page.context().newPage(); await owner.goto("/demo");
+  await owner.getByRole("link", { name: /Client \/ business/ }).click();
   await expect(owner).toHaveURL(/\/client\/inbox$/);
   await expect(owner.getByRole("heading", { name: "Inbox", exact: true })).toBeVisible();
   await expect(owner.getByTestId("workspace-loading")).toHaveCount(0);
@@ -95,8 +95,9 @@ test("customer and owner share a durable conversation, independent triage, takeo
   await expect(owner.getByText("Assistant is handling this",{exact:true})).toBeVisible();
   await owner.getByRole("button",{name:"Take over and reply",exact:true}).click();
   await expect(owner.getByText("Your team is handling this",{exact:true})).toBeVisible();
-  await page.bringToFront(); await page.getByRole("button",{name:"Refresh status",exact:true}).click();
-  await expect(page.getByText(/Our team is handling your enquiry/)).toBeVisible();
+  await page.bringToFront();
+  await expect(input).toBeEnabled();
+  await expect(page.getByText(/assistant is paused/)).toHaveCount(0);
   await input.fill("Please have a team member reply."); await page.getByRole("button",{name:"Send message",exact:true}).click();
   await expect.poll(async()=>{
     const jobs=await getPool().query("select status from inbound_jobs where client_id=$1 and conversation_id=$2 order by sequence desc limit 1",[PS_CAFE_DEMO_CLIENT_ID,conversationId]);
@@ -107,18 +108,18 @@ test("customer and owner share a durable conversation, independent triage, takeo
   await owner.getByPlaceholder("Write the reply the customer will receive").fill("Our team will help with your request.");
   await owner.getByRole("button",{name:"Send reply and resolve",exact:true}).click();
   await expect(owner.getByRole("button",{name:"Release conversation to AI",exact:true})).toBeVisible();
-  await page.bringToFront(); await page.getByRole("button",{name:"Refresh status",exact:true}).click();
+  await page.bringToFront();
   await expect(page.getByLabel("Message history")).toContainText("Our team will help with your request.");
   await expect(input).toBeDisabled();
   await owner.bringToFront(); await owner.getByRole("button",{name:"Release conversation to AI",exact:true}).click();
-  await page.bringToFront(); await page.getByRole("button",{name:"Refresh status",exact:true}).click();
+  await page.bringToFront();
   await expect(input).toBeEnabled();
   await input.fill("What time do you close tomorrow?"); await page.getByRole("button",{name:"Send message",exact:true}).click();
   await expect(page.getByLabel("Message history").getByText("PS.Cafe assistant",{exact:true})).toHaveCount(2,{timeout:25000});
   await startRealConversation(page);
   await expect(input).toBeEnabled();
   await input.fill("My order has a missing item and I want a refund."); await page.getByRole("button",{name:"Send message",exact:true}).click();
-  await expect(page.getByText(/Our team will review the questions/)).toBeVisible({timeout:25000});
+  await expect(page.getByLabel("Message history")).toContainText("I can still help with other questions",{timeout:25000});
   await expect(page.getByLabel("Message history")).not.toContainText("10:00pm");
   await owner.close();
 });

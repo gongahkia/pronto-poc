@@ -64,13 +64,15 @@ describe("customer simulator states", () => {
     const snapshot={...state,session:{id,conversation_id:id,ai_mode:'real',status},job:{status:'pending',created_at:state.now}};
     vi.stubGlobal('fetch',vi.fn((url:string)=>response(url.includes('sessionId')?snapshot:state)));
     render(<CustomerSimulator/>);await userEvent.click(await screen.findByRole('button',{name:'Conversation 1'}));
-    await screen.findByText(status==='closed'?/Our team has resolved/:/Our team is handling/);
+    if(status==='closed')await screen.findByText('Conversation closed');
+    else await waitFor(()=>expect((screen.getByLabelText('Message PS.Cafe Raffles City') as HTMLTextAreaElement).disabled).toBe(false));
+    expect(screen.queryByText(/assistant is paused/)).toBeNull();
     expect(screen.queryByRole('status',{name:/replying|Preparing a reply/})).toBeNull();
     if(status==='closed')expect(screen.getByRole('button',{name:'Start a new conversation'})).toBeTruthy();
   });
-  it('allows another message during the pending quiet window and explains the staff review',async()=>{
+  it('keeps staff-review guidance in delivered messages while allowing another question',async()=>{
     const snapshot={...state,session:{id,conversation_id:id,ai_mode:'mock',status:'active',staff_review_pending:true},
-      job:{status:'pending',created_at:state.now}};
+      job:{status:'pending',created_at:state.now},messages:[{id:'handoff',sender:'business',body:'Our team will help with this. I can still help with other questions.',created_at:state.now}]};
     vi.stubGlobal('fetch',vi.fn((url:string)=>response(url.includes('sessionId')?snapshot:state)));
     render(<CustomerSimulator/>);
     await userEvent.click(await screen.findByRole('button',{name:/Conversation 1/}));
@@ -78,7 +80,8 @@ describe("customer simulator states", () => {
     await waitFor(()=>expect(input.disabled).toBe(false));
     await userEvent.type(input,'And when do you close?');
     expect((screen.getByRole('button',{name:'Send message'}) as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.getByText(/I can still answer other questions/)).toBeTruthy();
+    expect(screen.getByText(/Our team will help with this/)).toBeTruthy();
+    expect(screen.queryByText(/Our team will review the questions that need their help/)).toBeNull();
     expect(screen.getByText(/You can add another message before we reply/)).toBeTruthy();
   });
   it('lets a slow poll finish instead of repeatedly superseding its response',async()=>{
@@ -141,16 +144,16 @@ describe("customer simulator states", () => {
     await screen.findByText("Network interrupted"); await userEvent.click(screen.getByRole("button",{name:/^Retry$/}));
     await waitFor(()=>expect(sent).toHaveLength(2)); expect(sent[1].requestId).toBe(sent[0].requestId);
   });
-  it("renders delivered replies, booking links, a slow queue and explicit human ownership", async () => {
+  it("renders delivered replies and booking links without a separate handoff narrative", async () => {
     const snapshot={...state,session:{id,conversation_id:id,ai_mode:"mock",status:"escalated"},
       job:{status:"processing",created_at:"2026-10-25T04:00:00Z"},messages:[
         {id:"customer",body:"Can I book?",sender:"customer",created_at:state.now,generation_mode:null},
         {id:"business",body:"Please check https://www.chope.co/singapore-restaurants/restaurant/ps-cafe-raffles-city",sender:"business",created_at:state.now,generation_mode:"mock"}]};
     vi.stubGlobal("fetch",vi.fn((url:string)=>response(url.includes("sessionId")?snapshot:state)));
     render(<CustomerSimulator/>); await userEvent.click(await screen.findByRole("button",{name:/Conversation 1/}));
-    await screen.findByText(/Our team is handling your enquiry/);
+    await screen.findByRole('link',{name:/https:\/\/www.chope.co/});
     expect(screen.queryByText(/Our reply is taking longer/)).toBeNull();
-    expect(screen.getByText(/assistant is paused/)).toBeTruthy();
+    expect(screen.queryByText(/assistant is paused/)).toBeNull();
     expect(screen.getByRole("link",{name:/https:\/\/www.chope.co/}).getAttribute("rel")).toContain("noopener");
     expect(screen.queryByText(/mock response/)).toBeNull();
   });

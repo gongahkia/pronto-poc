@@ -17,6 +17,7 @@ import { LlmConfigurationError } from "@/lib/llm/errors";
 import { protectedDemoDeployment } from "@/lib/deployment-profile";
 import { recordConversationOutcome } from "@/lib/conversation-actions";
 import { generateHandoffIntake } from "@/lib/agent/handoff-intake";
+import {handoffFollowupNotice} from '@/lib/agent/handoff-wording';
 import { shouldUseMockAi } from "@/lib/env";
 import { withAgentTurn, assertTurnActive } from "@/lib/agent/turn-budget";
 
@@ -201,13 +202,30 @@ async function queueHandoff(
   await transaction(async (db) => {
     assertTurnActive();
     if (body) {
+      // Serialize with takeover/claim and read the current review policy, not
+      // the conversation snapshot taken before inference. This exact body is
+      // saved and queued for every channel, including the customer simulator.
+      const ownership=await db.query<{status:string;review_status:string;allow_ai_followups:boolean;blocked:boolean}>(
+        `select c.status,e.status as review_status,e.allow_ai_followups,
+          exists(select 1 from escalations blocked where blocked.client_id=c.client_id and blocked.conversation_id=c.id
+            and (blocked.status='claimed' or (blocked.status='open' and not blocked.allow_ai_followups))) as blocked
+         from conversations c join escalations e on e.client_id=c.client_id and e.conversation_id=c.id and e.id=$3
+         where c.id=$1 and c.client_id=$2 for update of c`,[conversation.id,job.client_id,escalation.id]);
+      const owner=ownership.rows[0];
+      const previous=await db.query<{body:string}>(`select body from outbound_messages where client_id=$1 and idempotency_key=$2`,
+        [job.client_id,`escalation-holding:${escalation.id}`]);
+      const notice=!previous.rows[0]&&owner?.status==='active'&&owner.review_status==='open'&&owner.allow_ai_followups&&!owner.blocked
+        ? handoffFollowupNotice(body):null;
+      // A retry must not rewrite a reply that has already been queued/sent.
+      const deliveredBody=previous.rows[0]?.body??(notice&&!body.trimEnd().endsWith(notice)?`${body}\n\n${notice}`:body);
       const recorded = await db.query<Message>(
         `insert into messages (conversation_id, client_id, channel_id, external_message_id, sender_role, body, metadata)
          values ($1, $2, $3, $4, 'agent', $5, $6)
-         on conflict (channel_id, external_message_id) do update set external_message_id=excluded.external_message_id
+         on conflict (channel_id, external_message_id) do update set body=excluded.body,metadata=messages.metadata||excluded.metadata
          returning *`,
-        [conversation.id, job.client_id, channel.id, `agent-handoff-${escalation.id}`, body,
-          { ...intake?.metadata, escalationId: escalation.id, customerMessageId: job.message_id, policy: "escalation_holding_reply" }],
+        [conversation.id, job.client_id, channel.id, `agent-handoff-${escalation.id}`, deliveredBody,
+          { ...intake?.metadata, escalationId: escalation.id, customerMessageId: job.message_id, policy: "escalation_holding_reply",
+            ...(notice?{handoffFollowupNotice:notice,handoffFollowupNoticeSource:'delivery_policy'}:{}) }],
       );
       await enqueueOutboundMessage(db, {
         clientId: job.client_id, channelId: channel.id, conversationId: conversation.id,

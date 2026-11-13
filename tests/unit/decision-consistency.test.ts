@@ -24,6 +24,10 @@ describe("staff follow-up ownership", () => {
     expect(requiresStaffFollowUp(decision("We have vegetarian options. Ask our team about ingredients."))).toBe(false);
     expect(requiresStaffFollowUp(decision("I cannot verify availability; check and confirm on Chope."), true)).toBe(false);
   });
+  it.each(['Our team will help with this enquiry.','我们的团队会协助您跟进。','Pasukan kami akan membantu anda.','எங்கள் குழு உங்களுக்கு உதவும்.'])(
+    'creates real staff review when an answer promises it: %s',answer=>{
+      expect(requiresStaffFollowUp(decision(answer))).toBe(true);
+    });
   it("does not let booking context exempt a simultaneous unknown price",()=>{
     expect(requiresStaffFollowUp({...decision('The cake price is not verified. Please check Chope for your table.'),reasonCode:'price_unverified'},true)).toBe(true);
     expect(requiresStaffFollowUp({...decision('价格尚未核实。'),reasonCode:'price_unverified'},true)).toBe(true);

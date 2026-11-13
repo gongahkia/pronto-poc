@@ -4,6 +4,26 @@
   "synthetic": true,
   "cases": [
     {
+      "id":"halal-handoff-then-hours","category":"handoff","reusePrimary":true,
+      "turns":[
+        {"customer":"My friend only eats halal food, can you accommodate that?",
+         "response":{"action":"escalate","answer":"Our team will help you check halal options.","citations":"none"},
+         "expect":{"outcome":"escalated","reason":"dietary_unverified","handoffMode":"review","contains":["Our team will help","I can still help"],"excludes":["Could our team"],"maxCalls":1}},
+        {"customer":"What time does the cafe close?","response":{"action":"answer","answer":"We close at 10:00pm daily.","citations":"hours"},
+         "expect":{"outcome":"answered","contains":["10:00pm"],"minCitations":1}}
+      ]
+    },
+    {
+      "id":"handoff-permission-offer-repaired","category":"handoff",
+      "turns":[{"customer":"Can you accommodate halal food?","response":{"action":"escalate","answer":"Could our team help you with halal options?","citations":"none"},
+        "expect":{"outcome":"escalated","reason":"dietary_unverified","handoffMode":"review","contains":["Our team will review","I can still help"],"excludes":["Could our team"],"maxCalls":2}}]
+    },
+    {
+      "id":"handoff-retry-after-takeover","category":"handoff","reusePrimary":true,"retryAfterTakeover":true,
+      "turns":[{"customer":"I want a refund for my coffee.","response":{"action":"escalate","answer":"Our team will review this enquiry.","citations":"none"},
+        "expect":{"outcome":"escalated","reason":"complaint_or_refund","handoffMode":"review","contains":["Our team will review","I can still help"],"maxCalls":1}}]
+    },
+    {
       "id": "casual-greeting-then-closing",
       "category": "context",
       "turns": [

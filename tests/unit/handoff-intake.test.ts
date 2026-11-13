@@ -18,7 +18,7 @@ const input = { channel: { id: "channel", client_id: "tenant", kind: "whatsapp",
   customerMessageId: "customer" };
 const source = { id: "chunk", source_id: "source", client_id: "tenant", content: "For order enquiries, our team uses the receipt reference and missing item details to review the issue.",
   chunk_index: 0, token_estimate: 30, score: 0.9, metadata: {} };
-const question = "Our team can review this. Could you share your receipt reference and which item was missing?";
+const question = "Our team will review this. Could you share your receipt reference and which item was missing?";
 const profile = { mode: "real" as const, provider: "groq", model: "openai/gpt-oss-20b", embeddingProvider: "none", embeddingModel: "none", retrievalMode: "local_text" as const };
 const run = () => withAiExecutionProfile(profile, () => generateHandoffIntake(input));
 
@@ -68,9 +68,9 @@ describe("model-driven handoff intake", () => {
   });
 
   it("allows an optional question grounded in the customer's issue without inventing policy citations", async () => {
-    mocks.generate.mockResolvedValue({ action: "escalate", answer: "Could you share your order reference and which item was missing?",
+    mocks.generate.mockResolvedValue({ action: "escalate", answer: "Our team will help. Could you share your order reference and which item was missing?",
       confidence: 0.9, reasonCode: "intake", reasonDetail: "Optional context for staff.", citedChunkIds: [] });
-    expect(await run()).toMatchObject({ body: "Could you share your order reference and which item was missing?",
+    expect(await run()).toMatchObject({ body: "Our team will help. Could you share your order reference and which item was missing?",
       metadata: { citedChunkIds: [], intakeContextChunkIds: [source.id] } });
   });
 
@@ -105,6 +105,13 @@ describe("model-driven handoff intake", () => {
       confidence: 0.9, citedChunkIds: [], providerResponseId: "acknowledgement" });
     expect(await run()).toMatchObject({ body: "Our team will review this enquiry.", metadata: { generationMode: "real" } });
   });
+  it.each(['Could our team help you with halal options?','Would you like me to pass this to our team?','Could you share your order reference?'])(
+    'repairs a permission offer or missing staff commitment: %s',async answer=>{
+      mocks.generate.mockResolvedValueOnce({action:'escalate',answer,confidence:0.9,citedChunkIds:[]})
+        .mockResolvedValueOnce({action:'escalate',answer:'Our team will help with this enquiry.',confidence:0.9,citedChunkIds:[]});
+      expect(await run()).toMatchObject({body:'Our team will help with this enquiry.'});
+      expect(mocks.generate).toHaveBeenCalledTimes(2);
+    });
 
   it("returns no generated reply without retrying a failed model", async () => {
     mocks.generate.mockRejectedValue(new Error("Provider unavailable"));

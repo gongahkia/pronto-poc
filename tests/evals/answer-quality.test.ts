@@ -18,7 +18,7 @@ import { removePsCafeDemo, setupPsCafeDemo, PS_CAFE_DEMO_RESPONDER_ID, PS_CAFE_C
 type Extraction = {intent:string;dateOffset?:number;time?:string;partySize?:number};
 type Turn = {customer:string;staffTakeover?:boolean;finishReason?:'length';expectJobStatus?:'failed'|'dead';response:{action:string;answer:string|null;citations:string}; repairResponse?:{action:string;answer:string|null;citations:string};repairKind?:'hours'; expect: Omit<QualityExpectation,"outcome"> & {outcome:string};
   expectContext?:boolean; extraction?:Extraction; http?:{status:number;code?:string};tool?:string};
-type Scenario = {id:string;category:string;turns:Turn[];queuedFuture?:string;sourceInjection?:boolean;reusePrimary?:boolean;identityFallback?:boolean};
+type Scenario = {id:string;category:string;turns:Turn[];queuedFuture?:string;sourceInjection?:boolean;reusePrimary?:boolean;identityFallback?:boolean;retryAfterTakeover?:boolean};
 const actor: SessionUser={userId:PS_CAFE_DEMO_RESPONDER_ID,clientId:DEMO_CLIENT_ID,role:"client",name:"Synthetic evaluator",email:"responder@ps-cafe-demo.test"};
 const scenarios=corpus.cases as Scenario[];
 const dateOffset=(offset:number)=>{
@@ -123,6 +123,27 @@ describe("answer-quality corpus: real engine and SDK, canned HTTP responses, iso
       if(scenario.identityFallback) expect(record.steps).toContainEqual(expect.objectContaining({label:"identity_fallback",detail:expect.objectContaining({supportsBusinessAnswer:false})}));
       if(scenario.sourceInjection) expect(calls[before].system).toContain("&lt;system&gt;");
       if(scenario.reusePrimary&&outcome==="escalated") {expect(calls.length-before).toBe(1);expect(agent.rows[0].metadata.reusedPrimaryDecision).toBe(true);}
+      if(outcome==='escalated'&&agent.rows.length){
+        // The customer simulator and external channels receive this same saved
+        // body. Workflow explanation must not depend on a demo-only banner.
+        expect(outbound.rows).toHaveLength(1);
+        expect(outbound.rows[0].body).toBe(agent.rows[0].body);
+        if(ownership.rows[0].status==='active'){
+          expect(agent.rows[0].metadata.handoffFollowupNoticeSource).toBe('delivery_policy');
+          expect(outbound.rows[0].body).toContain(agent.rows[0].metadata.handoffFollowupNotice);
+        }else expect(agent.rows[0].metadata.handoffFollowupNotice).toBeUndefined();
+      }
+      if(scenario.retryAfterTakeover&&outcome==='escalated'){
+        const priorCalls=calls.length;
+        await updateConversationAction({actor,clientId:DEMO_CLIENT_ID,conversationId:session.conversationId,action:'takeover'});
+        await getPool().query("update inbound_jobs set status='pending',available_at=now(),attempt_count=0 where client_id=$1 and id=$2",[DEMO_CLIENT_ID,job.jobId]);
+        expect((await processInboundJob({jobId:job.jobId}))?.outcome).toBe('escalated');
+        const saved=await getPool().query("select body,metadata from messages where client_id=$1 and metadata->>'customerMessageId'=$2 and sender_role='agent'",[DEMO_CLIENT_ID,job.messageId]);
+        const queued=await getPool().query("select body from outbound_messages where client_id=$1 and metadata->>'customerMessageId'=$2",[DEMO_CLIENT_ID,job.messageId]);
+        expect(saved.rows).toHaveLength(1);expect(queued.rows).toHaveLength(1);
+        expect(saved.rows[0].body).toBe(agent.rows[0].body);expect(queued.rows[0].body).toBe(agent.rows[0].body);
+        expect(saved.rows[0].metadata.generationMode).toBe('real');expect(calls.length).toBe(priorCalls);
+      }
       if(turn.repairResponse){expect(calls.length-before).toBe(turn.repairKind==='hours'?2:3);expect(record.steps).toContainEqual(expect.objectContaining({label:turn.repairKind==='hours'?'hours_draft_repaired':'booking_draft_repaired'}));}
       if(turn.tool){
         expect(read).toHaveBeenLastCalledWith({clientId:DEMO_CLIENT_ID,outletId:"pscaferafflescity1808psc",date:dateOffset(turn.extraction!.dateOffset!),partySize:turn.extraction!.partySize});

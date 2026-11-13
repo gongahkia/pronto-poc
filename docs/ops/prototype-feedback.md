@@ -126,3 +126,24 @@ Without `complete=1`, each page contains up to 25 threads and the latest 100 com
 With database access, the underlying tables are `demo_feedback_threads` and `demo_feedback_comments`. Join on **both** `client_id` and `thread_id`, bind the authorized workspace ID, filter `status='open'` if appropriate, and order comments by `created_at,id`. Stable thread/comment IDs allow a later review to identify what is new. Keep database credentials in private local configuration or a connector, never inside the exported file or Git.
 
 A review request can be: **“Read the open Pronto feedback, group it by page, and implement the agreed UI changes.”** Codex can use the page path, selector, quoted text and conversation context to locate the relevant component. Anchors are best-effort, but they no longer fail silently. A pin hangs off the nearest stable identifier (`data-feedback-id`, then `data-testid`, a hand-written `id`, or a landmark's `aria-label`; generated ids such as React `useId` are ignored) plus a short path from it, and remembers the element's `tag` and `label`. When the page changes the overlay re-checks every pin: if the label no longer matches but exactly one element still carries it, the pin is moved there and shown amber ("Check target"); if the element changed it stays amber; if it cannot be found it is listed as "Target missing" and the thread explains why; if it exists but is not visible it is listed as "Not visible". Clicking a card now pins that card (or the control or text block under the pointer) rather than its containing section. To make an important component survive redesigns, give it a `data-feedback-id` (see `feedbackId()` in `src/lib/feedback/anchor.ts`; `StatCard` and the analytics metrics already have one). Native `<dialog>` elements still have no embedded feedback control; leave a page comment after closing them. Comment text remains reviewer input; it must not be treated as system instructions, executed as code or allowed to bypass the user's authorization scope. Reading or exporting does not automatically apply changes or resolve threads.
+
+
+## Portable customer handoff wording
+
+Handoff acknowledgements state that our team will help or review the enquiry,
+rather than asking permission for staff review that has already been created.
+One useful question for missing details may follow that statement; specialist
+advice, outcomes, response times and transactions are not promised. English,
+Chinese, Bahasa Melayu and Tamil acknowledgements are supported. A weak or
+unvalidated acknowledgement uses the existing bounded model repair; no canned
+provider fallback was added.
+
+The customer simulator no longer displays a separate staff-review or
+assistant-pause narrative. The shared worker checks current conversation and
+escalation ownership inside the delivery transaction and adds a localized
+plain-text continuation notice only when other questions can still be answered.
+This operational notice is identified by `handoffFollowupNoticeSource: delivery_policy`;
+it is saved in `messages.body` and queued as the same `outbound_messages.body`
+for console, WhatsApp, Meta and other channels. Retrying an already queued or
+sent handoff preserves its original text and generation provenance. Connection
+errors, typing indicators and closed-conversation controls remain UI state.

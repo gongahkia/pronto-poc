@@ -1,4 +1,5 @@
 import type { GroundedAnswerDecision } from "@/lib/llm/types";
+import {hasCommittedHandoff} from '@/lib/agent/handoff-wording';
 
 // A customer-facing promise to involve staff must transfer actual ownership.
 // This check only tightens routing; it never authorizes a business action.
@@ -38,5 +39,5 @@ export function requiresStaffFollowUp(decision: GroundedAnswerDecision, reservat
   ];
   const requestedUnknownFact = !availabilityOnly && factFamilies.some(family=>family.requested.test(customerMessage)&&
     answer.split(/(?<=[.!?;])\s+|\n/u).some(sentence=>family.stated.test(sentence)&&unknownAdmissions.some(pattern=>pattern.test(sentence))));
-  return promised || explainsHandoff || unresolved || admitsUnknownFact || requestedUnknownFact;
+  return hasCommittedHandoff(answer) || promised || explainsHandoff || unresolved || admitsUnknownFact || requestedUnknownFact;
 }

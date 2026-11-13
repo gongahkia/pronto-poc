@@ -117,7 +117,7 @@ The [completed preparation checks](docs/poc/free-hosting-preparation.md) include
 
 The deployment fixes in [the POC deployment notes](docs/poc/deployment-fixes.md) remove the generated-file Docker dependency, add a clean-checkout Render image CI job, and support reviewed knowledge publication without an embedding service. Check `db/migrations` for the current migration inventory (through **056** at this handoff); apply required additive migrations through a verified direct database connection before a hosted update. Readiness checks the Groq configuration and approved published knowledge without making a provider call.
 
-[Agent behavior and evaluation](docs/poc/agent-engineering.md) covers factual-value validation, bounded conversation retrieval, shared turn limits, operational retries and the 38-conversation `pnpm eval` suite using canned provider HTTP responses through the real execution path. The greeting → opening-hours case covers a harmless uncited greeting followed by a cited business answer. A rejected hours draft may get one same-provider rewrite against the same evidence, within the shared turn budget; the rewritten reply still passes all grounding checks. Customer chat polls automatically, shows reply dots only while awaiting an assistant reply, and displays Singapore timestamps. Staff ownership and resolved conversations still require an authorized release or a new conversation.
+[Agent behavior and evaluation](docs/poc/agent-engineering.md) covers factual-value validation, bounded conversation retrieval, shared turn limits, operational retries and the 41-conversation `pnpm eval` suite using canned provider HTTP responses through the real execution path. The greeting → opening-hours case covers a harmless uncited greeting followed by a cited business answer. A rejected hours draft may get one same-provider rewrite against the same evidence, within the shared turn budget; the rewritten reply still passes all grounding checks. Customer chat polls automatically, shows reply dots only while awaiting an assistant reply, and displays Singapore timestamps. Staff ownership and resolved conversations still require an authorized release or a new conversation.
 
 `/status` is a public readable service dashboard backed by no-store `/api/status`.
 It shows safe service-level aggregates and saved inference outcomes, with no
@@ -132,6 +132,13 @@ wrong model identities, credentials and bad request configuration stay terminal.
 Opening, closing and last-order clock values are separate evidence roles; do
 not let a last-order phrase inherit an earlier opening/closing label. The
 casual-greeting regression includes all three hours in one grounded reply.
+Handoffs require a firm model-written staff acknowledgement, with optional useful
+missing-detail questions; asking permission to involve staff is rejected. The
+worker adds a localized continuation notice only while persisted ownership
+allows supported follow-ups. This operational text is saved in the message and
+queued unchanged for all channels, with delivery-policy provenance metadata.
+Already queued/sent replies remain unchanged on retry. Customer chat has no
+separate staff-review/pause narrative banner; conversation-close controls remain.
 
 [Local OpenAI setup](docs/testing/local-live-evaluations.md) explains private key configuration and the hosted Groq default. The [200-scenario hardening guide](docs/testing/200-scenario-hardening.md) covers real Luna conversations, scoped Chope website checks, repeated trials, calibrated critiques and the cumulative US$5 evaluation budget.
 

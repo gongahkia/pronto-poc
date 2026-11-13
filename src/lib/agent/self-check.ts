@@ -166,6 +166,8 @@ function meaningfulTokens(text: string): string[] {
     .replace(/எங்கள் குழு/g, " our team ")
     .replace(/பரிசீலிக்கும்|பரிசீலித்து/g, " review ")
     .replace(/உதவும்/g, " assist ")
+    .replace(/\bpasukan kami\b/g, " our team ")
+    .replace(/\bakan membantu\b/g, " will help ")
     .replace(/\b(?:waktu operasi|waktu buka|jam operasi)\b/g, " opening hours ")
     .replace(/\b(?:di)?buka\b/g, " open ")
     .replace(/\b(?:di)?tutup\b/g, " close ")
