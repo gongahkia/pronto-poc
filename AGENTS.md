@@ -60,6 +60,12 @@ below were moved from that README so they remain available to coding agents.
 
 ## Product behaviour and reference guides
 
+Demo entry is `/enter` (name) → `/demo` (view chooser) → `/demo/customer` or
+`/client/inbox`. Both screens link back via **Switch demo view**. The choice is
+navigation within one reviewer session, not an authorization/role change.
+Safe deep links continue to work; ordinary deployments do not enable the chooser.
+
+
 The business workspace has three destinations: Inbox, Business Knowledge and Insights. Inbox includes attention filters and recent conversation updates. Business Knowledge contains full-width cards for knowledge sources, brand voice and handoff rules. Brand voice and Handoff rules open dedicated detail pages; use the back arrow to return. The Channels overview card is removed; its existing protected backend and detail route remain available. Open `/client/inbox` with an authorized business responder account. The authenticated customer simulator is `/demo/customer`; see [its setup guide](docs/demos/customer-simulator.md).
 
 Brand voice keeps the tone and length presets and adds an editable custom brand prompt. Selecting a preset preserves custom text; **Use presets as prompt** explicitly replaces it. Saving preserves the exact custom text in the draft, within the displayed limit. Existing exact-revision business approval and operator publication gates still apply before customer replies change.

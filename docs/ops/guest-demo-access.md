@@ -3,7 +3,7 @@
 This is a public proof of concept on synthetic data, so reviewers do not need an account. There is no setting to turn it on: it is available on any demo deployment (the same `PRONTO_CUSTOMER_DEMO_ENABLED=1` / protected-demo profile the demo already requires) and never on an ordinary deployment, where `/enter` returns 404.
 
 ## What a visitor sees
-Opening the URL sends them to **/enter**, where they type a name. They get a 7-day session as a new demo-tenant user (`guest-<uuid>@guest.invalid`, no password) and are attributed by that name in feedback. A "Sign in instead" link remains for named accounts.
+Opening the URL sends them to **/enter**, where they type a name. After continuing, **/demo** offers **Guest / customer** (customer chat) and **Client / business** (business inbox). Both screens have **Switch demo view** links, and returning to the home URL while signed in opens the chooser. Existing valid deep links still return to the requested page after name entry. Choosing a view does not change the account role or capabilities. They get a 7-day session as a new demo-tenant user (`guest-<uuid>@guest.invalid`, no password) and are attributed by that name in feedback. A "Sign in instead" link remains for named accounts.
 
 ## What they can do
 Everything a business user can do in the PS Cafe demo: use the customer chat, work the Inbox (respond, take over, release), approve knowledge, activate channels, manage permissions and escalation policy, and leave, reply to, resolve and export feedback. Every guest and every named bootstrap account holds all six staff capabilities. Operator routes stay operator-only.

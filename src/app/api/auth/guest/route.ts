@@ -27,5 +27,5 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ error: "Could not start a demo session. Please retry shortly." }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
-  return NextResponse.redirect(publicAppUrl(returnTo ?? "/client", request.url), 303);
+  return NextResponse.redirect(publicAppUrl(returnTo ?? "/demo", request.url), 303);
 }

@@ -6,8 +6,8 @@ approved business knowledge. The sample outlet is **PS.Cafe Raffles City**.
 ## Try the hosted demo
 
 Open **https://pronto-ai-poc.onrender.com/enter**, enter your name and continue.
-No password is needed for guest access. Use **Customer chat** to try the bot and
-**Inbox** to see the business side. Anyone with the link can view/change the
+No password is needed. Choose **Guest / customer** to try the chat or
+**Client / business** to open the inbox. Use **Switch demo view** to change sides. Anyone with the link can view/change the
 shared synthetic demo data. The free host may take about a minute to wake up.
 
 ## Run locally

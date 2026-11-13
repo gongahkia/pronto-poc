@@ -7,7 +7,8 @@ import { DEMO_CLIENT_ID } from "@/lib/customer-demo-boundary";
 import { PsCafeLogo } from "@/components/ps-cafe-logo";
 import { WorkspaceMenu } from "@/components/workspace-menu";
 import { DemoFeedback } from "@/components/demo-feedback";
-import { isGuestEmail } from "@/lib/guest-policy";
+import { isGuestEmail, guestAccessEnabled } from "@/lib/guest-policy";
+import {DemoViewSwitch} from '@/components/demo-view-switch';
 import {DemoQueuePump} from '@/components/demo-queue-pump';
 import {requestDrivenDemoProcessing} from '@/lib/deployment-profile';
 
@@ -53,7 +54,10 @@ export function AppShell({ user, children, clientActive = "inbox", workspaceName
           </div>
           <ClientMobileNav active={clientActive}/>
         </header>
-        <main id="main-content" className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">{children}</main>
+        <main id="main-content" className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+          {psCafe && guestAccessEnabled() && <div className="mb-4 flex justify-end"><DemoViewSwitch/></div>}
+          {children}
+        </main>
       </div>
     </div>
     {psCafe && process.env.PRONTO_CUSTOMER_DEMO_ENABLED === "1" && <DemoFeedback/>}

@@ -98,6 +98,8 @@ jobs:
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+        env:
+          PRONTO_E2E_DEV_SERVER: "1"
       - run: docker build --target runner -t pronto-runner:ci .
       - name: Smoke runner image
         run: |

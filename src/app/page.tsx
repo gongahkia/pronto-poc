@@ -5,5 +5,5 @@ import { guestAccessEnabled } from "@/lib/guest-policy";
 
 export default async function Home() {
   const user = await getSessionUser();
-  redirect(user ? signedInDestination(user.role) : guestAccessEnabled() ? "/enter" : "/login");
+  redirect(user ? signedInDestination(user.role, guestAccessEnabled() && user.role === 'client' ? '/demo' : undefined) : guestAccessEnabled() ? "/enter" : "/login");
 }

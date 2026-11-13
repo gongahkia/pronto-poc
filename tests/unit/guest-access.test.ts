@@ -65,9 +65,14 @@ describe("POST /api/auth/guest", () => {
     expect(response.status).toBe(303); expect(response.headers.get("location")).toBe("http://localhost:3000/client/knowledge");
     expect(mocks.establish).toHaveBeenCalledWith({ id: "u1" });
   });
+  it("opens the view chooser after name entry with no requested destination",async()=>{
+    guestEnv(); mocks.create.mockResolvedValue({id:"u1",role:"client"});
+    expect((await post({name:"Keith",role:"operator"})).headers.get("location")).toBe("http://localhost:3000/demo");
+    expect(mocks.establish).toHaveBeenCalledWith({id:"u1",role:"client"});
+  });
   it("ignores an unsafe return address", async () => {
     guestEnv(); mocks.create.mockResolvedValue({ id: "u1" });
-    expect((await post({ name: "Keith", next: "https://evil.example" })).headers.get("location")).toBe("http://localhost:3000/client");
+    expect((await post({ name: "Keith", next: "https://evil.example" })).headers.get("location")).toBe("http://localhost:3000/demo");
   });
   it("shows the reason on the name page when a visitor is refused, and creates no session", async () => {
     guestEnv(); mocks.create.mockRejectedValue(new DemoError("Too many new visitors right now.", 429));

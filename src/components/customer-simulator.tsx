@@ -6,6 +6,7 @@ import { PsCafeLogo } from "@/components/ps-cafe-logo";
 import { MessageText } from "@/components/message-text";
 import { DEFAULT_DEMO_MODEL, demoModelChoices, type DemoModelChoice, type DemoAiProfile } from "@/lib/llm/demo-models";
 import {DEMO_MESSAGE_QUEUED} from '@/components/demo-queue-pump';
+import {DemoViewSwitch} from '@/components/demo-view-switch';
 
 const customerModelChoices = demoModelChoices.filter(option => option.id !== "mock" && option.id !== "configured");
 
@@ -99,6 +100,7 @@ export function CustomerSimulator() {
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div><p className="text-xs font-semibold uppercase tracking-wide text-accent">Pronto</p>
           <h1 className="text-xl font-semibold">Messages</h1></div>
+        <DemoViewSwitch/>
       </header>
       <div className="grid gap-4 md:grid-cols-[15rem_minmax(0,1fr)]">
         <aside className="ui-panel min-w-0 space-y-4 p-4">

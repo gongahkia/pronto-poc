@@ -2,7 +2,7 @@ import type { UserRole } from "@/lib/types";
 
 // Post-login destinations are local application pages, never hosts or APIs.
 export function safeReturnTo(value: unknown): string | null {
-  if (typeof value !== "string" || !/^\/(?:client(?:\/[a-zA-Z0-9-]+)*|demo\/customer|account)(?:\?[a-zA-Z0-9_=&-]*)?$/.test(value)) return null;
+  if (typeof value !== "string" || !/^\/(?:client(?:\/[a-zA-Z0-9-]+)*|demo(?:\/customer)?|account)(?:\?[a-zA-Z0-9_=&-]*)?$/.test(value)) return null;
   return value;
 }
 

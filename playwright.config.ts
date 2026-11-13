@@ -18,7 +18,9 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: process.env.PRONTO_TEST_LOCAL_MAIL === "1"
+    // HTTP browser fixtures use development mode. Production redirects require
+    // HTTPS; the separate Render-image job builds and smokes production output.
+    command: process.env.PRONTO_TEST_LOCAL_MAIL === "1" || process.env.PRONTO_E2E_DEV_SERVER === '1'
       ? "PRONTO_TEST_ALLOW_BUILD_IPC=1 pnpm dev" : "pnpm start",
     url: baseURL,
     // Never attach safe E2E tests to an unrelated, possibly live-configured server.
