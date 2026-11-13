@@ -20,6 +20,9 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
+    // The CLI activation fixture uses local SMTP without sending email.
+    // Mailpit transport tests still require their separate explicit opt-in.
+    env: { PRONTO_LOCAL_EMAIL_ENABLED: "1" },
     // HTTP browser fixtures use development mode. Production redirects require
     // HTTPS; the separate Render-image job builds and smokes production output.
     command: process.env.PRONTO_TEST_LOCAL_MAIL === "1" || process.env.PRONTO_E2E_DEV_SERVER === '1'

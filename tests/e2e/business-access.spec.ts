@@ -14,7 +14,8 @@ async function login(page: Page, email: string, password: string) {
   await page.goto("/login"); await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).not.toHaveURL(/\/login$/);
+  // /client redirects again according to the account's business permissions.
+  await page.waitForURL(/\/(?:account|client\/(?:inbox|knowledge))$/, { waitUntil: "load" });
 }
 
 test("operator sees account switching, cannot mutate business state, and can explicitly switch", async ({ page }) => {

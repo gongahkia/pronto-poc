@@ -67,8 +67,9 @@ test("operator inspection exposes channel state without provider credentials", a
   expect(details.channels.every((channel: Record<string, unknown>) => !("credentials" in channel))).toBe(true);
 });
 
-test("seeded client can render the overview dashboard", async ({ page }) => {
-  await login(page, clientLogin.email, clientLogin.password);
+test("an authorized PS.Cafe responder can render the inbox", async ({ page }) => {
+  await setupPsCafeDemo();
+  await login(page, "responder@ps-cafe-demo.test", "pronto-ps-demo");
 
   await expect(page).toHaveURL(/\/client\/inbox$/);
   await expect(page.getByRole("heading", { name: "Inbox" })).toBeVisible();
@@ -106,6 +107,7 @@ test("retired assistant entry opens knowledge without a private preview", async 
 });
 
 test("login and dashboards avoid obvious mobile horizontal overflow", async ({ page }) => {
+  await setupPsCafeDemo();
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto("/login");
@@ -118,7 +120,7 @@ test("login and dashboards avoid obvious mobile horizontal overflow", async ({ p
   await page.getByRole("button", { name: "Log out" }).click();
   await expect(page).toHaveURL(/\/login$/);
 
-  await login(page, clientLogin.email, clientLogin.password);
+  await login(page, "responder@ps-cafe-demo.test", "pronto-ps-demo");
   await expect(page.getByRole("heading", { name: "Inbox" })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
@@ -144,8 +146,9 @@ test("operator account details remain usable on mobile without retired UI links"
 });
 
 test("business destinations remain usable by keyboard on mobile", async ({ page }) => {
+  await setupPsCafeDemo();
   await page.setViewportSize({ width: 390, height: 844 });
-  await login(page, clientLogin.email, clientLogin.password);
+  await login(page, "responder@ps-cafe-demo.test", "pronto-ps-demo");
   for (const [route, heading] of [
     ["/client/inbox", "Inbox"], ["/client/activity", "Inbox"],
     ["/client/knowledge", "Business Knowledge"],
@@ -222,7 +225,7 @@ test("PS.Cafe staff submits a text source; only a delegated reviewer can approve
   await page.getByRole("link").filter({ hasText: title }).click();
   await page.getByRole("textbox", { name: "Review note", exact: true }).fill("Synthetic source reviewed");
   await page.getByRole("button", { name: "Approve revision", exact: true }).click();
-  expect((await getPool().query("select status,reviewed_revision from knowledge_source_submissions where id = $1", [pending.rows[0].id])).rows[0])
+  await expect.poll(async () => (await getPool().query("select status,reviewed_revision from knowledge_source_submissions where id = $1", [pending.rows[0].id])).rows[0], { timeout: 10_000 })
     .toMatchObject({ status: "approved", reviewed_revision: 1 });
   expect((await getPool().query("select count(*)::int as n from knowledge_sources where id = $1", [pending.rows[0].target_source_id])).rows[0].n).toBe(0);
 });
@@ -290,6 +293,7 @@ async function login(page: Page, email: string, password: string) {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL(/\/(?:account|client\/(?:inbox|knowledge))$/, { waitUntil: "load" });
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
