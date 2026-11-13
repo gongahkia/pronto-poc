@@ -25,7 +25,8 @@ export function proxy(request: NextRequest) {
   const isProtected = PROTECTED_PREFIXES.some((prefix) =>
     pathname.startsWith(prefix),
   );
-  if (isProtected && !request.cookies.has(SESSION_COOKIE)) {
+  const publicDemoChooser=pathname==='/demo' && guestAccessEnabled();
+  if (isProtected && !publicDemoChooser && !request.cookies.has(SESSION_COOKIE)) {
     const response = pathname.startsWith("/api/")
       ? NextResponse.json({ error: "Unauthenticated." }, { status: 401 })
       : redirectToLogin(request);
@@ -53,7 +54,7 @@ export const config = {
 };
 
 function redirectToLogin(request: NextRequest): NextResponse {
-  const url = publicAppUrl(guestAccessEnabled() ? "/enter" : "/login", request.url);
+  const url = publicAppUrl(guestAccessEnabled() ? "/demo" : "/login", request.url);
   const next = safeReturnTo(request.nextUrl.pathname + request.nextUrl.search);
   if (next) url.searchParams.set("next", next);
   return NextResponse.redirect(url);

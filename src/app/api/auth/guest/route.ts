@@ -16,11 +16,12 @@ export async function POST(request: Request) {
   const returnTo = safeReturnTo(form.get("next"));
   const visitor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("user-agent") || "unknown";
   try {
-    const user = await createGuestReviewer(form.get("name"), visitor);
+    const name=form.get('name');
+    const user = await createGuestReviewer(name===null || typeof name==='string' && !name.trim() ? 'Demo reviewer' : name, visitor);
     await establishSession(user);
   } catch (error) {
     if (error instanceof DemoError) {
-      const back = publicAppUrl("/enter", request.url);
+      const back = publicAppUrl("/demo", request.url);
       back.searchParams.set("error", error.message);
       if (returnTo) back.searchParams.set("next", returnTo);
       return NextResponse.redirect(back, 303);

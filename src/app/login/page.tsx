@@ -2,6 +2,10 @@ import { BotMessageSquare } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { safeReturnTo, signedInDestination } from "@/lib/auth-navigation";
+import {guestAccessEnabled} from '@/lib/guest-policy';
+import {DEMO_CLIENT_ID} from '@/lib/customer-demo-boundary';
+
+export const dynamic='force-dynamic';
 
 export default async function LoginPage({
   searchParams,
@@ -11,6 +15,7 @@ export default async function LoginPage({
   const params = await searchParams;
   const returnTo = safeReturnTo(params.next);
   const user = await getSessionUser();
+  if(guestAccessEnabled() && (!user || user.role==='client' && user.clientId===DEMO_CLIENT_ID)) redirect('/demo');
   if (user) {
     redirect(signedInDestination(user.role, returnTo));
   }
