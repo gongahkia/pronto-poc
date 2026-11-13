@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { safeReturnTo, signedInDestination } from "@/lib/auth-navigation";
 import { guestAccessEnabled } from "@/lib/guest-policy";
+import {DEMO_CLIENT_ID} from '@/lib/customer-demo-boundary';
 
 // The guest switch depends on server settings that do not exist at build time, so never prerender this page.
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export default async function EnterDemoPage({ searchParams }: { searchParams: Pr
   const params = await searchParams;
   const returnTo = safeReturnTo(params.next);
   const user = await getSessionUser();
-  if (user) redirect(signedInDestination(user.role, returnTo ?? (user.role === 'client' ? '/demo' : undefined)));
+  if (user) redirect(signedInDestination(user.role, returnTo ?? (user.role === 'client' && user.clientId === DEMO_CLIENT_ID ? '/demo' : undefined)));
   return (
     <main className="flex min-h-screen items-center justify-center bg-surface-subtle px-4 py-10 text-foreground">
       <section className="ui-panel w-full max-w-md p-6 sm:p-8" aria-labelledby="enter-heading">

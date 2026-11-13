@@ -8,8 +8,8 @@ vi.mock('next/navigation',()=>({redirect:mocks.redirect,notFound:mocks.notFound}
 vi.mock('next/link',()=>({default:({children,href}:ComponentProps<'a'>)=><a href={href}>{children}</a>}));
 import DemoEntryPage from '@/app/demo/page';
 import Home from '@/app/page';
-import {DemoError} from '@/lib/customer-demo-boundary';
-const user={userId:'reviewer',clientId:'demo',email:'guest@guest.invalid',name:'Keith',role:'client'};
+import {DemoError,DEMO_CLIENT_ID} from '@/lib/customer-demo-boundary';
+const user={userId:'reviewer',clientId:DEMO_CLIENT_ID,email:'guest@guest.invalid',name:'Keith',role:'client'};
 beforeEach(()=>{vi.clearAllMocks();mocks.requireUser.mockResolvedValue(user);mocks.getSessionUser.mockResolvedValue(user);mocks.assertDemoActor.mockResolvedValue(undefined);vi.stubEnv('PRONTO_CUSTOMER_DEMO_ENABLED','1');});
 afterEach(()=>{cleanup();vi.unstubAllEnvs();});
 describe('guided demo entry',()=>{
@@ -27,6 +27,9 @@ describe('guided demo entry',()=>{
   });
   it('sends returning demo reviewers to the chooser without changing normal account routing',async()=>{
     await expect(Home()).rejects.toThrow('redirect:/demo');
+    mocks.getSessionUser.mockResolvedValue({...user,clientId:'another-business'});
+    await expect(Home()).rejects.toThrow('redirect:/client');
+    mocks.getSessionUser.mockResolvedValue(user);
     vi.stubEnv('PRONTO_CUSTOMER_DEMO_ENABLED','');
     await expect(Home()).rejects.toThrow('redirect:/client');
     mocks.getSessionUser.mockResolvedValue({...user,role:'operator'});

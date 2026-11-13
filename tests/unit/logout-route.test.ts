@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getSessionUser: vi.fn(),
@@ -19,7 +19,15 @@ import { POST } from "@/app/api/auth/logout/route";
 
 describe("logout route", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+  });
+  afterEach(()=>vi.unstubAllEnvs());
+
+  it('returns a guest reviewer to name entry on the enabled demo',async()=>{
+    vi.stubEnv('PRONTO_CUSTOMER_DEMO_ENABLED','1');
+    mocks.getSessionUser.mockResolvedValueOnce({userId:'guest',clientId:'demo',role:'client',email:'guest@guest.invalid'});
+    const response=await POST(new Request('http://localhost/api/auth/logout',{method:'POST',headers:{origin:'http://localhost',host:'localhost'}}));
+    expect(response.headers.get('location')).toBe('http://localhost/enter');
   });
 
   it("audits logout when a session exists", async () => {
@@ -27,6 +35,7 @@ describe("logout route", () => {
       userId: "user-1",
       clientId: "client-1",
       role: "client",
+      email: 'owner@example.test',
     });
 
     const response = await POST(
