@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Review artifact for the S$0 POC. Read docs/poc/render-neon-free-assessment.md
 # before deployment for the protected request-driven processing profile.
-FROM node:24-bookworm-slim AS builder
+FROM node:24.21.0-bookworm-slim AS builder
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -9,7 +9,7 @@ ENV PRONTO_LOW_MEMORY_BUILD=1
 ENV NODE_OPTIONS=--max-old-space-size=1536
 WORKDIR /app
 RUN corepack enable
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY vendor ./vendor
 RUN pnpm install --frozen-lockfile
 # Explicit input list excludes dotenv files, private deployment JSON and Git.
@@ -21,7 +21,7 @@ COPY public ./public
 COPY next.config.ts tsconfig.json postcss.config.mjs ./
 RUN pnpm exec next build --webpack
 
-FROM node:24-bookworm-slim AS runner
+FROM node:24.21.0-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0

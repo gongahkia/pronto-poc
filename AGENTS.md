@@ -22,7 +22,7 @@ below were moved from that README so they remain available to coding agents.
   See `docs/ops/prototype-feedback.md` for the triage and demo quiet-window scope.
   Earlier 200-case evidence predates this policy and is not acceptance of it.
 
-- Runtime: Node 24, pnpm 10.33.0, Next.js 16.4.1, PostgreSQL with pgvector.
+- Runtime: Node 24.21.0, pnpm 10.33.0, Next.js 16.4.1, PostgreSQL with pgvector.
 - Local OpenAI evaluation: GPT-6 Luna, low reasoning, private `.env.local`.
   Hosted customer-demo model remains Groq `openai/gpt-oss-20b`.
 - Read `docs/testing/evaluation-handoff.md` and

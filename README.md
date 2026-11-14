@@ -14,7 +14,7 @@ fail. It shows app/database health and the last saved AI result without using AI
 
 ## Run locally
 
-Requirements: **Node 24**, **pnpm 10** and **Docker**.
+Requirements: **Node 24.21.0**, **pnpm 10.33.0** and **Docker**.
 
 For a fresh machine, run `pnpm install --frozen-lockfile`, then follow the
 [local setup guide](docs/testing/local-live-evaluations.md#local-configuration)

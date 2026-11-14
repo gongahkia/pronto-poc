@@ -1,15 +1,15 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-bookworm-slim AS deps
+FROM node:24.21.0-bookworm-slim AS deps
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 WORKDIR /app
 RUN corepack enable
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY vendor ./vendor
 RUN pnpm install --frozen-lockfile
 
-FROM node:24-bookworm-slim AS builder
+FROM node:24.21.0-bookworm-slim AS builder
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 WORKDIR /app
@@ -18,16 +18,16 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build
 
-FROM node:24-bookworm-slim AS prod-deps
+FROM node:24.21.0-bookworm-slim AS prod-deps
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 WORKDIR /app
 RUN corepack enable
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY vendor ./vendor
 RUN pnpm install --prod --frozen-lockfile
 
-FROM node:24-bookworm-slim AS runner
+FROM node:24.21.0-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
@@ -44,14 +44,14 @@ USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]
 
-FROM node:24-bookworm-slim AS worker
+FROM node:24.21.0-bookworm-slim AS worker
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV NODE_ENV=production
 WORKDIR /app
 RUN corepack enable
 COPY --from=prod-deps /app/node_modules ./node_modules
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json .npmrc ./
 COPY scripts ./scripts
 COPY src ./src
 CMD ["pnpm", "worker"]
