@@ -16,7 +16,7 @@ const post=(body:unknown)=>POST(new Request('http://localhost:3000/api/demo/feed
 const counts=async()=>(await getPool().query<{threads:number;comments:number}>(`select (select count(*)::int from demo_feedback_threads where client_id=$1) threads,(select count(*)::int from demo_feedback_comments where client_id=$1) comments`,[DEMO_CLIENT_ID])).rows[0];
 dbDescribe('prototype feedback against an isolated database',()=>{
  beforeAll(async()=>{vi.stubEnv('PRONTO_CUSTOMER_DEMO_ENABLED','1');await removePsCafeDemo();await setupPsCafeDemo();});
- beforeEach(async()=>{mock.user.mockResolvedValue(actor);await getPool().query('delete from demo_feedback_threads where client_id=$1',[DEMO_CLIENT_ID]);});
+ beforeEach(async()=>{vi.stubEnv('PRONTO_DEMO_ALLOWED_USER_IDS',PS_CAFE_DEMO_RESPONDER_ID);mock.user.mockResolvedValue(actor);await getPool().query('delete from demo_feedback_threads where client_id=$1',[DEMO_CLIENT_ID]);});
  afterAll(async()=>{await removePsCafeDemo();vi.unstubAllEnvs();await getPool().end();});
  it('does not create a second thread or comment when a committed save is retried',async()=>{
   const payload={action:'create',requestId:randomUUID(),path:'/client/knowledge',anchor,body:'Please clarify.'};
@@ -39,7 +39,7 @@ dbDescribe('prototype feedback against an isolated database',()=>{
  it('does not let another reviewer replay a request ID to read a thread',async()=>{
   const requestId=randomUUID();await post({action:'create',requestId,path:'/client/knowledge',anchor,body:'Mine.'});
   const other=(await getPool().query(`insert into users(client_id,email,name,role,password_hash) values($1,$2,'Other reviewer','client','x') returning id`,[DEMO_CLIENT_ID,`other-${randomUUID()}@demo.test`])).rows[0];
-  mock.user.mockResolvedValue({...actor,userId:other.id});
+  vi.stubEnv('PRONTO_DEMO_ALLOWED_USER_IDS',`${PS_CAFE_DEMO_RESPONDER_ID},${other.id}`);mock.user.mockResolvedValue({...actor,userId:other.id});
   expect((await post({action:'create',requestId,path:'/client/knowledge',anchor,body:'Theirs.'})).status).toBe(409);expect(await counts()).toEqual({threads:1,comments:1});
  });
  it('exports every thread and comment in one download, while the paged export stays bounded',async()=>{
@@ -66,7 +66,7 @@ dbDescribe('prototype feedback against an isolated database',()=>{
  it('lets a reviewer see every reviewer\'s threads on every page, or narrow to one page',async()=>{
   const other=(await getPool().query(`insert into users(client_id,email,name,role,password_hash) values($1,$2,'Keith','client','x') returning id`,[DEMO_CLIENT_ID,`keith-${randomUUID()}@demo.test`])).rows[0];
   await post({action:'create',requestId:randomUUID(),path:'/client/knowledge',anchor,body:'Mine on knowledge.'});
-  mock.user.mockResolvedValue({...actor,userId:other.id,name:'Keith'});
+  vi.stubEnv('PRONTO_DEMO_ALLOWED_USER_IDS',`${PS_CAFE_DEMO_RESPONDER_ID},${other.id}`);mock.user.mockResolvedValue({...actor,userId:other.id,name:'Keith'});
   await post({action:'create',requestId:randomUUID(),path:'/client/inbox',anchor,body:'Keith on inbox.'});
   mock.user.mockResolvedValue(actor);
   const all=await (await GET(new Request('http://localhost:3000/api/demo/feedback'))).json();

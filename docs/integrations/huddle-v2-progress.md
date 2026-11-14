@@ -1,0 +1,9 @@
+# Host-backed feedback implementation evidence
+
+The approved Huddle frontend-only plan supersedes the service-backed guide during this migration. Starting Pronto revision is ac588e6. Huddle's browser-workflow milestone is e645e7f. No original feedback, backups, credentials, evaluation data or budget files have been modified, and no inference worker, paid loop, push or deployment has run.
+
+The first security change introduces one internal feedback policy for the legacy GET/POST/export routes and launcher. It rejects absent sessions, every guest.invalid identity independently of the guest-flow switch, and authenticated customers/operators outside the existing PRONTO_DEMO_ALLOWED_USER_IDS named-user policy. Invited users still pass the existing verified demo database/tenant checks. Authorization failure hides the launcher without exposing a fallback. Public chooser/customer simulation authorization is unchanged.
+
+On Node 24.21.0 / pnpm 10.33.0, focused policy/legacy API/launcher checks pass (31); typecheck, lint, build and the full ordinary suite pass (946 checks; 135 database checks skipped). These unit checks do not establish real database or hosted acceptance. Raw logs stay ignored in output/huddle-v2/security. Existing Next/module-register/localStorage warnings are recorded in those logs; they did not fail these gates.
+
+Next is the real packed SDK, existing-session HTTP routes and PostgreSQL storage, then marked disposable migration/parity and dedicated browser acceptance. Real feedback inventory, verified backup/restore, the bounded writer pause, final migration parity, cutover, CI/deployment revision and two internal hosted sessions remain open. Package rollback must preserve new discussion; an internal maintenance/read-only state is required if older code cannot read it safely.

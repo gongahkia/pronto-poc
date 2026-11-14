@@ -1,4 +1,4 @@
-import {beforeEach,describe,expect,it,vi} from 'vitest';
+import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 const mock=vi.hoisted(()=>({query:vi.fn(),user:vi.fn(),actor:vi.fn()}));
 vi.mock('@/lib/db',()=>({query:mock.query}));
 vi.mock('@/lib/auth',()=>({getSessionUser:mock.user}));
@@ -7,7 +7,8 @@ import {exportCompleteFeedback,exportFeedback} from '@/lib/feedback/export';
 import {GET} from '@/app/api/demo/feedback/export/route';
 import {DEMO_CLIENT_ID} from '@/lib/customer-demo-boundary';
 describe('Codex-readable feedback export',()=>{
- beforeEach(()=>{vi.clearAllMocks();mock.user.mockResolvedValue({userId:'reviewer',role:'client',clientId:DEMO_CLIENT_ID});mock.actor.mockResolvedValue(undefined);});
+ afterEach(()=>vi.unstubAllEnvs());
+ beforeEach(()=>{vi.stubEnv('PRONTO_DEMO_ALLOWED_USER_IDS','00000000-0000-4000-8000-000000001111');vi.clearAllMocks();mock.user.mockResolvedValue({email:'named@demo.test',userId:'00000000-0000-4000-8000-000000001111',role:'client',clientId:DEMO_CLIENT_ID});mock.actor.mockResolvedValue(undefined);});
  const row=(id:string)=>({id,page_path:'/client/knowledge',anchor:{selector:'#brand-voice',label:'Brand voice',quote:'Our tone',x:0.5,y:0.5},status:'open',created_at:'2026-10-26T08:00:00Z',updated_at:'2026-10-26T08:00:00Z',comment_count:1,
   comments:[{id:'comment',author_user_id:'reviewer',author_name:'Keith',body:'Please make this clearer.',created_at:'2026-10-26T08:00:00Z'}]});
  it('retains source context, identities, replies and machine-readable versioning',async()=>{
@@ -41,6 +42,9 @@ describe('Codex-readable feedback export',()=>{
   mock.query.mockResolvedValue({rows:[row('only')]});
   const ok=await GET(new Request('http://localhost:3000/api/demo/feedback/export?status=all&complete=1'));expect(ok.status).toBe(200);expect(JSON.parse(await ok.text())).toMatchObject({complete:true});
   expect((await GET(new Request('http://localhost:3000/api/demo/feedback/export?complete=1&cursor=00000000-0000-4000-8000-000000000001'))).status).toBe(400);
+ });
+ it('denies guests even when their ID appears on the named-user list',async()=>{
+  mock.user.mockResolvedValue({userId:'00000000-0000-4000-8000-000000001111',email:'guest@GUEST.INVALID',role:'client',clientId:DEMO_CLIENT_ID});expect((await GET(new Request('http://localhost:3000/api/demo/feedback/export?complete=1'))).status).toBe(403);expect(mock.query).not.toHaveBeenCalled();
  });
  it('requires an invited session and ignores a caller-supplied tenant',async()=>{
   mock.user.mockResolvedValueOnce(null);expect((await GET(new Request('http://localhost:3000/api/demo/feedback/export'))).status).toBe(401);expect(mock.query).not.toHaveBeenCalled();

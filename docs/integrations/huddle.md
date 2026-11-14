@@ -1,3 +1,5 @@
+> Frontend-only migration in progress. Feedback now requires a named user explicitly listed in `PRONTO_DEMO_ALLOWED_USER_IDS`, the verified synthetic workspace boundary and an existing Pronto session. `guest.invalid` identities are denied regardless of guest-flow settings. This policy covers the legacy API/export and launcher. The service-backed setup below is historical and will be replaced by the approved host-adapter integration. Public demo navigation/customer simulation keep their existing policy.
+
 # Dogfooding Huddle in Pronto
 
 Pronto consumes the private `@huddle/browser/react` package through a committed
