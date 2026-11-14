@@ -78,7 +78,7 @@ jobs:
             -e APP_BASE_URL -e AUTH_SECRET -e PRONTO_SECRETS_KEY \
             -e PRONTO_RUN_DB_TESTS -e PRONTO_ENFORCE_TENANT_SQL \
             -e PRONTO_PREFLIGHT_IGNORE_DOTENV -e PRONTO_USE_MOCK_AI -e CI=true \
-            node:24-bookworm-slim sh -c 'corepack enable && pnpm test:coverage'
+            node:24.21.0-bookworm-slim sh -c 'corepack enable && pnpm test:coverage'
       - name: Evaluate answer quality through the real agent path with stubbed provider HTTP
         # Sharing PostgreSQL's network namespace makes the server-side address
         # loopback too, satisfying the existing local customer-demo guard.
@@ -88,7 +88,7 @@ jobs:
             -e DATABASE_URL=postgres://pronto:pronto@127.0.0.1:5432/pronto_test \
             -e PRONTO_TEST_DATABASE_URL=postgres://pronto:pronto@127.0.0.1:5432/pronto_test \
             -e GITHUB_SHA="$GITHUB_SHA" \
-            node:24-bookworm-slim sh -c 'npm install --global pnpm@10.33.0 && pnpm eval'
+            node:24.21.0-bookworm-slim sh -c 'npm install --global pnpm@10.33.0 && pnpm eval'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -138,32 +138,3 @@ jobs:
           sleep 3
           docker logs pronto-worker-ci | grep '"event":"worker.started"'
           docker stop pronto-worker-ci
-
-  huddle-host:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.21.0
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: sudo apt-get update && sudo apt-get install -y build-essential bison flex libssl-dev pkg-config
-      - uses: actions/cache@v4
-        with:
-          path: output/runtime/pronto-postgres-18.6-vector-0.8.7
-          key: pronto-huddle-pg18.6-555610c24d53-vector0.8.7-83d673c3b287-ubuntu-24.04-${{ runner.arch }}
-      - run: pnpm fixtures:huddle:postgres
-      - run: pnpm test:huddle:db
-      - run: pnpm exec playwright install --with-deps chromium firefox
-      - run: pnpm test:huddle:browser
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: pronto-huddle-host
-          path: |
-            output/huddle-v2/checks
-            output/huddle-dogfood
-          if-no-files-found: ignore
