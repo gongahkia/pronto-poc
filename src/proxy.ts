@@ -3,7 +3,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { safeReturnTo } from "@/lib/auth-navigation";
 import { publicAppUrl } from "@/lib/http/redirect";
 import { guestAccessEnabled } from "@/lib/guest-policy";
-import { huddleReviewConfig } from "@/lib/huddle-config";
 
 const SESSION_COOKIE = "pronto_session";
 const PROTECTED_PREFIXES = [
@@ -76,14 +75,11 @@ function applySecurityHeaders(response: NextResponse, nonce: string): void {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=(), payment=()",
   );
-  // Huddle's user-initiated PKCE popup must retain its opener. Apply this to
-  // entry documents too: Next client navigation retains the document policy.
-  response.headers.set("Cross-Origin-Opener-Policy", huddleReviewConfig() ? "same-origin-allow-popups" : "same-origin");
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
 }
 
 function buildContentSecurityPolicy(nonce: string): string {
   const isDevelopment = process.env.NODE_ENV !== "production";
-  const huddle = huddleReviewConfig();
   const directives = [
     "default-src 'self'",
     isDevelopment
@@ -92,7 +88,7 @@ function buildContentSecurityPolicy(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
     "font-src 'self' data:",
-    `connect-src 'self' https:${huddle ? ` ${huddle.serverUrl}` : ''}`,
+    "connect-src 'self' https:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     isDevelopment

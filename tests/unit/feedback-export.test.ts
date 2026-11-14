@@ -1,5 +1,6 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 const mock=vi.hoisted(()=>({query:vi.fn(),user:vi.fn(),actor:vi.fn()}));
+vi.mock('@/lib/feedback/state',()=>({assertFeedbackEnabled:vi.fn()}));
 vi.mock('@/lib/db',()=>({query:mock.query}));
 vi.mock('@/lib/auth',()=>({getSessionUser:mock.user}));
 vi.mock('@/lib/customer-demo',()=>({assertDemoActor:mock.actor}));

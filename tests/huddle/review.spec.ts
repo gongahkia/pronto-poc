@@ -1,134 +1,37 @@
-import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
-import { verifyTestDatabase } from '../../scripts/test-db-safety';
-
+import {randomUUID} from 'node:crypto';
+import {expect,test,type Page} from '@playwright/test';
+import {Pool} from 'pg';
+import {verifyTestDatabase} from '../../scripts/test-db-safety';
 const enabled = process.env.PRONTO_HUDDLE_E2E === '1';
-test.skip(!enabled, 'Requires explicitly prepared disposable Pronto and Huddle fixtures.');
-const pronto = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:3000';
-const huddle = process.env.HUDDLE_TEST_SERVER_URL ?? 'http://127.0.0.1:4317';
-const project = '11111111-1111-4111-8111-111111111111';
-test.beforeAll(async () => {
-  if (!enabled) return;
-  for (const origin of [pronto, huddle]) {
-    const url = new URL(origin);
-    if (!['localhost', '127.0.0.1'].includes(url.hostname) || !url.port || url.port === '4310') throw new Error('Use explicit loopback fixture services, separate from the ordinary Huddle installation.');
-  }
-  await verifyTestDatabase();
-});
-async function signIn(page: Page, member = false) {
-  await page.goto(huddle);
-  await page.getByLabel('Email', { exact: true }).fill(member ? 'member@huddle.test' : 'admin@huddle.test');
-  await page.getByLabel('Password', { exact: true }).fill(member ? 'huddle-member-password' : 'huddle-browser-password');
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Feedback inbox', exact: true })).toBeVisible();
-  const login = await page.request.post(`${pronto}/api/auth/login`, { headers: { origin: pronto },
-    form: { email: 'responder@ps-cafe-demo.test', password: 'pronto-ps-demo' }, maxRedirects: 0 });
-  expect(login.status()).toBe(303);
-  const response = await page.goto(`${pronto}/client/inbox?private-filter=omit-me#private-fragment`);
-  expect(response!.headers()['cross-origin-opener-policy']).toBe('same-origin-allow-popups');
-  expect(response!.headers()['content-security-policy']).toContain(`connect-src 'self' https: ${huddle}`);
-  await expect(page.getByRole('heading', { name: 'Inbox', exact: true })).toBeVisible();
-  await expect(page.locator('[data-huddle-root]')).toHaveCount(1);
+test.skip(!enabled,'Use pnpm test:huddle:browser; it creates its own marked disposable database.');
+const pronto = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000', workspace = '00000000-0000-4000-8000-00000000a101', environment = 'browser-fixture';
+const scope = '?'+new URLSearchParams({workspace,environment}).toString();
+test.beforeAll(async () => {if(!enabled) return;const url = new URL(pronto);if(url.origin !== 'http://localhost:3000') throw new Error('Use the task-owned loopback browser fixture.');await verifyTestDatabase();});
+async function login(page:Page,member=false) {
+  const result = await page.request.post(pronto+'/api/auth/login',{headers:{origin:pronto},form:{email:member ? 'approver@ps-cafe-demo.test' : 'responder@ps-cafe-demo.test',password:'pronto-ps-demo'},maxRedirects:0});expect(result.status()).toBe(303);
+  const response = await page.goto(pronto+'/client/inbox?private-filter=omit-me#private-fragment');expect(response!.headers()['cross-origin-opener-policy']).toBe('same-origin');expect(response!.headers()['content-security-policy']).not.toContain('4310');await expect(page.getByRole('heading',{name:'Inbox',exact:true})).toBeVisible();await expect(page.locator('[data-huddle-root]')).toHaveCount(1);
 }
-async function connect(page: Page) {
-  await page.getByRole('button', { name: 'Huddle feedback', exact: true }).click();
-  const pending = page.waitForEvent('popup');
-  await page.getByRole('button', { name: 'Connect Huddle', exact: true }).click();
-  const popup = await pending;
-  await popup.getByRole('button', { name: 'Allow review access', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Pin a comment', exact: true })).toBeVisible();
-}
-
-test('Pronto reviewers share pins/replies, navigate, export and retain earlier feedback on mobile', async ({ browser, browserName }) => {
-  const a = await browser.newContext(), b = await browser.newContext();
-  const errors: string[] = [];
-  const note = `Pronto ${browserName} review ${Date.now()}`, reply = `Designer follow-up ${Date.now()}`;
+async function open(page:Page) {await page.getByRole('button',{name:'Feedback',exact:true}).click();await expect(page.getByRole('button',{name:'Pin a comment',exact:true})).toBeVisible();expect(await page.getByRole('button',{name:'Connect Huddle',exact:true}).count()).toBe(0);}
+test('two Pronto logins share durable pins, reply/status/export and retain document nonce through refresh/navigation',async ({browser,browserName}) => {
+  const a = await browser.newContext(), b = await browser.newContext(), fresh = await browser.newContext(), errors:string[] = [], note = `${browserName} Pronto ${randomUUID()}`, reply = 'Named follow-up '+note;
   try {
-    for (const context of [a, b]) {
-      await context.route('**/*', route => [pronto, huddle].includes(new URL(route.request().url()).origin) ? route.continue() : route.abort());
-      context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
-    }
-    const p = await a.newPage(), q = await b.newPage();
-    await p.goto(`${pronto}/client/inbox`);
-    await expect(p.locator('[data-huddle-root]')).toHaveCount(0);
-    await signIn(p); await signIn(q, true); await connect(p); await connect(q);
-    await p.getByRole('button', { name: 'Pin a comment', exact: true }).click();
-    await expect(p.locator('[data-huddle-open]')).toHaveCount(1);
-    await p.getByRole('heading', { name: 'Inbox', exact: true }).click();
-    await p.getByLabel('Your comment', { exact: true }).fill(note);
-    await p.getByRole('button', { name: 'Post comment', exact: true }).click();
-    await expect(p.getByText('Comment saved.', { exact: true })).toBeVisible();
-    await expect(q.getByText(note, { exact: true })).toBeVisible();
-    await q.getByRole('button').filter({ hasText: note }).click();
-    await q.getByLabel('Reply', { exact: true }).fill(reply);
-    await q.getByRole('button', { name: 'Post reply', exact: true }).click();
-    await expect(p.getByText(reply, { exact: true })).toBeVisible();
-    await p.getByRole('button', { name: 'Resolve thread', exact: true }).click();
-    await expect(p.getByRole('button', { name: 'Reopen thread', exact: true })).toBeVisible();
-    await p.getByRole('button', { name: 'Reopen thread', exact: true }).click();
-    await expect(p.getByRole('button', { name: 'Resolve thread', exact: true })).toBeVisible();
-
-    const exported = await p.request.get(`${huddle}/api/projects/${project}/export`);
-    expect(exported.ok()).toBe(true);
-    const data = await exported.json();
-    const thread = data.threads.find((t: { comments: { body: string }[] }) => t.comments.some(c => c.body === note));
-    expect(thread.page).toBe('/client/inbox'); expect(thread.pageUrl).toBe(`${pronto}/client/inbox`);
-    expect(thread.comments.map((c: { body: string }) => c.body)).toEqual([note, reply]);
-    expect(thread.release).toBe('pronto-dogfood-fixture');
-
-    const mounted = await p.locator('[data-huddle-root]').elementHandle();
-    const refreshed = p.waitForResponse(response => new URL(response.url()).pathname === '/client/inbox' && response.request().headers().rsc === '1');
-    await p.getByRole('button', { name: 'Close', exact: true }).click();
-    await expect(p.locator('[data-huddle-open]')).toHaveCount(0);
-    await refreshed;
-    expect(await mounted!.evaluate(root => root.isConnected)).toBe(true);
-    await p.getByRole('button', { name: 'Huddle feedback', exact: true }).click();
-    await expect(p.getByRole('button', { name: 'Connect Huddle', exact: true })).toHaveCount(0);
-    await p.getByRole('button', { name: 'Close', exact: true }).click();
-    await p.getByRole('link', { name: 'Business Knowledge', exact: true }).first().click();
-    await expect(p.getByRole('heading', { name: 'Business Knowledge', exact: true })).toBeVisible();
-    await expect(p.locator('[data-huddle-root]')).toHaveCount(1);
-    await p.goBack(); await expect(p.getByRole('heading', { name: 'Inbox', exact: true })).toBeVisible();
-    await expect(p.locator('[data-huddle-root]')).toHaveCount(1);
-
-    const legacy = `Earlier Pronto note ${Date.now()}`;
-    expect((await p.request.post(`${pronto}/api/demo/feedback`, { headers: { origin: pronto }, data: {
-      action: 'create', requestId: randomUUID(), path: '/demo/customer',
-      anchor: { selector: 'main', label: 'Customer demo', quote: '', x: 0.5, y: 0.5 }, body: legacy,
-    } })).ok()).toBe(true);
-    await p.setViewportSize({ width: 390, height: 844 }); await p.goto(`${pronto}/demo/customer`);
-    await expect(p.getByRole('button', { name: 'Huddle feedback', exact: true })).toBeVisible();
-    expect(await p.locator('[data-huddle-root]').evaluate(root => root.shadowRoot!.querySelector('.launcher') === null)).toBe(true);
-    const trigger = await p.getByRole('button', { name: 'Huddle feedback', exact: true }).boundingBox();
-    const send = await p.getByRole('button', { name: 'Send message', exact: true }).boundingBox();
-    expect(trigger!.y + trigger!.height).toBeLessThan(send!.y);
-    await p.getByRole('button', { name: 'Earlier feedback', exact: true }).click();
-    await expect(p.locator('[data-huddle-root]')).toHaveCount(0);
-    await p.getByRole('button', { name: 'Open prototype feedback', exact: true }).click();
-    await expect(p.getByText(legacy, { exact: true })).toBeVisible();
-    await expect(p.getByRole('link', { name: 'Export workspace feedback', exact: true })).toBeVisible();
-    await p.getByRole('button', { name: 'Close feedback', exact: true }).click();
-    await p.getByRole('button', { name: 'Use Huddle', exact: true }).click();
-    await expect(p.locator('[data-huddle-root]')).toHaveCount(1);
-    await p.goto(`${pronto}/status`); await expect(p.locator('[data-huddle-root]')).toHaveCount(0);
-    expect(errors).toEqual([]);
-  } finally { await a.close(); await b.close(); }
+    for(const context of [a,b,fresh]) {await context.route('**/*',route => new URL(route.request().url()).origin === pronto ? route.continue() : route.abort());context.on('page',page => page.on('pageerror',error => errors.push(error.message)));}
+    const p = await a.newPage(), q = await b.newPage();await login(p);await login(q,true);await open(p);await open(q);await p.getByRole('button',{name:'Pin a comment',exact:true}).click();await p.getByRole('heading',{name:'Inbox',exact:true}).click();await p.getByLabel('Your comment',{exact:true}).fill(note);await p.getByRole('button',{name:'Post comment',exact:true}).click();await expect(p.getByText('Comment saved.',{exact:true})).toBeVisible();
+    await expect(q.locator('button.thread').filter({hasText:note})).toBeVisible();await q.locator('button.thread').filter({hasText:note}).click();await q.getByLabel('Reply',{exact:true}).fill(reply);await q.getByRole('button',{name:'Post reply',exact:true}).click();await expect(q.getByText('Comment saved.',{exact:true})).toBeVisible();await expect(p.getByText(reply,{exact:true})).toBeVisible();await p.getByRole('button',{name:'Resolve thread',exact:true}).click();await expect(p.getByRole('button',{name:'Reopen thread',exact:true})).toBeVisible();
+    const exported = await p.request.post(pronto+'/api/demo/feedback/v2/exports',{headers:{origin:pronto},data:{scope:{workspace,environments:[environment]},format:'json'}});expect(exported.status()).toBe(200);const data = await exported.json();expect(data.schema).toBe('huddle.feedback.v2');expect(data.complete).toBe(true);const thread = data.threads.find((item:{anchor:{label:string};latestComment:{body:string}}) => item.latestComment.body === reply);expect(thread.page).toBe('/client/inbox');expect(thread.pageUrl).toBe(pronto+'/client/inbox');expect(thread.createdBy.name).toBe('Demo responder');expect(data.comments.filter((item:{threadId:string}) => item.threadId === thread.id).map((item:{body:string;author:{name:string}}) => [item.body,item.author.name])).toEqual([[note,'Demo responder'],[reply,'Demo knowledge approver']]);
+    const r = await fresh.newPage();await login(r);await open(r);await r.getByLabel('Show resolved',{exact:true}).check();await r.locator('button.thread').filter({hasText:reply}).click();await expect(r.getByText(note,{exact:true})).toBeVisible();await expect(r.getByText(reply,{exact:true})).toBeVisible();await r.getByRole('button',{name:'Reopen thread',exact:true}).click();await expect(r.getByRole('button',{name:'Resolve thread',exact:true})).toBeVisible();
+    const mounted = await p.locator('[data-huddle-root]').elementHandle(), nonce = await p.locator('[data-huddle-root]').evaluate(root => root.shadowRoot!.querySelector('style')!.nonce);const refreshed = p.waitForResponse(response => new URL(response.url()).pathname === '/client/inbox' && response.request().headers().rsc === '1');await p.getByRole('button',{name:'Close',exact:true}).click();await refreshed;expect(await mounted!.evaluate(root => root.isConnected)).toBe(true);expect(await p.locator('[data-huddle-root]').evaluate(root => root.shadowRoot!.querySelector('style')!.nonce)).toBe(nonce);
+    await p.getByRole('link',{name:'Business Knowledge',exact:true}).first().click();await expect(p.getByRole('heading',{name:'Business Knowledge',exact:true})).toBeVisible();await p.goBack();await expect(p.getByRole('heading',{name:'Inbox',exact:true})).toBeVisible();await expect(p.locator('[data-huddle-root]')).toHaveCount(1);await p.setViewportSize({width:390,height:844});await p.goto(pronto+'/demo/customer');await expect(p.getByRole('button',{name:'Feedback',exact:true})).toBeVisible();await expect(p.getByText('Earlier feedback',{exact:true})).toHaveCount(0);expect(errors).toEqual([]);
+  } finally {await a.close();await b.close();await fresh.close();}
 });
-
-test('a failed Huddle connection leaves Pronto navigation and earlier feedback usable', async ({ page }) => {
-  await signIn(page);
-  await page.route(`${huddle}/api/auth/exchange`, route => route.abort('failed'));
-  await page.getByRole('button', { name: 'Huddle feedback', exact: true }).click();
-  const pending = page.waitForEvent('popup');
-  await page.getByRole('button', { name: 'Connect Huddle', exact: true }).click();
-  const popup = await pending;
-  await popup.getByRole('button', { name: 'Allow review access', exact: true }).click();
-  await expect(page.getByRole('complementary', { name: 'Huddle feedback', exact: true }).getByRole('alert')).toContainText('Could not reach Huddle');
-  await page.getByRole('button', { name: 'Close', exact: true }).click();
-  await page.getByRole('button', { name: 'Earlier feedback', exact: true }).click();
-  await page.getByRole('button', { name: 'Open prototype feedback', exact: true }).click();
-  await expect(page.getByRole('link', { name: 'Export workspace feedback', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Close feedback', exact: true }).click();
-  await page.getByRole('link', { name: 'Business Knowledge', exact: true }).first().click();
-  await expect(page.getByRole('heading', { name: 'Business Knowledge', exact: true })).toBeVisible();
+test('public chooser and guest navigation remain usable while every feedback surface denies guests and forged cookies',async ({page,browser}) => {
+  await page.goto(pronto+'/demo');expect((await page.context().cookies()).some(cookie => cookie.name === 'pronto_session')).toBe(false);await expect(page.locator('[data-huddle-root]')).toHaveCount(0);
+  const guest = await page.request.post(pronto+'/api/auth/guest',{headers:{origin:pronto},form:{name:'Browser visitor',next:'/demo/customer'},maxRedirects:0});expect(guest.status()).toBe(303);await page.goto(pronto+'/demo/customer');await expect(page.getByRole('button',{name:'Feedback',exact:true})).toHaveCount(0);await expect(page.locator('[data-huddle-root]')).toHaveCount(0);
+  for(const path of ['/api/demo/feedback','/api/demo/feedback/export?complete=1','/api/demo/feedback/v2/session'+scope,'/api/demo/feedback/v2/threads'+scope]) expect((await page.request.get(pronto+path)).status()).toBe(403);
+  expect((await page.request.post(pronto+'/api/demo/feedback/v2/exports',{headers:{origin:pronto},data:{scope:{workspace,environments:[environment]},format:'json'}})).status()).toBe(403);await page.goto(pronto+'/client/inbox');await expect(page.getByRole('heading',{name:'Inbox',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Feedback',exact:true})).toHaveCount(0);
+  const forged = await browser.newContext();try {await forged.addCookies([{name:'pronto_session',value:'forged-cookie',url:pronto}]);const p = await forged.newPage();expect((await p.request.get(pronto+'/api/demo/feedback/v2/session'+scope)).status()).toBe(401);} finally {await forged.close();}
+});
+test('real session-version revocation clears private rendered review and the next document hides its launcher',async ({page}) => {
+  await login(page);await open(page);const db = new Pool({connectionString:process.env.PRONTO_TEST_DATABASE_URL});try {const row = (await db.query("select current_setting('pronto.fixture_nonce',true) nonce")).rows[0];if(!process.env.PRONTO_HUDDLE_FIXTURE_NONCE || row.nonce !== process.env.PRONTO_HUDDLE_FIXTURE_NONCE) throw new Error('Refusing to revoke a session outside this owned fixture.');await db.query('update users set session_version=session_version+1 where id=$1',['00000000-0000-4000-8000-00000000a301']);} finally {await db.end();}
+  await expect(page.getByText('Review access is unavailable. Sign in through this application or contact your team.',{exact:true})).toBeVisible();await expect(page.locator('button.thread')).toHaveCount(0);expect((await page.request.get(pronto+'/api/demo/feedback/v2/threads'+scope)).status()).toBe(401);await page.goto(pronto+'/demo');await expect(page.locator('[data-huddle-root]')).toHaveCount(0);await expect(page.getByRole('button',{name:'Feedback',exact:true})).toHaveCount(0);
 });

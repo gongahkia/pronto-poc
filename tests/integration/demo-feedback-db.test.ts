@@ -15,8 +15,8 @@ const anchor={selector:'#brand-voice',label:'Brand voice',quote:'',x:0.5,y:0.5};
 const post=(body:unknown)=>POST(new Request('http://localhost:3000/api/demo/feedback',{method:'POST',headers:{origin:'http://localhost:3000','content-type':'application/json'},body:JSON.stringify(body)}));
 const counts=async()=>(await getPool().query<{threads:number;comments:number}>(`select (select count(*)::int from demo_feedback_threads where client_id=$1) threads,(select count(*)::int from demo_feedback_comments where client_id=$1) comments`,[DEMO_CLIENT_ID])).rows[0];
 dbDescribe('prototype feedback against an isolated database',()=>{
- beforeAll(async()=>{vi.stubEnv('PRONTO_CUSTOMER_DEMO_ENABLED','1');await removePsCafeDemo();await setupPsCafeDemo();});
- beforeEach(async()=>{vi.stubEnv('PRONTO_DEMO_ALLOWED_USER_IDS',PS_CAFE_DEMO_RESPONDER_ID);mock.user.mockResolvedValue(actor);await getPool().query('delete from demo_feedback_threads where client_id=$1',[DEMO_CLIENT_ID]);});
+ beforeAll(async()=>{vi.stubEnv('PRONTO_CUSTOMER_DEMO_ENABLED','1');vi.stubEnv('PRONTO_HUDDLE_ENABLED','1');await removePsCafeDemo();await setupPsCafeDemo();});
+ beforeEach(async()=>{vi.stubEnv('PRONTO_DEMO_ALLOWED_USER_IDS',PS_CAFE_DEMO_RESPONDER_ID);mock.user.mockResolvedValue(actor);await getPool().query("insert into prototype_feedback_state(client_id,mode) values($1,'legacy') on conflict(client_id) do update set mode='legacy'",[DEMO_CLIENT_ID]);await getPool().query('delete from demo_feedback_threads where client_id=$1',[DEMO_CLIENT_ID]);});
  afterAll(async()=>{await removePsCafeDemo();vi.unstubAllEnvs();await getPool().end();});
  it('does not create a second thread or comment when a committed save is retried',async()=>{
   const payload={action:'create',requestId:randomUUID(),path:'/client/knowledge',anchor,body:'Please clarify.'};

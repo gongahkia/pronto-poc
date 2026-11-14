@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
 // Separate from the ordinary suite: this targets an explicitly prepared,
-// disposable Pronto database and disposable Huddle service. Starts no workers.
+// disposable Pronto database using its own session/backend. Starts no Huddle product service or workers.
 export default defineConfig({
   testDir: './tests/huddle', workers: 1, fullyParallel: false, retries: 0,
   timeout: 120_000, expect: { timeout: 15_000 },

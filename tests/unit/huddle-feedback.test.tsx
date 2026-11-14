@@ -1,52 +1,24 @@
-import { StrictMode } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HuddleFeedback } from '@/components/huddle-feedback';
-
-vi.mock('next/navigation', () => ({ usePathname: () => '/client/inbox' }));
-const config = { serverUrl: 'http://localhost:4310', projectId: '11111111-1111-4111-8111-111111111111', environment: 'development' };
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
-
-describe('Pronto consumes the packed Huddle React helper', () => {
-  it('mounts once through StrictMode, opens from its host button and releases navigation on teardown', () => {
-    const push = history.pushState;
-    const view = render(<StrictMode><HuddleFeedback config={config} inline/></StrictMode>);
-    expect(document.querySelectorAll('[data-huddle-root]')).toHaveLength(1);
-    const root = document.querySelector('[data-huddle-root]')!;
-    expect(root.shadowRoot!.querySelector('.launcher')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Huddle feedback' }));
-    expect(root.hasAttribute('data-huddle-open')).toBe(true);
-    expect(root.shadowRoot!.textContent).toContain('Connect Huddle');
-    view.unmount();
-    expect(document.querySelector('[data-huddle-root]')).toBeNull();
-    expect(history.pushState).toBe(push);
+import {StrictMode} from 'react';
+import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
+import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
+import {HuddleFeedback} from '@/components/huddle-feedback';
+import {DEMO_CLIENT_ID} from '@/lib/customer-demo-boundary';
+const config = {namespace:'pronto-feedback',workspace:DEMO_CLIENT_ID,environment:'development'};
+const requests:string[] = [];
+beforeEach(() => {requests.length = 0;vi.stubGlobal('fetch',vi.fn(async (input:string) => {
+  requests.push(input); const path = new URL(input,'http://localhost:3000').pathname;
+  const value = path.endsWith('/session') ? {actor:{id:'named-reviewer',name:'Named reviewer'},scope:{workspace:config.workspace,environment:config.environment},capabilities:{mentions:false,assignment:false,directory:false}} : path.endsWith('/changes') ? {items:[],cursor:'fixture-cursor',hasMore:false,reset:false} : {items:[],nextCursor:null};
+  return Response.json(value);
+}));});
+afterEach(() => {cleanup();vi.unstubAllGlobals();vi.restoreAllMocks();});
+describe('Pronto consumes the actual packed React/HTTP SDK',() => {
+  it('mounts once through StrictMode, uses the host session and releases navigation on teardown',async () => {
+    const push = history.pushState, view = render(<StrictMode><HuddleFeedback config={config} inline/></StrictMode>);expect(document.querySelectorAll('[data-huddle-root]')).toHaveLength(1); const root = document.querySelector('[data-huddle-root]')!;expect(root.shadowRoot!.querySelector('.launcher')).toBeNull();fireEvent.click(screen.getByRole('button',{name:'Feedback'}));await waitFor(() => expect(root.shadowRoot!.textContent).toContain('Pin a comment'));expect(root.hasAttribute('data-huddle-open')).toBe(true);expect(requests.every(path => path.startsWith('/api/demo/feedback/v2/'))).toBe(true);expect(screen.queryByText('Earlier feedback')).toBeNull();view.unmount();expect(document.querySelector('[data-huddle-root]')).toBeNull();expect(history.pushState).toBe(push);
   });
-  it('switches to earlier Pronto feedback without leaving a second widget running', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ viewerId: 'reviewer', threads: [], hasMoreThreads: false }))));
-    render(<HuddleFeedback config={config} inline/>);
-    fireEvent.click(screen.getByRole('button', { name: 'Earlier feedback' }));
-    expect(document.querySelector('[data-huddle-root]')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Open prototype feedback' }));
-    expect(await screen.findByRole('link', { name: 'Export workspace feedback' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Use Huddle' }));
-    await waitFor(() => expect(document.querySelectorAll('[data-huddle-root]')).toHaveLength(1));
-    expect(document.querySelector('[data-feedback-open]')).toBeNull();
+  it('retains the document nonce, adapter and widget across RSC refreshes',() => {
+    const view = render(<HuddleFeedback config={config} styleNonce="document-nonce" inline/>), root = document.querySelector('[data-huddle-root]')!;view.rerender(<HuddleFeedback config={{...config}} styleNonce="new-request-nonce" inline/>);expect(document.querySelector('[data-huddle-root]')).toBe(root);expect(root.shadowRoot!.querySelector('style')!.nonce).toBe('document-nonce');
   });
-  it('retains the document nonce and widget across server refreshes with fresh request nonces', () => {
-    const view = render(<HuddleFeedback config={config} styleNonce="document-nonce" inline/>);
-    const root = document.querySelector('[data-huddle-root]')!;
-    view.rerender(<HuddleFeedback config={{ ...config }} styleNonce="new-rsc-request-nonce" inline/>);
-    expect(document.querySelector('[data-huddle-root]')).toBe(root);
-    expect(root.shadowRoot!.querySelector('style')!.nonce).toBe('document-nonce');
-  });
-  it('contains an SDK mount failure so the host keeps its original feedback', () => {
-    const foreign = document.createElement('div'); foreign.dataset.huddleRoot = ''; document.body.append(foreign);
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    try {
-      render(<HuddleFeedback config={config} inline/>);
-      expect(screen.getByRole('status').textContent).toContain('Huddle could not start');
-      expect(screen.getByRole('button', { name: 'Open prototype feedback' })).toBeTruthy();
-      expect(document.querySelector('[data-huddle-root]')).toBe(foreign);
-    } finally { foreign.remove(); }
+  it('contains an SDK mount failure without starting legacy review or breaking the page',() => {
+    const foreign = document.createElement('div');foreign.dataset.huddleRoot = '';document.body.append(foreign);vi.spyOn(console,'error').mockImplementation(() => {});try {render(<HuddleFeedback config={config} inline/>);expect(screen.getByRole('status').textContent).toContain('Internal feedback is unavailable');expect(screen.queryByRole('button',{name:'Open prototype feedback'})).toBeNull();expect(document.querySelector('[data-huddle-root]')).toBe(foreign);} finally {foreign.remove();}
   });
 });

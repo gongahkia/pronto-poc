@@ -2,14 +2,17 @@ import { headers } from 'next/headers';
 import type { SessionUser } from '@/lib/auth';
 import { assertInternalFeedbackActor } from '@/lib/feedback/authorization';
 import { huddleReviewConfig } from '@/lib/huddle-config';
-import { DemoFeedback } from '@/components/demo-feedback';
 import { HuddleFeedback } from '@/components/huddle-feedback';
+import {getPool} from '@/lib/db';
+import {feedbackMode} from '@/lib/feedback/state';
 
 export async function PrototypeFeedback({ actor, inline = false }: { actor: SessionUser; inline?: boolean }) {
-  try { await assertInternalFeedbackActor(actor); }
-  catch { return null; }
   const config = huddleReviewConfig();
-  if (!config) return <DemoFeedback inline={inline}/>;
+  if (!config) return null;
+  let mode;
+  try { await assertInternalFeedbackActor(actor); mode = await feedbackMode(getPool()); }
+  catch { return null; }
+  if(mode !== 'active' && mode !== 'readonly') return <p data-feedback-ui role="status" className="text-xs text-muted">Feedback is paused. Contact your team.</p>;
   const nonce = (await headers()).get('x-nonce') ?? undefined;
-  return <HuddleFeedback config={config} styleNonce={nonce} inline={inline}/>;
+  return <HuddleFeedback config={config} styleNonce={nonce} inline={inline} readOnly={mode === 'readonly'}/>;
 }

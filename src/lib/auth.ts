@@ -17,7 +17,12 @@ export type { SessionUser };
 
 export async function getSessionUser(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
-  const payload = decodeSession(cookieStore.get(COOKIE_NAME)?.value);
+  return getSessionUserFromToken(cookieStore.get(COOKIE_NAME)?.value);
+}
+
+// revalidate a request's captured cookie during streaming without relying on Next request-local APIs.
+export async function getSessionUserFromToken(cookieValue: string | undefined): Promise<SessionUser | null> {
+  const payload = decodeSession(cookieValue);
   if (!payload) {
     return null;
   }

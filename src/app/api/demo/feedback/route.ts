@@ -5,10 +5,11 @@ import {DEMO_CLIENT_ID,DemoError} from '@/lib/customer-demo-boundary';
 import {query,transaction} from '@/lib/db';
 import {assertSameOrigin} from '@/lib/http/csrf';
 import {feedbackMutation,feedbackPath} from '@/lib/feedback/schema';
+import {assertFeedbackEnabled,lockFeedbackTransaction} from '@/lib/feedback/state';
 import type {FeedbackThread} from '@/lib/feedback/types';
 const THREAD_LIMIT=100,COMMENT_LIMIT=50;
 class ReplayedRequest extends Error{}
-async function actor(){return assertInternalFeedbackActor(await getSessionUser());}
+async function actor(){const user=await assertInternalFeedbackActor(await getSessionUser());assertFeedbackEnabled();return user;}
 function failure(error:unknown){return NextResponse.json({error:error instanceof DemoError?error.message:'Could not save prototype feedback.'},{status:error instanceof DemoError?error.status:500});}
 // No path means every prototype page, so reviewers see each other's comments workspace-wide.
 export async function GET(request:Request){
@@ -34,6 +35,7 @@ export async function POST(request:Request){
   const requestId=input.action==='status'?null:input.requestId;
   try{
   const id=await transaction(async db=>{
+   await lockFeedbackTransaction(db,'legacy');
    let threadId:string;
    if(input.action==='create'){
     const row=await db.query<{id:string}>(`insert into demo_feedback_threads(client_id,page_path,anchor,created_by_user_id) values($1,$2,$3,$4) returning id`,[DEMO_CLIENT_ID,input.path,input.anchor,user.userId]);threadId=row.rows[0].id;

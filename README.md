@@ -7,7 +7,7 @@ approved business knowledge. The sample outlet is **PS.Cafe Raffles City**.
 
 Open **https://pronto-ai-poc.onrender.com**. No sign-in is needed. Choose **Guest / customer** to try the chat or
 **Client / business** to open the inbox. Use **Switch demo view** to change sides. Anyone with the link can view/change the
-shared synthetic demo data. Your name is optional for feedback attribution. The free host may take about a minute to wake up.
+shared synthetic demo data. Your display name is optional for the demo session; feedback is limited to invited internal users. The free host may take about a minute to wake up.
 
 Check **[Service status](https://pronto-ai-poc.onrender.com/status)** when replies
 fail. It shows app/database health and the last saved AI result without using AI credits.
@@ -64,4 +64,4 @@ to finish in Render before checking the updated site.
 
 Technical guidance, checks and architecture references are in [AGENTS.md](AGENTS.md).
 
-To review Pronto using Huddle, follow [the opt-in dogfooding setup](docs/integrations/huddle.md).
+Internal feedback uses the host-backed Huddle SDK with Pronto login/PostgreSQL. Follow [the integration and migration gates](docs/integrations/huddle.md). Public demo visitors do not receive feedback access.

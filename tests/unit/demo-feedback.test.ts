@@ -1,6 +1,7 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {feedbackMutation,feedbackPath} from '@/lib/feedback/schema';
 const mock=vi.hoisted(()=>({user:vi.fn(),assertActor:vi.fn(),query:vi.fn()}));
+vi.mock('@/lib/feedback/state',()=>({assertFeedbackEnabled:vi.fn(),lockFeedbackTransaction:vi.fn()}));
 vi.mock('@/lib/auth',()=>({getSessionUser:mock.user}));
 vi.mock('@/lib/customer-demo',()=>({assertDemoActor:mock.assertActor}));
 vi.mock('@/lib/db',()=>({query:mock.query,transaction:async(run:(db:{query:typeof mock.query})=>Promise<unknown>)=>run({query:mock.query})}));

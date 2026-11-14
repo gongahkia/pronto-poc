@@ -23,7 +23,8 @@ vi.mock("@/lib/audit", () => ({
   recordAuditLog: mocks.recordAuditLog,
 }));
 
-import { login } from "@/lib/auth";
+import { login,getSessionUserFromToken } from "@/lib/auth";
+import {encodeSession} from "@/lib/session-token";
 
 describe("auth", () => {
   beforeEach(() => {
@@ -53,6 +54,18 @@ describe("auth", () => {
     );
   });
 
+  it("revalidates a captured session outside the Next request scope and derives identity from the current database row",async () => {
+    mocks.cookies.mockRejectedValue(new Error('Outside request scope'));
+    const token=encodeSession({userId:'user-1',email:'cached@example.test',name:'Cached name',role:'operator',clientId:null,sv:7,exp:Math.floor(Date.now()/1000)+60});
+    mocks.query.mockResolvedValueOnce({rows:[userRecord()]}).mockResolvedValueOnce({rows:[]});
+    expect(await getSessionUserFromToken(token)).toEqual({userId:'user-1',email:'owner@example.com',name:'Owner',role:'client',clientId:'client-1'});
+    expect(mocks.query.mock.calls[0]).toEqual(['select * from users where id = $1 and session_version = $2',['user-1',7]]);
+    expect(await getSessionUserFromToken(token)).toBeNull();expect(mocks.query).toHaveBeenCalledTimes(2);expect(mocks.cookies).not.toHaveBeenCalled();
+  });
+  it("rejects absent, expired and tampered captured cookies before querying the database",async () => {
+    const expired=encodeSession({userId:'user-1',email:'owner@example.com',name:'Owner',role:'client',clientId:'client-1',sv:1,exp:1});
+    expect(await getSessionUserFromToken(undefined)).toBeNull();expect(await getSessionUserFromToken(expired)).toBeNull();expect(await getSessionUserFromToken(expired+'invalid')).toBeNull();expect(mocks.query).not.toHaveBeenCalled();
+  });
   it("audits login failures for unknown users", async () => {
     mocks.query.mockResolvedValueOnce({ rows: [] });
 
