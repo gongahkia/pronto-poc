@@ -33,12 +33,13 @@ pnpm test
 pnpm build
 pnpm fixtures:huddle:postgres
 pnpm test:huddle:db
+pnpm test:huddle:migration
 pnpm exec playwright install chromium firefox
 pnpm test:huddle:browser
 ```
 
 The native fixture preparation needs make, a C compiler, bison, flex, pkg-config and OpenSSL development headers. It builds pinned PostgreSQL 18.6, pgcrypto and pgvector 0.8.7 into ignored output with source checksums. The database/browser commands accept no existing database URL: they create a fresh marked cluster with an invocation nonce and clean up only their own resources. The database run applies/repeats migrations and seeds disposable data before the real DB suite. The browser run uses actual Pronto logins, a separate frozen archive consumer/production build and a Next development server, with external network calls blocked. It starts no Huddle product service, inference worker or paid loop. These browser fixtures do not establish hosted production acceptance or a genuine model-response test.
 
-Keep migration in maintenance until original-data inventory, consistent private backup/restore, full source/destination parity and provenance are accepted. Pronto legacy feedback and any separate-service Huddle dataset are distinct sources. Actual migration commands/evidence are documented as the migration stage is verified; their absence is not permission to bypass the gate. See [implementation evidence](huddle-v2-progress.md) for exact results and pending steps.
+Keep migration in maintenance until original-data inventory, consistent private backup/restore, full source/destination parity and provenance are accepted. Pronto legacy feedback and any separate-service Huddle dataset are distinct sources. The [private migration runbook](huddle-migration.md) documents deliberate backup/recovery, gated installation, checkpoints, complete parity and readonly rollback/resume. See [implementation evidence](huddle-v2-progress.md) for exact results and pending steps.
 
 After cutover, roll back through the same new store in readonly mode if necessary. Do not revert to an older store and hide comments created after cutover. Keep complete neutral JSON and original backups outside Git. Detaching the browser/backend imports/routes leaves database contents intact; deleting storage is a separate explicit host decision after verified export. Temporary migration and legacy components remain until actual migration dependencies permit retirement. Existing hosting is retained; no production migration, push or deployment is implied by local acceptance.
