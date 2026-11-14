@@ -22,10 +22,12 @@ async function command(name:string,args:string[],cwd=process.cwd(),extra:Partial
   try {await new Promise<void>((done,fail) => {child.once('error',fail);child.once('close',code => code === 0 ? done() : fail(new Error(`${name} failed. Inspect the private log at ${output}/${name}.log.`)));});} finally {clearTimeout(timer);stop();await new Promise<void>(done => log.end(done));}
 }
 try {
-  await fixture.verify();await command('migrate',['migrate:test']);await command('migrate-repeat',['migrate:test']);await command('seed',['seed:test']);
-  const extensions = await fixture.pool.query("select name,default_version from pg_available_extensions where name in ('vector','pgcrypto') order by name");
+  const legacyInstall = process.argv.includes('--legacy-migration');if(legacyInstall && (!process.argv.includes('--test-file') || process.argv[process.argv.indexOf('--test-file')+1] !== 'tests/integration/feedback-migration-db.test.ts')) throw new Error('Legacy installation is restricted to the dedicated migration rehearsal.');if(legacyInstall) env.PRONTO_HUDDLE_MIGRATION_INSTALL = '1';
+  const migration = legacyInstall ? ['exec','tsx','scripts/huddle-fixtures/legacy-schema.ts'] : ['migrate:test'];
+  await fixture.verify();await command('migrate',migration);await command('migrate-repeat',migration);await command('seed',['seed:test']);
+  const extensions = await fixture.pool.query("select a.name,a.default_version,e.extversion installed_version from pg_available_extensions a left join pg_extension e on e.extname=a.name where a.name in ('vector','pgcrypto') order by a.name");
   await writeFile(join(output,'runtime.json'),JSON.stringify({node:process.version,pnpm:'10.33.0',postgres:fixture.version,extensions:extensions.rows,sourceRevision:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),workingDiffSha256:createHash('sha256').update(execFileSync('git',['diff','HEAD'],{maxBuffer:16*1024*1024})).digest('hex'),browserArchiveSha256:createHash('sha256').update(await readFile('vendor/huddle-browser-0.2.0.tgz')).digest('hex'),hostArchiveSha256:createHash('sha256').update(await readFile('vendor/huddle-host-0.2.0.tgz')).digest('hex')},null,2)+'\n',{mode:0o600});
-  if(mode === 'database') await command('database',['test:db']);
+  if(mode === 'database') {const file = process.argv[process.argv.indexOf('--test-file')+1];if(process.argv.includes('--test-file') && !/^tests\/(unit|integration)\/[a-z0-9/-]+\.test\.tsx?$/.test(file ?? '')) throw new Error('Choose an existing unit/integration test file.');await command('database',['test:db',...(process.argv.includes('--test-file') ? [file] : [])]);}
   else {
     const portCheck = createServer();await new Promise<void>((done,fail) => {portCheck.once('error',fail);portCheck.listen(3000,'127.0.0.1',done);});await new Promise<void>(done => portCheck.close(() => done()));
     env.PRONTO_HUDDLE_E2E = '1';env.PRONTO_DEMO_ALLOWED_USER_IDS = '00000000-0000-4000-8000-00000000a301,00000000-0000-4000-8000-00000000a302';env.PRONTO_HUDDLE_ENVIRONMENT = 'browser-fixture';env.PRONTO_HUDDLE_RELEASE = 'pronto-browser-fixture';env.PLAYWRIGHT_BASE_URL = 'http://localhost:3000';

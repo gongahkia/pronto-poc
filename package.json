@@ -58,7 +58,10 @@
     "eval:languages": "node --import tsx scripts/audit-eval-languages.ts",
     "fixtures:huddle:postgres": "tsx scripts/huddle-postgres-runtime.ts",
     "test:huddle:db": "tsx scripts/huddle-checks.ts --database",
-    "test:huddle:browser": "tsx scripts/huddle-checks.ts --browser"
+    "test:huddle:browser": "tsx scripts/huddle-checks.ts --browser",
+    "test:huddle:migration": "tsx scripts/huddle-checks.ts --database --legacy-migration --test-file tests/integration/feedback-migration-db.test.ts",
+    "feedback:migrate": "tsx scripts/huddle-migrate.ts",
+    "feedback:restore-check": "tsx scripts/huddle-restore-check.ts"
   },
   "dependencies": {
     "@huddle/browser": "file:vendor/huddle-browser-0.2.0.tgz",
