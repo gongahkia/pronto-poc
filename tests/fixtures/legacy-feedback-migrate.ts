@@ -1,9 +1,13 @@
 import {mkdir,open,lstat} from 'node:fs/promises';
 import {constants} from 'node:fs';
 import {dirname,resolve} from 'node:path';
-import {migrationContext,type MigrationContext} from './huddle-migration/context';
-import {activate,backup,execute,exportCurrent,install,pause,prepare,preview,resume,state,verify} from './huddle-migration/operations';
-import {sha256} from './huddle-migration/legacy';
+import {migrationContext,type MigrationContext} from '../../scripts/huddle-migration/context';
+import {activate,backup,execute,exportCurrent,install,pause,prepare,preview,resume,state,verify} from '../../scripts/huddle-migration/operations';
+import {sha256} from '../../scripts/huddle-migration/legacy';
+
+import {verifyTestDatabase} from '../../scripts/test-db-safety';
+await verifyTestDatabase();
+if(!process.env.PRONTO_HUDDLE_FIXTURE_NONCE) throw new Error('Legacy migration CLI is retained only for owned regression fixtures.');
 
 // explicit arguments/configuration only: never read a dotenv file or print connection details.
 const [command,...argv] = process.argv.slice(2), args = new Map<string,string>();

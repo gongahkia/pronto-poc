@@ -113,4 +113,4 @@ export async function resume(ctx:MigrationContext) {
     await ctx.actor(db);await db.query("update prototype_feedback_state set mode='active',updated_at=now() where client_id=$1",[ctx.workspaceId]);return {mode:'active',complete:true,counts:current.counts,originalActivatedAt:row.activated_at};
   });
 }
-export async function exportCurrent(ctx:MigrationContext) {await ctx.actor();return destination(ctx,configured(ctx),AbortSignal.timeout(120000));}
+export async function exportCurrent(ctx:MigrationContext) {await ctx.actor();return destination(ctx,configured(ctx,await state(ctx)),AbortSignal.timeout(120000));}

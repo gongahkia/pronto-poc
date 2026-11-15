@@ -61,8 +61,7 @@
     "test:huddle:browser": "tsx scripts/huddle-checks.ts --browser",
     "test:huddle:browser:public": "tsx scripts/huddle-checks.ts --browser --public-demo",
     "test:huddle:migration": "tsx scripts/huddle-checks.ts --database --legacy-migration --test-file tests/integration/feedback-migration-db.test.ts",
-    "feedback:migrate": "tsx scripts/huddle-migrate.ts",
-    "feedback:restore-check": "tsx scripts/huddle-restore-check.ts"
+    "feedback:control": "tsx scripts/feedback-control.ts"
   },
   "dependencies": {
     "@huddle/browser": "file:vendor/huddle-browser-0.2.0.tgz",

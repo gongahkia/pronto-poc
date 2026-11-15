@@ -1,5 +1,7 @@
 # Private feedback migration and rollback
 
+Historical one-off cutover runbook: the production migration/recovery commands below are retired after the actual source passed migration parity. Use [current feedback controls](huddle-control.md) for status, readonly rollback, complete current export and resume. Equivalent legacy CLI fixtures are restricted to explicitly marked disposable databases; no original tables or backups are removed.
+
 This temporary Pronto tooling converts the complete legacy PostgreSQL feedback tables to `huddle.feedback.v2`. It does not start a service, create accounts, load dotenv files, provision hosting, deliver messages or run inference. Keep it until actual source migration and hosted parity are accepted. Fixture success does not establish that acceptance.
 
 Use Node 24.21.0 / pnpm 10.33.0 and the frozen lockfile. Current SDK archives and hashes are in [vendor provenance](../../vendor/README.md). Run `pnpm fixtures:huddle:postgres` once to prepare the pinned local PostgreSQL recovery binaries; this compiles source without starting an existing database. The recovery command creates, verifies and removes its own fresh marked database. It restores only feedback tables and recorded creator names; retain the host's separately verified whole-database backup for application recovery.
