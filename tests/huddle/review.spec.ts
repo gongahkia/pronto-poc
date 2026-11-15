@@ -2,7 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {expect,test,type Page} from '@playwright/test';
 import {Pool} from 'pg';
 import {verifyTestDatabase} from '../../scripts/test-db-safety';
-const enabled = process.env.PRONTO_HUDDLE_E2E === '1';
+const enabled = process.env.PRONTO_HUDDLE_E2E === '1' && process.env.PRONTO_HUDDLE_ACCESS !== 'public-demo';
 test.skip(!enabled,'Use pnpm test:huddle:browser; it creates its own marked disposable database.');
 const pronto = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000', workspace = '00000000-0000-4000-8000-00000000a101', environment = 'browser-fixture';
 const scope = '?'+new URLSearchParams({workspace,environment}).toString();

@@ -46,6 +46,7 @@ jobs:
       - run: pnpm test:huddle:migration
       - run: pnpm exec playwright install --with-deps chromium firefox
       - run: pnpm test:huddle:browser
+      - run: pnpm test:huddle:browser:public
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,6 +1,6 @@
 import {NextResponse} from 'next/server';
 import {getSessionUser} from '@/lib/auth';
-import {assertInternalFeedbackActor} from '@/lib/feedback/authorization';
+import {assertFeedbackActor} from '@/lib/feedback/authorization';
 import {DEMO_CLIENT_ID,DemoError} from '@/lib/customer-demo-boundary';
 import {query,transaction} from '@/lib/db';
 import {assertSameOrigin} from '@/lib/http/csrf';
@@ -9,7 +9,7 @@ import {assertFeedbackEnabled,lockFeedbackTransaction} from '@/lib/feedback/stat
 import type {FeedbackThread} from '@/lib/feedback/types';
 const THREAD_LIMIT=100,COMMENT_LIMIT=50;
 class ReplayedRequest extends Error{}
-async function actor(){const user=await assertInternalFeedbackActor(await getSessionUser());assertFeedbackEnabled();return user;}
+async function actor(){const user=await assertFeedbackActor(await getSessionUser());assertFeedbackEnabled();return user;}
 function failure(error:unknown){return NextResponse.json({error:error instanceof DemoError?error.message:'Could not save prototype feedback.'},{status:error instanceof DemoError?error.status:500});}
 // No path means every prototype page, so reviewers see each other's comments workspace-wide.
 export async function GET(request:Request){

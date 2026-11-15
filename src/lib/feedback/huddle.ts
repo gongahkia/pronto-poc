@@ -9,17 +9,17 @@ import {getPool} from '@/lib/db';
 import {DemoError,DEMO_CLIENT_ID} from '@/lib/customer-demo-boundary';
 import {huddleReviewConfig} from '@/lib/huddle-config';
 import {assertSameOrigin} from '@/lib/http/csrf';
-import {assertInternalFeedbackActor,internalFeedbackUserIds} from './authorization';
+import {assertFeedbackActor,feedbackAccess,internalFeedbackUserIds} from './authorization';
 import {assertFeedbackEnabled,lockFeedbackTransaction} from './state';
 
 const checkScope = (scope:Scope) => {
   const config = huddleReviewConfig();
-  if(!config) throw new CollaborationError('unavailable','Internal feedback is disabled.');
+  if(!config) throw new CollaborationError('unavailable','Feedback is disabled.');
   if(scope.workspace !== DEMO_CLIENT_ID || scope.environment !== config.environment) throw new CollaborationError('forbidden','This feedback scope is not available.');
 };
 function authorization(loadSession:() => Promise<SessionUser | null>) {return async (scope:Scope,signal:AbortSignal) => {
   signal.throwIfAborted();
-  try {const actor = await assertInternalFeedbackActor(await loadSession()); checkScope(scope); signal.throwIfAborted(); return {actor:{id:actor.userId,name:actor.name},capabilities:{mentions:true,assignment:true,directory:true}};}
+  try {const actor = await assertFeedbackActor(await loadSession()); checkScope(scope); signal.throwIfAborted(); const internal = feedbackAccess() === 'internal'; return {actor:{id:actor.userId,name:actor.name},capabilities:{mentions:internal,assignment:internal,directory:internal}};}
   catch(error) {if(error instanceof DemoError) throw new CollaborationError(error.status === 401 ? 'unauthenticated' : error.status === 403 ? 'forbidden' : 'unavailable',error.message); throw error;}
 };}
 const directory:Directory = {
@@ -39,9 +39,9 @@ async function backend() {
 export const handleFeedback = createNextHandler({basePath:'/api/demo/feedback/v2',timeoutMs:120000,
   async api(request,signal) {
     const cookie = new NextRequest(request.url,{headers:request.headers}).cookies.get(SESSION_COOKIE_NAME)?.value, authorize = authorization(() => getSessionUserFromToken(cookie));
-    // fail before opening storage for an anonymous/guest request.
+    // validate the host-issued session and policy before opening storage.
     const config = huddleReviewConfig(); await authorize({workspace:DEMO_CLIENT_ID,environment:config?.environment ?? ''},signal); assertFeedbackEnabled();
-    return new ReviewStore(await backend(),authorize,directory);
+    return new ReviewStore(await backend(),authorize,feedbackAccess() === 'internal' ? directory : undefined);
   },
   verifyMutation(request) {if(assertSameOrigin(request)) throw new CollaborationError('forbidden','Cross-origin feedback mutation rejected.');},
 });

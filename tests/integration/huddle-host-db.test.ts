@@ -12,6 +12,7 @@ import {handleFeedback} from '@/lib/feedback/huddle';
 import {POST as legacyPost,GET as legacyGet} from '@/app/api/demo/feedback/route';
 import {GET as legacyExport} from '@/app/api/demo/feedback/export/route';
 import {feedbackLock} from '@/lib/feedback/state';
+import {createGuestReviewer} from '@/lib/guest-access';
 const suite = process.env.PRONTO_RUN_DB_TESTS === '1' && process.env.PRONTO_RUN_HUDDLE_DB_TESTS === '1' ? describe : describe.skip;
 const alex:SessionUser = {userId:PS_CAFE_DEMO_RESPONDER_ID,email:'responder@ps-cafe-demo.test',name:'Demo responder',role:'client',clientId:DEMO_CLIENT_ID}, morgan:SessionUser = {userId:PS_CAFE_DEMO_APPROVER_ID,email:'approver@ps-cafe-demo.test',name:'Demo knowledge approver',role:'client',clientId:DEMO_CLIENT_ID};
 let environment = '';
@@ -26,7 +27,7 @@ suite('Pronto host integration on an explicitly owned real PostgreSQL fixture',(
     await verifyTestDatabase();const row = (await getPool().query("select current_setting('pronto.fixture_nonce',true) nonce")).rows[0];if(!process.env.PRONTO_HUDDLE_FIXTURE_NONCE || row.nonce !== process.env.PRONTO_HUDDLE_FIXTURE_NONCE) throw new Error('Requires the task-owned Huddle verification database.');
     vi.stubEnv('PRONTO_CUSTOMER_DEMO_ENABLED','1');vi.stubEnv('PRONTO_HUDDLE_ENABLED','1');vi.stubEnv('PRONTO_DEMO_ALLOWED_USER_IDS',`${alex.userId},${morgan.userId}`);await removePsCafeDemo();await setupPsCafeDemo();
   });
-  beforeEach(async () => {environment = 'db'+randomUUID().replace(/-/g,'');vi.stubEnv('PRONTO_HUDDLE_ENVIRONMENT',environment);mocked.user.mockResolvedValue(alex);await mode('active');});
+  beforeEach(async () => {environment = 'db'+randomUUID().replace(/-/g,'');vi.stubEnv('PRONTO_HUDDLE_ACCESS','internal');vi.stubEnv('PRONTO_HUDDLE_ENVIRONMENT',environment);mocked.user.mockResolvedValue(alex);await mode('active');});
   afterAll(async () => {await mode('legacy');await removePsCafeDemo();vi.unstubAllEnvs();await getPool().end();});
   it('denies absent, guest and non-invited sessions on both APIs before exposing feedback',async () => {
     for(const actor of [null,{...alex,email:'guest@guest.invalid'},{...alex,userId:PS_CAFE_DEMO_ORDINARY_STAFF_ID}]) {mocked.user.mockResolvedValue(actor);const status = actor ? 403 : 401;expect((await request('/session')).status).toBe(status);expect((await request('/threads',create())).status).toBe(status);expect((await legacyGet(new Request('http://localhost:3000/api/demo/feedback'))).status).toBe(status);expect((await legacyExport(new Request('http://localhost:3000/api/demo/feedback/export?complete=1'))).status).toBe(status);expect((await legacy()).status).toBe(status);}
@@ -60,5 +61,28 @@ suite('Pronto host integration on an explicitly owned real PostgreSQL fixture',(
     const saved = await (await request('/threads',create())).json();const foreign = new Request(`http://localhost:3000/api/demo/feedback/v2/threads/${saved.thread.id}?workspace=other&environment=${environment}`);expect((await handleFeedback(foreign)).status).toBe(403);
     expect((await handleFeedback(new Request(`http://localhost:3000/api/demo/feedback/v2/threads?${query()}`,{method:'POST',headers:{origin:'https://foreign.test','content-type':'application/json'},body:JSON.stringify(create())}))).status).toBe(403);
     mocked.user.mockResolvedValue(null);expect((await request(`/threads/${saved.thread.id}`)).status).toBe(401);expect((await request('/exports',{scope:{workspace:DEMO_CLIENT_ID,environments:[environment]},format:'json'})).status).toBe(401);
+  });
+  async function visitor(name:string):Promise<SessionUser> {const row = await createGuestReviewer(name,'203.0.113.10');return {userId:row.id,name:row.name,email:row.email,role:row.role,clientId:row.client_id};}
+  it('shares existing feedback and new discussion between distinct chooser visitors only in public mode',async () => {
+    const existing = await (await request('/threads',create())).json();
+    vi.stubEnv('PRONTO_HUDDLE_ACCESS','public-demo');const a = await visitor('Public visitor A'), b = await visitor('Public visitor B');expect(a.userId).not.toBe(b.userId);mocked.user.mockResolvedValue(a);
+    const session = await (await request('/session')).json();expect(session.actor.id).toBe(a.userId);expect(session.capabilities).toMatchObject({directory:false,mentions:false,assignment:false});
+    expect((await (await request(`/threads/${existing.thread.id}`)).json()).thread.createdBy.id).toBe(alex.userId);
+    const saved = await (await request('/threads',create({body:'Public visitor pin'}))).json();expect(saved.thread.createdBy.id).toBe(a.userId);
+    mocked.user.mockResolvedValue(b);const replied = await request(`/threads/${saved.thread.id}/replies`,{idempotencyKey:randomUUID(),body:'Public visitor reply'});expect(replied.status).toBe(200);const detail = await replied.json();expect(detail.comments.items.at(-1).author.id).toBe(b.userId);
+    expect((await request(`/threads/${saved.thread.id}`,{idempotencyKey:randomUUID(),expectedVersion:detail.thread.version,status:'resolved'},'PATCH')).status).toBe(200);
+    const exported = await request('/exports',{scope:{workspace:DEMO_CLIENT_ID,environments:[environment]},format:'json'});expect(exported.status).toBe(200);const data = await exported.json();expect(data.complete).toBe(true);expect(data.threads.map((t:{id:string}) => t.id)).toEqual(expect.arrayContaining([existing.thread.id,saved.thread.id]));
+    expect((await request('/directory')).status).toBe(404);expect((await request('/threads',create({mentions:[alex.userId]}))).status).toBe(400);expect((await request('/threads',create({author:{id:alex.userId,name:'Forged'}}))).status).toBe(400);
+    expect((await handleFeedback(new Request(`http://localhost:3000/api/demo/feedback/v2/threads?workspace=other&environment=${environment}`))).status).toBe(403);
+    expect((await handleFeedback(new Request(`http://localhost:3000/api/demo/feedback/v2/threads?${query()}`,{method:'POST',headers:{origin:'https://foreign.test','content-type':'application/json'},body:JSON.stringify(create())}))).status).toBe(403);
+    vi.stubEnv('PRONTO_HUDDLE_ACCESS','internal');expect((await request(`/threads/${saved.thread.id}`)).status).toBe(403);
+    vi.stubEnv('PRONTO_HUDDLE_ACCESS','public-demo');mocked.user.mockResolvedValue(null);expect((await request('/session')).status).toBe(401);
+  });
+  it('uses the same explicit public policy for legacy read, write and complete export',async () => {
+    await mode('legacy');vi.stubEnv('PRONTO_HUDDLE_ACCESS','public-demo');const a = await visitor('Legacy visitor A'), b = await visitor('Legacy visitor B');mocked.user.mockResolvedValue(a);
+    const saved = await legacy();expect(saved.status).toBe(200);const {id} = await saved.json();mocked.user.mockResolvedValue(b);
+    const listed = await legacyGet(new Request('http://localhost:3000/api/demo/feedback'));expect(listed.status).toBe(200);expect((await listed.json()).threads.find((t:{id:string}) => t.id === id).comments[0].author_user_id).toBe(a.userId);
+    const exported = await legacyExport(new Request('http://localhost:3000/api/demo/feedback/export?complete=1&status=all'));expect(exported.status).toBe(200);expect(await exported.text()).toContain(id);
+    vi.stubEnv('PRONTO_HUDDLE_ACCESS','internal');expect((await legacyGet(new Request('http://localhost:3000/api/demo/feedback'))).status).toBe(403);expect((await legacy()).status).toBe(403);expect((await legacyExport(new Request('http://localhost:3000/api/demo/feedback/export?complete=1'))).status).toBe(403);
   });
 });
