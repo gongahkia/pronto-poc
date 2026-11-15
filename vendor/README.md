@@ -4,12 +4,12 @@ Pronto installs both packages from these real archives. No sibling checkout, sou
 
 | Archive | Version/source revision | SHA-256 |
 | --- | --- | --- |
-| huddle-browser-0.2.4.tgz | 0.2.4 / Huddle b056c1876e7f97187e9e096baeccf34fee5cdcfd | a94544ded31b586dd6a28385847f6d546e4fb18a8c7fc3dff6f5c086ba6e5acb |
-| huddle-host-0.2.0.tgz | 0.2.0 / Huddle 00426a5d97976d4ffbcec1309ccc2eceebe5170f | 34f682df574c3541ad51a8814b31cbb7505de2738881ae98e17ad9070cccd0fe |
+| huddle-browser-0.4.0.tgz | 0.4.0 / Huddle 306d373c60e558667942016f36714597d5ca08fc | e9081404b0efc6cda904e1d22dc2981e06a8c65b7b875f83a58f98dcdc8b4820 |
+| huddle-host-0.4.0.tgz | 0.4.0 / Huddle 306d373c60e558667942016f36714597d5ca08fc | 00deb1a7451d21725fb0a495940f9de0d417d98816748989f6d465ab4f3aa74d |
 
 The browser includes NOTICE and the self-contained integration/contracts/schema guides. Framework peers are optional; Pronto imports only the React and HTTP helpers. The server-only host package uses Pronto's existing PostgreSQL pool and current-user policy. Neither archive contains credentials, feedback, a Huddle account database or a deployed product service. Zod 4.6.7 is the host package's separate dependency; existing Pronto dependency versions are retained.
 
-The unused 0.1.0 archive remains for historical provenance after the verified migration and service retirement. It is absent from current production dependencies and lockfile resolution. Its original source was 2929decd77d666d0732c032d77b7485b390a923b, SHA-256 f89790e94cd256385aceab426a9c585517d52e12a28ad73cefcedb2ecbf86132. Do not switch back to the older data store after new discussion exists.
+The previous browser 0.2.4 and host 0.2.0 archives remain for provenance. This update keeps the same database schema and store; optional shared comment colors require the paired host reader. The unused 0.1.0 archive remains for historical provenance after the verified migration and service retirement. It is absent from current production dependencies and lockfile resolution. Its original source was 2929decd77d666d0732c032d77b7485b390a923b, SHA-256 f89790e94cd256385aceab426a9c585517d52e12a28ad73cefcedb2ecbf86132. Do not switch back to the older data store after new discussion exists.
 
 To refresh, build the verified Huddle revision on Node 24.21.0 / pnpm 10.33.0, pack both packages to an explicit archive destination, copy them here and update the local-file dependencies/lockfile. When replacing a private snapshot with the same package version, force the local archive reinstall and verify installed JavaScript against the archive. Record new checksums/revisions, then run the frozen install, application release checks and dedicated disposable Huddle gates. An old development cache does not establish acceptance of a replacement archive.
 

@@ -10,6 +10,7 @@ describe('workspace refresh during review',()=>{
   await act(async()=>{await vi.advanceTimersByTimeAsync(20000);});expect(mock.refresh).not.toHaveBeenCalled();
   view.rerender(<><AutoRefresh/><dialog open/></>);await act(async()=>{await vi.advanceTimersByTimeAsync(20000);});expect(mock.refresh).not.toHaveBeenCalled();
   view.rerender(<><AutoRefresh/><div data-huddle-root data-huddle-open/></>);await act(async()=>{await vi.advanceTimersByTimeAsync(20000);});expect(mock.refresh).not.toHaveBeenCalled();
-  view.rerender(<AutoRefresh/>);await act(async()=>{await vi.advanceTimersByTimeAsync(20000);});expect(mock.refresh).toHaveBeenCalledTimes(1);
+  view.rerender(<><AutoRefresh/><div data-huddle-root data-huddle-open data-huddle-collapsed/></>);await act(async()=>{await vi.advanceTimersByTimeAsync(20000);});expect(mock.refresh).toHaveBeenCalledTimes(1);
+  view.rerender(<AutoRefresh/>);await act(async()=>{await vi.advanceTimersByTimeAsync(20000);});expect(mock.refresh).toHaveBeenCalledTimes(2);
  });
 });

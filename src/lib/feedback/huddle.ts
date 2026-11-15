@@ -19,7 +19,7 @@ const checkScope = (scope:Scope) => {
 };
 function authorization(loadSession:() => Promise<SessionUser | null>) {return async (scope:Scope,signal:AbortSignal) => {
   signal.throwIfAborted();
-  try {const actor = await assertFeedbackActor(await loadSession()); checkScope(scope); signal.throwIfAborted(); const internal = feedbackAccess() === 'internal'; return {actor:{id:actor.userId,name:actor.name},capabilities:{mentions:internal,assignment:internal,directory:internal}};}
+  try {const actor = await assertFeedbackActor(await loadSession()); checkScope(scope); signal.throwIfAborted(); const internal = feedbackAccess() === 'internal'; return {actor:{id:actor.userId,name:actor.name},capabilities:{mentions:internal,assignment:internal,directory:internal,commentColors:true}};}
   catch(error) {if(error instanceof DemoError) throw new CollaborationError(error.status === 401 ? 'unauthenticated' : error.status === 403 ? 'forbidden' : 'unavailable',error.message); throw error;}
 };}
 const directory:Directory = {

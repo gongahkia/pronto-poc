@@ -5,6 +5,7 @@ import { huddleReviewConfig } from '@/lib/huddle-config';
 import { HuddleFeedback } from '@/components/huddle-feedback';
 import {getPool} from '@/lib/db';
 import {feedbackMode} from '@/lib/feedback/state';
+import {isGuestEmail} from '@/lib/guest-policy';
 
 export async function PrototypeFeedback({ actor, inline = false }: { actor: SessionUser; inline?: boolean }) {
   const config = huddleReviewConfig();
@@ -14,5 +15,5 @@ export async function PrototypeFeedback({ actor, inline = false }: { actor: Sess
   catch { return null; }
   if(mode !== 'active' && mode !== 'readonly') return <p data-feedback-ui role="status" className="text-xs text-muted">Feedback is paused. Contact your team.</p>;
   const nonce = (await headers()).get('x-nonce') ?? undefined;
-  return <HuddleFeedback config={config} styleNonce={nonce} inline={inline} readOnly={mode === 'readonly'}/>;
+  return <HuddleFeedback config={config} styleNonce={nonce} inline={inline} readOnly={mode === 'readonly'} canEditName={typeof actor.email==='string'&&isGuestEmail(actor.email)}/>;
 }

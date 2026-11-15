@@ -78,7 +78,7 @@ describe("POST /api/auth/guest", () => {
     for(const next of ['/demo/customer','/client/inbox']){
       const response=await post({next,role:'operator'});
       expect(response.headers.get('location')).toBe('http://localhost:3000'+next);
-      expect(mocks.create).toHaveBeenLastCalledWith('Demo reviewer',expect.any(String));
+      expect(mocks.create).toHaveBeenLastCalledWith(expect.stringMatching(/^[A-Z][a-z]+ [A-Z][a-z]+$/),expect.any(String));
       expect(mocks.establish).toHaveBeenLastCalledWith({id:'u1',role:'client'});
     }
   });

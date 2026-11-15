@@ -13,7 +13,7 @@ afterEach(() => {vi.unstubAllEnvs();authorize.mockReset();mode.mockReset();});
 function enable() {vi.stubEnv('PRONTO_CUSTOMER_DEMO_ENABLED','1');vi.stubEnv('PRONTO_HUDDLE_ENABLED','1');}
 it('disables feedback without rendering any legacy fallback',async () => {vi.stubEnv('PRONTO_HUDDLE_ENABLED','0');expect(await PrototypeFeedback({actor})).toBeNull();expect(authorize).not.toHaveBeenCalled();});
 it('mounts the host-backed SDK after the central host policy with the document nonce',async () => {
-  enable();const feedback = await PrototypeFeedback({actor,inline:true});expect(authorize).toHaveBeenCalledWith(actor);expect(feedback!.type).toBe(HuddleFeedback);expect(feedback!.props).toEqual({inline:true,styleNonce:'request-nonce',readOnly:false,config:{namespace:'pronto-feedback',workspace:DEMO_CLIENT_ID,environment:'development'}});
+  enable();const feedback = await PrototypeFeedback({actor,inline:true});expect(authorize).toHaveBeenCalledWith(actor);expect(feedback!.type).toBe(HuddleFeedback);expect(feedback!.props).toEqual({inline:true,styleNonce:'request-nonce',readOnly:false,canEditName:false,config:{namespace:'pronto-feedback',workspace:DEMO_CLIENT_ID,environment:'development'}});
 });
 it('keeps business pages usable and hides feedback on denial or identity failure',async () => {enable();authorize.mockRejectedValue(new Error('Identity unavailable'));expect(await PrototypeFeedback({actor})).toBeNull();});
 

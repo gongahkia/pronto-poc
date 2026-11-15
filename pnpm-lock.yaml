@@ -22,11 +22,11 @@ importers:
   .:
     dependencies:
       '@huddle/browser':
-        specifier: file:vendor/huddle-browser-0.2.4.tgz
-        version: file:vendor/huddle-browser-0.2.4.tgz(react@19.2.4)
+        specifier: file:vendor/huddle-browser-0.4.0.tgz
+        version: file:vendor/huddle-browser-0.4.0.tgz(react@19.2.4)
       '@huddle/host':
-        specifier: file:vendor/huddle-host-0.2.0.tgz
-        version: file:vendor/huddle-host-0.2.0.tgz
+        specifier: file:vendor/huddle-host-0.4.0.tgz
+        version: file:vendor/huddle-host-0.4.0.tgz
       '@vercel/functions':
         specifier: ^3.10.3
         version: 3.10.3
@@ -508,9 +508,9 @@ packages:
       '@noble/hashes':
         optional: true
 
-  '@huddle/browser@file:vendor/huddle-browser-0.2.4.tgz':
-    resolution: {integrity: sha512-iwrGCuSCPVRvaiigPGz+KjkOXGA7MX4nSUXKTgQs1Oe5V9Jg1Os6TmqKoOvQmYMjtH8wYWzi9P5Wz61fuNC1bw==, tarball: file:vendor/huddle-browser-0.2.4.tgz}
-    version: 0.2.4
+  '@huddle/browser@file:vendor/huddle-browser-0.4.0.tgz':
+    resolution: {integrity: sha512-5Rq+I3gX5urDkCkxIOLnJyVX3sqDLhrJg2AdLg36adMVf+BwZ0kFppz3cy2mjBkx2cl6aId3Je74sklwCeYbXg==, tarball: file:vendor/huddle-browser-0.4.0.tgz}
+    version: 0.4.0
     peerDependencies:
       '@angular/core': '>=20 <23'
       preact: '>=10 <12'
@@ -532,9 +532,9 @@ packages:
       vue:
         optional: true
 
-  '@huddle/host@file:vendor/huddle-host-0.2.0.tgz':
-    resolution: {integrity: sha512-cX1Gt4laB32NKrg4+KTy4X6H/RBcA1oApzm99FlLMJLVhbZ1F9f2V3I2OzycAi9UtZa0NMrMNPOwguWjsgHMdg==, tarball: file:vendor/huddle-host-0.2.0.tgz}
-    version: 0.2.0
+  '@huddle/host@file:vendor/huddle-host-0.4.0.tgz':
+    resolution: {integrity: sha512-rKImY6OCA+7zLZZGE2O6BEcNgmF+G3q9qBenezfsUvd/oawObUREZbAtNPFXGKoiMD5forzA/GAZbymYZtqMSg==, tarball: file:vendor/huddle-host-0.4.0.tgz}
+    version: 0.4.0
     engines: {node: '>=24.21.0 <25'}
     peerDependencies:
       '@types/express': 5.0.6
@@ -4121,11 +4121,11 @@ snapshots:
 
   '@exodus/bytes@1.15.0': {}
 
-  '@huddle/browser@file:vendor/huddle-browser-0.2.4.tgz(react@19.2.4)':
+  '@huddle/browser@file:vendor/huddle-browser-0.4.0.tgz(react@19.2.4)':
     optionalDependencies:
       react: 19.2.4
 
-  '@huddle/host@file:vendor/huddle-host-0.2.0.tgz':
+  '@huddle/host@file:vendor/huddle-host-0.4.0.tgz':
     dependencies:
       zod: 4.6.7
 
