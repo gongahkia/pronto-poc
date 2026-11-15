@@ -22,8 +22,8 @@ importers:
   .:
     dependencies:
       '@huddle/browser':
-        specifier: file:vendor/huddle-browser-0.2.1.tgz
-        version: file:vendor/huddle-browser-0.2.1.tgz(react@19.2.4)
+        specifier: file:vendor/huddle-browser-0.2.3.tgz
+        version: file:vendor/huddle-browser-0.2.3.tgz(react@19.2.4)
       '@huddle/host':
         specifier: file:vendor/huddle-host-0.2.0.tgz
         version: file:vendor/huddle-host-0.2.0.tgz
@@ -508,9 +508,9 @@ packages:
       '@noble/hashes':
         optional: true
 
-  '@huddle/browser@file:vendor/huddle-browser-0.2.1.tgz':
-    resolution: {integrity: sha512-MZghLRj59okCWxdkF4JOv0B7SvO9pxijvTj9ALBCpMSQye3NduIhTL/qTmlQ/hKWpCkuSXak5chsPDDNfCV96g==, tarball: file:vendor/huddle-browser-0.2.1.tgz}
-    version: 0.2.1
+  '@huddle/browser@file:vendor/huddle-browser-0.2.3.tgz':
+    resolution: {integrity: sha512-WnJ95x+62Me03pmYG4qagJe9LJQ3w6pzWyDdTWFpb41S9raLR11XaH0P5QUX4XKUiW69f/iy4XxnP9ATHjbrpg==, tarball: file:vendor/huddle-browser-0.2.3.tgz}
+    version: 0.2.3
     peerDependencies:
       '@angular/core': '>=20 <23'
       preact: '>=10 <12'
@@ -4121,7 +4121,7 @@ snapshots:
 
   '@exodus/bytes@1.15.0': {}
 
-  '@huddle/browser@file:vendor/huddle-browser-0.2.1.tgz(react@19.2.4)':
+  '@huddle/browser@file:vendor/huddle-browser-0.2.3.tgz(react@19.2.4)':
     optionalDependencies:
       react: 19.2.4
 

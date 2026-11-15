@@ -64,7 +64,7 @@
     "feedback:control": "tsx scripts/feedback-control.ts"
   },
   "dependencies": {
-    "@huddle/browser": "file:vendor/huddle-browser-0.2.1.tgz",
+    "@huddle/browser": "file:vendor/huddle-browser-0.2.3.tgz",
     "@huddle/host": "file:vendor/huddle-host-0.2.0.tgz",
     "@vercel/functions": "^3.10.3",
     "@xyflow/react": "^12.12.0",
