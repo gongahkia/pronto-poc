@@ -20,7 +20,10 @@ try {
   else if(command === 'backup') {const source = await backup(ctx), bytes = JSON.stringify(source)+'\n';await privateWrite(required('out'),bytes);result = {schema:source.schema,complete:true,counts:source.counts,backupSha256:sha256(bytes)};}
   else if(command === 'pause' || command === 'readonly') result = await pause(ctx);
   else if(command === 'prepare') result = await prepare(ctx,await privateRead(required('backup')),JSON.parse((await privateRead(required('restore-receipt'),1024*1024)).toString('utf8')));
-  else if(command === 'install') result = await install(ctx,await privateRead(required('backup')),JSON.parse((await privateRead(required('restore-receipt'),1024*1024)).toString('utf8')));
+  else if(command === 'install') {
+    const prerequisites = args.get('--apply-prerequisites');if(prerequisites !== undefined && prerequisites !== '056-057') throw new Error('Only the reviewed 056-057 prerequisite set can be approved.');
+    result = await install(ctx,await privateRead(required('backup')),JSON.parse((await privateRead(required('restore-receipt'),1024*1024)).toString('utf8')),{applyPrerequisites:prerequisites === '056-057'});
+  }
   else if(command === 'preview') {const plan = await preview(ctx,args.get('--replace-preview'));await privateWrite(required('out'),JSON.stringify(plan)+'\n');result = {id:plan.id,counts:plan.counts,conflicts:plan.conflicts.length,expiresAt:plan.expiresAt,historicalAuthors:plan.historicalAuthors.length};}
   else if(command === 'execute') {const row = await state(ctx), saved = args.has('--preview') ? JSON.parse((await privateRead(required('preview'),1024*1024)).toString('utf8')) : {id:row.migration_preview_id,digest:row.migration_digest,idempotencyKey:row.migration_request_key};result = await execute(ctx,{previewId:saved.id,digest:saved.digest,idempotencyKey:saved.idempotencyKey,maxBatches:Number(required('max-batches'))});}
   else if(command === 'verify') result = await verify(ctx);

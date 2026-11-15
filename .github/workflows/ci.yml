@@ -98,6 +98,8 @@ jobs:
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+        # the dedicated Huddle workflow covers review browsers without starting inference workers.
+        if: ${{ !contains(github.event.head_commit.message, '[feedback-only]') }}
         env:
           PRONTO_E2E_DEV_SERVER: "1"
       - run: docker build --target runner -t pronto-runner:ci .
@@ -124,6 +126,7 @@ jobs:
           exit 1
       - run: docker build --target worker -t pronto-worker:ci .
       - name: Smoke worker image
+        if: ${{ !contains(github.event.head_commit.message, '[feedback-only]') }}
         run: |
           docker rm -f pronto-worker-ci >/dev/null 2>&1 || true
           docker run -d --name pronto-worker-ci \

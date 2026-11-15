@@ -44,6 +44,7 @@ jobs:
       - run: pnpm fixtures:huddle:postgres
       - run: pnpm test:huddle:db
       - run: pnpm test:huddle:migration
+      - run: pnpm test:huddle:migration --baseline-055
       - run: pnpm exec playwright install --with-deps chromium firefox
       - run: pnpm test:huddle:browser
       - run: pnpm test:huddle:browser:public

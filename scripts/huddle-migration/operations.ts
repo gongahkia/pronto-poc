@@ -20,22 +20,23 @@ export function inspectRecovery(bytes:Uint8Array,receipt:unknown,ctx:MigrationCo
   if(source.workspaceId !== ctx.workspaceId || source.datasetId !== ctx.databaseId || !proof || proof.schema !== 'pronto.feedback.backup-restore.v1' || proof.complete !== true || proof.cleanup !== true || proof.backupSha256 !== sha256(bytes) || proof.sourceDigest !== sourceDigest(source) || proof.sourceDatasetId !== ctx.databaseId || proof.workspaceId !== ctx.workspaceId || !Number.isFinite(Date.parse(String(proof.restoredAt)))) throw new Error('A complete backup and matching successful private recovery receipt for this exact source are required.');
   return source;
 }
-export async function install(ctx:MigrationContext,bytes:Uint8Array,receipt:unknown) {
+export async function install(ctx:MigrationContext,bytes:Uint8Array,receipt:unknown,options:{applyPrerequisites?:boolean} = {}) {
   const source = inspectRecovery(bytes,receipt,ctx), files = ['058_host_backed_feedback.sql','059_feedback_migration_checkpoint.sql'];
   return ctx.locked(async db => {
     const migrationLock = (await db.query("select pg_try_advisory_lock(hashtextextended('pronto:migrations',0)) held")).rows[0].held;
     if(!migrationLock) throw new Error('Another schema migration is running; installation refused.');
     try {
       const inventory = (await readdir(new URL('../../db/migrations/',import.meta.url))).filter(name => name.endsWith('.sql')).sort(), applied = new Set((await db.query<{filename:string}>('select filename from schema_migrations')).rows.map(row => row.filename));
-      if(inventory.some(name => name < files[0] && !applied.has(name)) || files.some(name => applied.has(name))) throw new Error('Install requires the reviewed pre-058 baseline; an existing or partly installed schema needs explicit inventory.');
+      const missing = inventory.filter(name => name < files[0] && !applied.has(name)), reviewed = ['056_local_openai_evaluation.sql','057_issue_scoped_handoffs.sql'];
+      if(missing.some(name => !options.applyPrerequisites || !reviewed.includes(name)) || files.some(name => applied.has(name))) throw new Error('Install requires the reviewed pre-058 baseline; missing 056/057 require explicit prerequisite approval and an existing or partly installed schema needs explicit inventory.');
       await db.query('begin');
       try {
         await db.query("set local lock_timeout='5s'");await db.query('lock table demo_feedback_threads,demo_feedback_comments in access exclusive mode');
         // the table lock covers legacy SQL that predates the advisory-lock guard.
         const current = await readLegacy(ctx.pool,{workspaceId:ctx.workspaceId,datasetId:ctx.databaseId,origin:ctx.origin},db);
         if(sourceDigest(current) !== sourceDigest(source)) throw new Error('The source changed after its initial backup; restore a fresh backup before additive installation.');
-        for(const file of files) {await db.query(await readFile(new URL('../../db/migrations/'+file,import.meta.url),'utf8'));await db.query('insert into schema_migrations(filename) values($1)',[file]);}
-        await db.query('commit');return {installed:files,mode:'maintenance',backupSha256:sha256(bytes)};
+        for(const file of [...missing,...files]) {await db.query(await readFile(new URL('../../db/migrations/'+file,import.meta.url),'utf8'));await db.query('insert into schema_migrations(filename) values($1)',[file]);}
+        await db.query('commit');return {installed:[...missing,...files],mode:'maintenance',backupSha256:sha256(bytes)};
       } catch(error) {await db.query('rollback').catch(() => {});throw error;}
     } finally {await db.query("select pg_advisory_unlock(hashtextextended('pronto:migrations',0))");}
   });

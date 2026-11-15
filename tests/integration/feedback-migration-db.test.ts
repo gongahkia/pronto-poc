@@ -31,7 +31,21 @@ describe.skipIf(!enabled)('owned PostgreSQL backup, migration and cutover rehear
     source = await backup(ctx);expect(source.counts).toEqual({threads:108,comments:475});expect(source.threads[0].created_at).toMatch(/123456Z$/);bytes = Buffer.from(JSON.stringify(source)+'\n');const path = join(output,'feedback-backup.json');await writeFile(path,bytes,{mode:0o600});
     const result = await promisify(execFile)(process.execPath,['--import','tsx','scripts/huddle-restore-check.ts',path],{cwd:process.cwd(),env:{...process.env,NODE_OPTIONS:undefined},timeout:90000,maxBuffer:1024*1024});receipt = JSON.parse(result.stdout.trim());expect(receipt).toMatchObject({complete:true,cleanup:true,backupSha256:sha256(bytes),sourceDigest:sourceDigest(source),counts:source.counts});await writeFile(join(output,'restore-receipt.json'),JSON.stringify(receipt)+'\n',{mode:0o600});
   },90000);
-  it('installs or pauses both stores, requires the matching restore receipt and refuses a changed backup',async () => {if(process.env.PRONTO_HUDDLE_MIGRATION_INSTALL === '1') expect(await install(ctx,bytes,receipt)).toMatchObject({mode:'maintenance',installed:['058_host_backed_feedback.sql','059_feedback_migration_checkpoint.sql']});await expect(install(ctx,bytes,receipt)).rejects.toThrow(/baseline/);await pause(ctx);await expect(prepare(ctx,bytes,{...receipt as object,backupSha256:'0'.repeat(64)})).rejects.toThrow(/receipt/);const changed = structuredClone(source);changed.comments[0].body += '!';await expect(prepare(ctx,Buffer.from(JSON.stringify(changed)),receipt)).rejects.toThrow();expect(await prepare(ctx,bytes,receipt)).toMatchObject({prepared:true,counts:source.counts});expect((await state(ctx)).mode).toBe('maintenance');});
+  it('installs or pauses both stores, requires the matching restore receipt and refuses a changed backup',async () => {
+    if(process.env.PRONTO_HUDDLE_MIGRATION_INSTALL === '1') {
+      const baseline055 = process.env.PRONTO_HUDDLE_MIGRATION_BASELINE === '055';
+      if(baseline055) {
+        await expect(install(ctx,bytes,receipt)).rejects.toThrow(/baseline/);
+        const old = (await getPool().query('select filename from schema_migrations order by filename')).rows;expect(old.at(-1)?.filename).toBe('055_demo_feedback_request_ids.sql');
+        expect((await getPool().query("delete from schema_migrations where filename='054_agent_processing_recovery.sql'")).rowCount).toBe(1);
+        await expect(install(ctx,bytes,receipt,{applyPrerequisites:true})).rejects.toThrow(/baseline/);
+        await getPool().query("insert into schema_migrations(filename) values('054_agent_processing_recovery.sql')");
+      }
+      expect(await install(ctx,bytes,receipt,{applyPrerequisites:baseline055})).toMatchObject({mode:'maintenance',installed:[...(baseline055 ? ['056_local_openai_evaluation.sql','057_issue_scoped_handoffs.sql'] : []),'058_host_backed_feedback.sql','059_feedback_migration_checkpoint.sql']});
+      if(baseline055) {expect((await getPool().query("select count(*)::int count from escalations where allow_ai_followups is distinct from false")).rows[0].count).toBe(0);expect((await getPool().query("select pg_get_constraintdef(oid) definition from pg_constraint where conname='customer_demo_sessions_ai_selection_check'")).rows[0].definition).toContain('openai-local');}
+    }
+    await expect(install(ctx,bytes,receipt)).rejects.toThrow(/baseline/);await pause(ctx);await expect(prepare(ctx,bytes,{...receipt as object,backupSha256:'0'.repeat(64)})).rejects.toThrow(/receipt/);const changed = structuredClone(source);changed.comments[0].body += '!';await expect(prepare(ctx,Buffer.from(JSON.stringify(changed)),receipt)).rejects.toThrow();expect(await prepare(ctx,bytes,receipt)).toMatchObject({prepared:true,counts:source.counts});expect((await state(ctx)).mode).toBe('maintenance');
+  });
   it('previews historical identities and resumes acknowledged batches with one saved key',async () => {
     const plan = await preview(ctx);expect(plan.counts).toEqual({threads:108,comments:475,history:475});expect(plan.conflicts).toEqual([]);expect(plan.historicalAuthors.some(author => author.name.includes('Historical guest'))).toBe(true);const input = {previewId:plan.id,digest:plan.digest,idempotencyKey:plan.idempotencyKey,maxBatches:1};await writeFile(join(output,'preview.json'),JSON.stringify(plan)+'\n',{mode:0o600});
     await expect(execute(ctx,{...input,idempotencyKey:randomUUID()})).rejects.toThrow(/exact checkpointed/);
