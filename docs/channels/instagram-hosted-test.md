@@ -1,5 +1,28 @@
 # Hosted Instagram channel test
 
+Deployment verified on 18 November 2026:
+<https://pronto-instagram-test.onrender.com>, deployed code commit `02bdb5b` on
+`codex/instagram-hosted-test`, auto-deploy off, Free compute in Singapore. GitHub
+redirects the old `gongahkia/pronto-prod` repository name to
+`gongahkia/pronto-poc`; both names refer to the same repository. The existing
+`pronto-ai-poc` service and its database were not changed.
+
+The new database has migrations 001–060, a restricted pooled runtime role and
+separate private operator/business logins. The encrypted Unified Login channel
+is draft. Its public callback passed correct-token/exact-challenge and
+wrong-token rejection checks; inactive POSTs were rejected and no inbound or
+outbound jobs were created. Fresh Meta credential reads and the hosted channel
+health check passed. The worker remains disabled: app-level/account
+subscriptions, approved knowledge/model configuration, activation approvals and
+observed real DM delivery are still outstanding.
+
+Validation: `pnpm typecheck`, `pnpm lint`, 1,072 standard tests passed (161
+optional tests skipped), the hosted production build passed, and Render's
+Blueprint validation passed. These checks do not establish real DM delivery or
+continuous free-tier availability. Private operational receipts and login files
+are under ignored `output/instagram-hosted/`; Keith's generated callback/token
+handoff is under ignored `output/instagram-setup/`.
+
 This deployment is separate from the public synthetic demo. It uses an
 authenticated standard-profile Pronto app, a dedicated Neon Free project and
 the ordinary encrypted channel credentials and approval gates. There are no
