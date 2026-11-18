@@ -145,6 +145,25 @@ Pronto activation occurs. A transport failure or failed confirmation after a
 write produces `uncertain`: inspect the actual state before any deliberate
 retry. This command never retries a write automatically.
 
+Subscription writes and reconciliation use an exclusive local app/account lock
+and a private operation journal under `output/instagram-setup/operations/`.
+Another invocation from the same checkout cannot enter while the lock is held.
+An uncertain result remains recorded across invocations. After an independent
+inspection confirms `messages` is enabled, reconcile without a provider write:
+
+```sh
+PRONTO_META_TEST_ACCOUNT=1 PRONTO_META_READ_APPROVED=1 \
+  pnpm instagram:subscription reconcile
+```
+
+If inspection does not confirm success, reconciliation retains the uncertain
+state. A crashed process can leave its lock or `in_progress` record; inspect the
+process and Meta state before manually removing stale local records. The tool
+does not guess that a timed-out write failed. These are local checkout locks,
+not distributed locks: designate one checkout/laptop for subscription writes.
+Changes made independently in another checkout or in Meta's dashboard cannot
+be atomically coordinated by this CLI.
+
 We can finish the local implementation and signed webhook tests without Keith.
 Before asking him to configure Meta, prepare a channel-enabled local environment
 with a public HTTPS tunnel, a verified isolated database, and a manually
@@ -204,6 +223,100 @@ pnpm test:huddle:db --test-file tests/integration/meta-rag-demo.test.ts
 This harness creates, marks and removes its own PostgreSQL cluster. It does not
 use `.env` credentials or any existing database. It performs no live inference
 or Meta delivery; those remain separate acceptance steps.
+
+### Concurrency and failure verification
+
+The queue concurrency regression uses signed Unified Login requests and a real,
+freshly marked PostgreSQL database with a fake Graph transport:
+
+```sh
+PRONTO_DB_POOL_MAX=2 pnpm test:huddle:db \
+  --test-file tests/integration/instagram-concurrency.test.ts
+```
+
+It checks an eight-request duplicate burst, simultaneous claims for different
+conversations, ordering within a busy conversation, stale-attempt completion,
+concurrent sends, takeover before dispatch, and uncertain-send handling. A
+blocked chat does not fill the retry batch ahead of another eligible chat.
+The same eight checks pass with a two-connection pool.
+
+Ingestion uses the channel share lock, conversation upsert row lock, and unique
+message/job keys under read committed isolation. The concurrency review
+reproduced avoidable serialization failures under the former serializable
+transaction with two retries; it no longer relies on those retries for
+simultaneous copies of one webhook. Outbound claims check for older unresolved
+replies in the same tenant/channel/thread. Uncertain earlier sends pause later
+sends in that thread pending reconciliation. Pending/failed earlier sends are
+processed before later replies; terminal dead/suppressed rows do not hold the
+thread. Other threads remain eligible.
+
+Migration **060_outbound_thread_order.sql** adds the index for those checks.
+Apply it through the verified migration workflow before starting an updated
+deployment. Delivery reuses the ownership transaction's connection for its
+database reads, and writes channel health after releasing that transaction;
+the small-pool test previously reproduced connection starvation in that path.
+
+This is bounded regression evidence, not a sustained-load benchmark or an
+exactly-once external delivery promise. A committed takeover suppresses queued
+AI delivery, but cannot recall a provider request already in flight. Provider
+acceptance and actual recipient delivery remain separate evidence. Live
+webhook delivery, burst/rate-limit behavior and recovery still need controlled
+acceptance with the actual Meta app/account before production use.
+
+### Local delivery debugging
+
+Set `PRONTO_DEBUG_DELIVERY=1` on the local web app and on the one authorized test
+worker when investigating sends. It defaults off and is ignored when
+`NODE_ENV=production`. The existing essential logs and error records continue
+independently of this flag. No additional provider calls or database writes are
+made to collect the debug timeline.
+
+Logs use the existing structured JSON logger, with `debugDelivery: true`, a
+process ID, internal channel/conversation/outbox UUIDs, attempt count, and a fresh
+delivery-attempt UUID. Async-local context keeps simultaneous attempts separate.
+Internal UUIDs are validated before bypassing content/phone redaction; message
+bodies, external recipient/account identifiers, tokens, secrets, request URLs, headers
+and provider explanations are not included. Provider receipt/trace identifiers
+are SHA-256 hashes; status and numeric provider error codes remain available.
+
+The timeline records attempt start, ownership check, dispatch start, Instagram
+send/HTTP response, reported acceptance or uncertainty, and final local queue
+state. `statePersisted` distinguishes a saved outcome from a failed save.
+`acceptanceState: unknown` means acceptance could not be established, not that
+Meta rejected the message. `reported` means the send returned successfully,
+not that recipient delivery was observed. Takeover requested/committed/failed
+events share the conversation UUID and include elapsed time, making a wait on
+an in-flight send visible. Debug sink failures do not change send results.
+
+For private local collection in separate terminals:
+
+```sh
+umask 077
+mkdir -p output/instagram-debug
+PRONTO_DEBUG_DELIVERY=1 pnpm dev > output/instagram-debug/web.log 2>&1
+# In another terminal, only when ready to run the authorized test worker:
+umask 077
+PRONTO_DEBUG_DELIVERY=1 pnpm exec node --env-file=.env --import tsx scripts/worker.ts \
+  > output/instagram-debug/worker.log 2>&1
+```
+
+The worker command starts real queue processing and may make configured model
+calls; it is not a credential smoke check. Keep other workers stopped for the
+controlled test and use the intended verified database. To inspect just debug
+events, or one outbound row:
+
+```sh
+jq -R 'fromjson? | select(.debugDelivery == true)' output/instagram-debug/worker.log
+jq -R --arg id OUTBOUND_UUID \
+  'fromjson? | select(.debugDelivery == true and .outboundMessageId == $id)' \
+  output/instagram-debug/worker.log
+```
+
+A process dying can leave an incomplete timeline. Missing completion logs do
+not establish that a send failed; reconcile the saved outbox/provider state.
+These logs aid investigation and do not provide cancellation or exactly-once
+external delivery. No real channel, worker or paid model loop is started by
+the logging tests.
 
 Keith does not need to recreate the app or provide a new token for local code
 work. Actual callback values cannot be finalized until the test environment's

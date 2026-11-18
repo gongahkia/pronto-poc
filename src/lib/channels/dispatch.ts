@@ -1,4 +1,4 @@
-import { query } from "@/lib/db";
+import { query, type Queryable } from "@/lib/db";
 import { logWarn } from "@/lib/logger";
 import { decryptChannelCredentials, usesLegacyPlaintextCredentials } from "@/lib/channels/credentials";
 import { recordOutboundHealth } from "@/lib/channels/health";
@@ -22,8 +22,9 @@ export async function sendChannelText(input: {
   externalThreadId: string;
   text: string;
   policy?: ChannelSendPolicy;
-}): Promise<{ providerMessageId?: string }> {
-  const channelResult = await query<Channel>(
+}, transactionDb?: Queryable): Promise<{ providerMessageId?: string }> {
+  const db = transactionDb ?? { query };
+  const channelResult = await db.query<Channel>(
     input.clientId
       ? "select * from channels where id = $1 and client_id = $2"
       : "select * from channels where id = $1",
@@ -35,6 +36,10 @@ export async function sendChannelText(input: {
   if (!channel) {
     throw new Error(`Channel not found: ${input.channelId}`);
   }
+  // the outbox records health after releasing its ownership transaction.
+  const recordHealth = async (error?: unknown) => {
+    if (!transactionDb) await safeRecordOutboundHealth(input.channelId, channel.client_id, error);
+  };
   if (channel.status !== "active") {
     throw new Error("Channel is disabled or inactive; outbound send blocked.");
   }
@@ -49,9 +54,9 @@ export async function sendChannelText(input: {
   }
 
   if (channel.kind === "console") {
-    await assertCustomerDemoEnabled();
+    await assertCustomerDemoEnabled(db);
     if (!isCustomerDemoChannel(channel)) throw new ChannelPolicyError("Unknown simulator channel.");
-    const session = await query<{ id: string }>(`select s.id from customer_demo_sessions s
+    const session = await db.query<{ id: string }>(`select s.id from customer_demo_sessions s
       join conversations c on c.id=s.conversation_id and c.client_id=s.client_id
       where s.client_id=$1 and c.channel_id=$2 and c.external_thread_id=$3`,
       [channel.client_id, channel.id, input.externalThreadId]);
@@ -67,37 +72,37 @@ export async function sendChannelText(input: {
       const template = input.policy?.whatsappTemplateName && input.policy.whatsappTemplateApproved === true
         ? { name: input.policy.whatsappTemplateName,
             languageCode: input.policy.whatsappTemplateLanguage ?? "en_US" } : undefined;
-      if (!template && !(await hasRecentCustomerMessage(channel, input.externalThreadId))) {
+      if (!template && !(await hasRecentCustomerMessage(channel, input.externalThreadId, db))) {
         throw new ChannelPolicyError("WhatsApp text reply is outside the customer service window.");
       }
       const providerMessageId = await sendWhatsAppText({ channel,
         externalThreadId: input.externalThreadId, text: input.text, template });
-      await safeRecordOutboundHealth(input.channelId, channel.client_id);
+      await recordHealth();
       return { providerMessageId };
     }
 
     if (channel.kind === "telegram") {
       await sendTelegramText({ channel, externalThreadId: input.externalThreadId, text: input.text });
-      await safeRecordOutboundHealth(input.channelId, channel.client_id);
+      await recordHealth();
       return {};
     }
 
     if (channel.kind === "messenger") {
-      if (!(await hasRecentCustomerMessage(channel, input.externalThreadId))) {
+      if (!(await hasRecentCustomerMessage(channel, input.externalThreadId, db))) {
         throw new ChannelPolicyError("Messenger reply requires a recent customer-initiated conversation.");
       }
       const providerMessageId = await sendMessengerText({ channel, externalThreadId: input.externalThreadId, text: input.text });
-      await safeRecordOutboundHealth(input.channelId, channel.client_id);
+      await recordHealth();
       return { providerMessageId };
     }
 
     if (channel.kind === "instagram") {
-      if (!(await hasRecentCustomerMessage(channel, input.externalThreadId))) {
+      if (!(await hasRecentCustomerMessage(channel, input.externalThreadId, db))) {
         throw new ChannelPolicyError("Instagram reply requires a recent customer-initiated conversation.");
       }
       const providerMessageId = await sendInstagramText({ channel,
         externalThreadId: input.externalThreadId, text: input.text });
-      await safeRecordOutboundHealth(input.channelId, channel.client_id);
+      await recordHealth();
       return { providerMessageId };
     }
 
@@ -106,7 +111,7 @@ export async function sendChannelText(input: {
         channelId: channel.id,
         clientId: channel.client_id,
         externalThreadId: input.externalThreadId,
-      });
+      }, db);
       const subjectSetting =
         (channel.settings.defaultSubject as string | undefined) ?? "your inquiry";
       const subject = threading.subject ?? subjectSetting;
@@ -117,8 +122,8 @@ export async function sendChannelText(input: {
         text: input.text,
         inReplyTo: threading.inReplyTo,
         references: threading.references,
-      });
-      await query(
+      }, db);
+      await db.query(
         `
           update messages
           set metadata = jsonb_set(coalesce(metadata, '{}'::jsonb), '{outgoingMessageId}', to_jsonb($4::text), true)
@@ -136,12 +141,12 @@ export async function sendChannelText(input: {
         `,
         [channel.id, input.externalThreadId, channel.client_id, messageId],
       );
-      await safeRecordOutboundHealth(input.channelId, channel.client_id);
+      await recordHealth();
       return { providerMessageId: messageId };
     }
     throw new ChannelPolicyError("Unsupported outbound channel kind.");
   } catch (error) {
-    await safeRecordOutboundHealth(input.channelId, channel.client_id, error);
+    await recordHealth(error);
     throw error;
   }
 }
@@ -154,8 +159,8 @@ async function safeRecordOutboundHealth(channelId: string, clientId: string, err
   }
 }
 
-async function hasRecentCustomerMessage(channel: Channel, externalThreadId: string): Promise<boolean> {
-  const recent = await query<{ created_at: Date; metadata: Record<string, unknown> }>(
+async function hasRecentCustomerMessage(channel: Channel, externalThreadId: string, db: Queryable): Promise<boolean> {
+  const recent = await db.query<{ created_at: Date; metadata: Record<string, unknown> }>(
     `select m.created_at, m.metadata from messages m join conversations c on c.id = m.conversation_id
      where m.client_id = $1 and m.channel_id = $2 and c.external_thread_id = $3
        and c.client_id = $1 and m.sender_role = 'customer'

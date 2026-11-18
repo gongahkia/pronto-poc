@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
@@ -39,6 +39,7 @@ import type { OutboundMessage } from "@/lib/channels/outbox";
 import { ProviderSendError } from "@/lib/channels/provider-error";
 
 describe("outbound message outbox", () => {
+  afterEach(() => vi.unstubAllEnvs());
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -172,6 +173,33 @@ describe("outbound message outbox", () => {
       "outbound-1", "injected sent status write failure", "client-1", "uncertain",
     ]);
     await flushOutboundMessage("outbound-1");
+    expect(mocks.sendChannelText).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([0, 1])("logs provider acceptance separately from a failed sent write and reconciliation row count %s", async rowCount => {
+    vi.stubEnv("PRONTO_DEBUG_DELIVERY", "1");
+    mocks.query.mockResolvedValueOnce({ rows: [outboundMessage()] })
+      .mockRejectedValueOnce(new Error("injected sent write failure"))
+      .mockResolvedValueOnce({ rows: [], rowCount });
+    mocks.sendChannelText.mockResolvedValueOnce({ providerMessageId: "private-provider-receipt" });
+    await flushOutboundMessage("outbound-1");
+    expect(mocks.logInfo).toHaveBeenCalledWith("delivery.attempt_finished", expect.objectContaining({
+      finalState: "uncertain", statePersisted: rowCount === 1, acceptanceState: "reported",
+      providerReceiptHash: expect.stringMatching(/^sha256:/),
+    }));
+    expect(mocks.sendChannelText).toHaveBeenCalledTimes(1);
+  });
+
+  it("emits the final unknown persistence state even if both outcome writes fail", async () => {
+    vi.stubEnv("PRONTO_DEBUG_DELIVERY", "1");
+    mocks.query.mockResolvedValueOnce({ rows: [outboundMessage()] })
+      .mockRejectedValueOnce(new Error("sent write failed"))
+      .mockRejectedValueOnce(new Error("uncertain write failed"));
+    mocks.sendChannelText.mockResolvedValueOnce({ providerMessageId: "private-provider-receipt" });
+    await expect(flushOutboundMessage("outbound-1")).rejects.toThrow("uncertain write failed");
+    expect(mocks.logInfo).toHaveBeenCalledWith("delivery.attempt_finished", expect.objectContaining({
+      finalState: "uncertain", statePersisted: false, acceptanceState: "reported",
+    }));
     expect(mocks.sendChannelText).toHaveBeenCalledTimes(1);
   });
 

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { normalizeInstagramPayload, sendInstagramText, verifyInstagramSignature } from "@/lib/channels/instagram";
 
 describe("Instagram adapter", () => {
-  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); });
   it("normalizes text DMs", () => {
     const result = normalizeInstagramPayload("ig-channel", {
       entry: [
@@ -176,5 +176,52 @@ describe("Instagram adapter", () => {
       settings: { authMode: "instagram_login" }, last_health_check_at: null,
       last_health_status: null, last_health_error: null, last_outbound_at: null, last_outbound_error: null,
     }, externalThreadId: "customer", text: "Hello" })).rejects.toThrow(/disabled/);
+  });
+
+  it("logs only numeric provider rejection details and a hashed trace", async () => {
+    vi.stubEnv("PRONTO_DEBUG_DELIVERY", "1");
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: {
+      code: 190, error_subcode: 463, message: "private provider explanation", fbtrace_id: "private-body-trace",
+    } }), { status: 400, headers: { "x-fb-trace-id": "private-header-trace" } })));
+    await expect(sendInstagramText({ channel: {
+      id: "ig-channel", client_id: "tenant-a", kind: "instagram", name: "Instagram", status: "active",
+      external_id: "private-account", credentials: { accessToken: "private-token" }, settings: { authMode: "unified_login" },
+      last_health_check_at: null, last_health_status: null, last_health_error: null, last_outbound_at: null, last_outbound_error: null,
+    }, externalThreadId: "private-customer", text: "private customer text" }))
+      .rejects.toMatchObject({ statusCode: 400, providerCode: 190, retryable: false });
+    const records = log.mock.calls.map(call => JSON.parse(String(call[0])));
+    expect(records.find(record => record.event === "instagram.provider_rejected"))
+      .toMatchObject({ httpStatus: 400, providerCode: 190, providerSubcode: 463, providerTraceHash: expect.stringMatching(/^sha256:/) });
+    for (const value of ["private provider explanation", "private-body-trace", "private-header-trace", "private-token",
+      "private-account", "private-customer", "private customer text"]) expect(JSON.stringify(records)).not.toContain(value);
+  });
+
+  it.each([null, {}, { message_id: "" }])("logs an ambiguous response without inventing provider acceptance", async response => {
+    vi.stubEnv("PRONTO_DEBUG_DELIVERY", "1");
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(response))));
+    await expect(sendInstagramText({ channel: {
+      id: "ig-channel", client_id: "tenant-a", kind: "instagram", name: "Instagram", status: "active",
+      external_id: "ig-business", credentials: { accessToken: "fixture-token" }, settings: { authMode: "unified_login" },
+      last_health_check_at: null, last_health_status: null, last_health_error: null, last_outbound_at: null, last_outbound_error: null,
+    }, externalThreadId: "customer", text: "Hello" })).rejects.toMatchObject({ name: "AmbiguousProviderAcceptanceError" });
+    const events = log.mock.calls.map(call => JSON.parse(String(call[0])).event);
+    expect(events).toContain("instagram.acceptance_unknown");
+    expect(events).not.toContain("instagram.provider_accepted");
+  });
+
+  it("does not label an HTTP 5xx response a definite rejection", async () => {
+    vi.stubEnv("PRONTO_DEBUG_DELIVERY", "1");
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 503 })));
+    await expect(sendInstagramText({ channel: {
+      id: "ig-channel", client_id: "tenant-a", kind: "instagram", name: "Instagram", status: "active",
+      external_id: "ig-business", credentials: { accessToken: "fixture-token" }, settings: { authMode: "unified_login" },
+      last_health_check_at: null, last_health_status: null, last_health_error: null, last_outbound_at: null, last_outbound_error: null,
+    }, externalThreadId: "customer", text: "Hello" })).rejects.toMatchObject({ ambiguous: true });
+    const records = log.mock.calls.map(call => JSON.parse(String(call[0])));
+    expect(records.find(record => record.event === "instagram.acceptance_unknown")).toMatchObject({ httpStatus: 503, reason: "http_error" });
+    expect(records.some(record => record.event === "instagram.provider_rejected")).toBe(false);
   });
 });

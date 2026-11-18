@@ -4,6 +4,7 @@ import { decryptChannelCredentials, usesLegacyPlaintextCredentials } from "@/lib
 import { fetchWithTimeout } from "@/lib/http/fetch";
 import { AmbiguousProviderAcceptanceError, ProviderSendError } from "@/lib/channels/provider-error";
 import { metaGraphVersion } from "@/lib/env";
+import { logDeliveryDebug, providerIdentifierHash } from "./delivery-debug";
 import type { NormalizedInboundMessage } from "@/lib/channels/types";
 import type { Channel } from "@/lib/types";
 
@@ -108,6 +109,12 @@ export async function sendInstagramText(input: {
     throw new ProviderSendError("Instagram expired token", 401);
   }
 
+  const startedAt = performance.now();
+  const debug = (event: string, metadata: Record<string, unknown> = {}) => logDeliveryDebug(event, {
+    channelId: input.channel.id, clientId: input.channel.client_id,
+    elapsedMs: Math.round(performance.now() - startedAt), ...metadata,
+  });
+  debug("instagram.send_started", { authMode: unified ? "unified_login" : direct ? "instagram_login" : "facebook_login" });
   let response: Response;
   try {
     response = await fetchWithTimeout(
@@ -126,19 +133,38 @@ export async function sendInstagramText(input: {
     channelFetchTimeoutMs(),
     );
   } catch {
+    debug("instagram.acceptance_unknown", { reason: "transport_error" });
     throw new AmbiguousProviderAcceptanceError("Instagram");
   }
 
+  const providerTraceHash = providerIdentifierHash(response.headers.get("x-fb-trace-id"));
+  debug("instagram.response_received", { httpStatus: response.status, providerTraceHash });
   if (!response.ok) {
-    throw new ProviderSendError("Instagram", response.status);
+    let providerCode: number | undefined, providerSubcode: number | undefined;
+    try {
+      const rejected: unknown = await response.json();
+      const error = isRecord(rejected) && isRecord(rejected.error) ? rejected.error : {};
+      if (typeof error.code === "number" && Number.isSafeInteger(error.code)) providerCode = error.code;
+      if (typeof error.error_subcode === "number" && Number.isSafeInteger(error.error_subcode)) providerSubcode = error.error_subcode;
+    } catch { /* diagnostics must not replace the original HTTP failure */ }
+    const ambiguous = response.status === 408 || response.status >= 500;
+    debug(ambiguous ? "instagram.acceptance_unknown" : "instagram.provider_rejected", {
+      reason: "http_error", httpStatus: response.status, providerCode, providerSubcode, providerTraceHash });
+    throw new ProviderSendError("Instagram", response.status, providerCode);
   }
   let body: { message_id?: unknown };
   try {
     body = (await response.json()) as { message_id?: unknown };
   } catch {
+    debug("instagram.acceptance_unknown", { reason: "invalid_json", httpStatus: response.status, providerTraceHash });
     throw new AmbiguousProviderAcceptanceError("Instagram");
   }
-  if (typeof body.message_id !== "string") throw new AmbiguousProviderAcceptanceError("Instagram");
+  if (!body || typeof body.message_id !== "string" || !body.message_id) {
+    debug("instagram.acceptance_unknown", { reason: "missing_receipt", httpStatus: response.status, providerTraceHash });
+    throw new AmbiguousProviderAcceptanceError("Instagram");
+  }
+  debug("instagram.provider_accepted", { httpStatus: response.status,
+    providerReceiptHash: providerIdentifierHash(body.message_id), providerTraceHash });
   return body.message_id;
 }
 

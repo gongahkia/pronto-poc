@@ -28,6 +28,7 @@ dbDescribe("Unified Login queue concurrency", () => {
   afterEach(async () => {
     await getPool().query("delete from clients where id=$1", [clientId]);
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs(); vi.restoreAllMocks();
   });
   afterAll(async () => { await getPool().end(); });
   const incoming = (id: string, thread = "customer-a") => ({ channelId, channelKind: "instagram" as const,
@@ -135,5 +136,42 @@ dbDescribe("Unified Login queue concurrency", () => {
     await queue("blocked second"); await queue("blocked third");
     const other = await queue("other chat", "customer-b");
     expect((await listRetryableOutboundMessages({ clientId, limit: 1 })).map(row => row.id)).toEqual([other.id]);
+  });
+
+  it("logs a correlated local timeline for an in-flight takeover and an ambiguous send without exposing content", async () => {
+    vi.stubEnv("PRONTO_DEBUG_DELIVERY", "1");
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
+    const first = await queue("private reply text"), requestId = randomUUID();
+    let release!: () => void, started!: () => void;
+    const blocked = new Promise<void>(resolve => { release = resolve; });
+    const entered = new Promise<void>(resolve => { started = resolve; });
+    vi.mocked(fetch).mockImplementationOnce(async () => { started(); await blocked;
+      return new Response(JSON.stringify({ message_id: "private-provider-receipt" }), { headers: { "x-fb-trace-id": "private-provider-trace" } }); });
+    const sending = flushOutboundMessage(first.id, { clientId, requestId });
+    await entered;
+    const takeover = updateConversationAction({ actor: { userId: responderId, email: `${responderId}@fixture.invalid`, name: "Responder",
+      role: "client", clientId }, clientId, conversationId: first.conversation_id!, action: "takeover" });
+    expect(log.mock.calls.some(call => JSON.parse(String(call[0])).event === "conversation.takeover_requested")).toBe(true);
+    release(); await Promise.all([sending, takeover]);
+    const other = await queue("private uncertain reply", "customer-b");
+    vi.mocked(fetch).mockRejectedValueOnce(new DOMException("private transport detail", "AbortError"));
+    await flushOutboundMessage(other.id, { clientId });
+    const records = log.mock.calls.map(call => JSON.parse(String(call[0]))).filter(record => record.debugDelivery);
+    const firstAttempt = records.filter(record => record.outboundMessageId === first.id);
+    expect(new Set(firstAttempt.map(record => record.deliveryAttemptId)).size).toBe(1);
+    expect(firstAttempt.map(record => record.event)).toEqual([
+      "delivery.attempt_started", "delivery.ownership_checked", "delivery.dispatch_started", "instagram.send_started",
+      "instagram.response_received", "instagram.provider_accepted", "delivery.dispatch_completed", "delivery.attempt_finished",
+    ]);
+    expect(firstAttempt.at(-1)).toMatchObject({ requestId, finalState: "sent", statePersisted: true, acceptanceState: "reported" });
+    expect(firstAttempt.find(record => record.event === "instagram.provider_accepted").providerReceiptHash).toMatch(/^sha256:/);
+    const acceptedIndex = records.findIndex(record => record.event === "instagram.provider_accepted");
+    expect(records.findIndex(record => record.event === "conversation.takeover_committed")).toBeGreaterThan(acceptedIndex);
+    expect(records.find(record => record.event === "delivery.attempt_finished" && record.outboundMessageId === other.id))
+      .toMatchObject({ finalState: "uncertain", statePersisted: true, acceptanceState: "unknown" });
+    const output = JSON.stringify(records);
+    for (const privateValue of ["private reply text", "private uncertain reply", "fixture-token", secret,
+      "customer-a", "customer-b", "private-provider-receipt", "private-provider-trace", "private transport detail"])
+      expect(output).not.toContain(privateValue);
   });
 });

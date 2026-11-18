@@ -36,6 +36,20 @@ describe("logger", () => {
     expect(requestIdHeaders("req_12345678").get("x-request-id")).toBe("req_12345678");
   });
 
+  it("preserves only validated internal correlation UUIDs while keeping content and external IDs redacted", () => {
+    const id = "12345678-1234-4123-8123-123456789012";
+    expect(redactForLog({ outboundMessageId: id, conversationId: id, channelId: id, deliveryAttemptId: id,
+      body: id, providerMessageId: "private-provider-id", customerMessageId: "private-customer-text",
+      accessToken: id })).toEqual({ outboundMessageId: id, conversationId: id, channelId: id, deliveryAttemptId: id,
+      body: "[redacted]", providerMessageId: "[redacted]", customerMessageId: "[redacted]", accessToken: "[redacted]" });
+  });
+
+  it.each(["input_token", "client_secret", "app_secret", "verify_token", "hub.verify_token", "appsecret_proof"])(
+    "redacts %s from diagnostic error URLs", parameter => {
+      expect(redactErrorMessage(`https://graph.test/path?${parameter}=private-value&ok=1`))
+        .toBe(`https://graph.test/path?${parameter}=[redacted]&ok=1`);
+    });
+
   it("emits structured warning logs after redaction", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 

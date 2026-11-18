@@ -6,7 +6,11 @@ const CONTENT_KEY_PATTERN = /body|content|message|payload|raw|text/i;
 const PHONE_PATTERN = /(?<![a-zA-Z0-9_])(?:\+?\d[\d\s().-]{6,}\d)(?![a-zA-Z0-9_])/g;
 const BEARER_PATTERN = /bearer\s+[a-z0-9._~+/=-]+/gi;
 const QUERY_SECRET_PATTERN =
-  /([?&](?:access_token|token|api_key|key|secret|signature)=)[^&\s]+/gi;
+  /([?&](?:access_token|input_token|token|api_key|key|secret|client_secret|app_secret|verify_token|hub\.verify_token|appsecret_proof|signature)=)[^&\s]+/gi;
+const INTERNAL_ID_KEYS = new Set(["requestId", "clientId", "channelId", "conversationId", "escalationId",
+  "outboundMessageId", "customerMessageId", "agentMessageId", "deliveryAttemptId", "jobId"]);
+const INTERNAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PROVIDER_HASH_KEYS = new Set(["providerReceiptHash", "providerTraceHash"]);
 
 type LogLevel = "info" | "warn" | "error";
 
@@ -87,6 +91,8 @@ function redactValue(value: unknown, depth: number): unknown {
         if (SENSITIVE_KEY_PATTERN.test(key)) {
           return [key, "[redacted]"];
         }
+        if (typeof entry === "string" && ((INTERNAL_ID_KEYS.has(key) && INTERNAL_UUID.test(entry)) ||
+          (PROVIDER_HASH_KEYS.has(key) && /^sha256:[0-9a-f]{64}$/.test(entry)))) return [key, entry];
         if (CONTENT_KEY_PATTERN.test(key)) {
           return [key, typeof entry === "string" ? "[redacted]" : "[redacted-object]"];
         }

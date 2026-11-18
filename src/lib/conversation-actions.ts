@@ -4,6 +4,7 @@ import { recordAuditLog } from "@/lib/audit";
 import { requireStaffCapability } from "@/lib/staff-permissions";
 import { DemoError } from "@/lib/customer-demo-boundary";
 import type { Conversation } from "@/lib/types";
+import { logDeliveryDebug } from "@/lib/channels/delivery-debug";
 
 export async function recordConversationOutcome(clientId: string, conversationId: string,
   outcome: "answered" | "escalated" | "skipped"): Promise<void> {
@@ -19,6 +20,9 @@ export async function recordConversationOutcome(clientId: string, conversationId
 export async function updateConversationAction(input: { actor: SessionUser; clientId: string;
   conversationId: string; action: "takeover" | "classify"; ownerActionRequired?: boolean;
   urgency?: "short_term" | "long_term" }): Promise<void> {
+  const startedAt = performance.now();
+  if (input.action === "takeover") logDeliveryDebug("conversation.takeover_requested", {
+    clientId: input.clientId, conversationId: input.conversationId });
   await transaction(async db => {
     await requireStaffCapability(input.actor, input.clientId, "conversation.respond", db);
     const result = await db.query<Conversation>("select * from conversations where id=$1 and client_id=$2 and deleted_at is null for update",
@@ -52,5 +56,11 @@ export async function updateConversationAction(input: { actor: SessionUser; clie
       action: input.action === "takeover" ? "conversation.taken_over" : "conversation.classified",
       targetType: "conversation", targetId: conversation.id,
       metadata: input.action === "classify" ? { ownerActionRequired: input.ownerActionRequired, urgency: input.urgency } : {} }, db);
-  }, { isolationLevel: "serializable", retries: 2 });
+  }, { isolationLevel: "serializable", retries: 2 }).catch(error => {
+    if (input.action === "takeover") logDeliveryDebug("conversation.takeover_failed", {
+      clientId: input.clientId, conversationId: input.conversationId, elapsedMs: Math.round(performance.now() - startedAt) });
+    throw error;
+  });
+  if (input.action === "takeover") logDeliveryDebug("conversation.takeover_committed", {
+    clientId: input.clientId, conversationId: input.conversationId, elapsedMs: Math.round(performance.now() - startedAt) });
 }

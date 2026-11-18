@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { simpleParser } from "mailparser";
 import nodemailer from "nodemailer";
-import { query } from "@/lib/db";
+import { query, type Queryable } from "@/lib/db";
 import { decryptChannelCredentials, usesLegacyPlaintextCredentials } from "@/lib/channels/credentials";
 import { AmbiguousProviderAcceptanceError, ProviderSendError } from "@/lib/channels/provider-error";
 import type { NormalizedInboundMessage } from "@/lib/channels/types";
@@ -429,9 +429,9 @@ function stringValue(value: unknown): string | undefined {
 export async function isEmailSuppressed(input: {
   clientId: string;
   emailAddress: string;
-}): Promise<boolean> {
+}, db: Queryable = { query }): Promise<boolean> {
   try {
-    const result = await query<{ id: string }>(
+    const result = await db.query<{ id: string }>(
       "select id from email_suppressions where client_id = $1 and lower(email_address) = lower($2) limit 1",
       [input.clientId, input.emailAddress],
     );
@@ -480,13 +480,13 @@ export async function lookupReplyThreadingHints(input: {
   channelId: string;
   clientId: string;
   externalThreadId: string;
-}): Promise<{
+}, db: Queryable = { query }): Promise<{
   inReplyTo: string | null;
   references: string[];
   subject: string | null;
   to: string;
 }> {
-  const result = await query<{
+  const result = await db.query<{
     body: string;
     metadata: Record<string, unknown>;
     external_message_id: string;
@@ -531,7 +531,7 @@ export type EmailSendOptions = {
   fetchFn?: typeof fetch;
 };
 
-export async function sendEmail(input: EmailSendOptions): Promise<{ messageId: string }> {
+export async function sendEmail(input: EmailSendOptions, db: Queryable = { query }): Promise<{ messageId: string }> {
   const provider =
     (input.channel.credentials.provider as EmailProviderKind | undefined) ?? "postmark";
   if (!["postmark", "resend", "local_smtp"].includes(provider)) throw new Error("Unsupported email provider.");
@@ -551,7 +551,7 @@ export async function sendEmail(input: EmailSendOptions): Promise<{ messageId: s
     throw new Error("Email headers contain an invalid address or newline.");
   }
 
-  if (await isEmailSuppressed({ clientId: input.channel.client_id, emailAddress: input.to })) {
+  if (await isEmailSuppressed({ clientId: input.channel.client_id, emailAddress: input.to }, db)) {
     throw new Error("Email recipient is on the suppression list.");
   }
 

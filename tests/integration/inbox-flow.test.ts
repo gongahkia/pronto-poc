@@ -96,7 +96,7 @@ dbDescribe("durable inbound processing in isolated PostgreSQL", () => {
     expect(fakes.sendChannelText).toHaveBeenCalledTimes(1);
     expect(fakes.sendChannelText).toHaveBeenCalledWith(expect.objectContaining({
       clientId, channelId, externalThreadId: "shared-customer",
-    }));
+    }), expect.objectContaining({ query: expect.any(Function) }));
   });
 
   it("retries a persisted message after an agent failure and provider redelivery", async () => {

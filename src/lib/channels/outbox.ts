@@ -1,9 +1,11 @@
 import { sendChannelText } from "@/lib/channels/dispatch";
+import { recordOutboundHealth } from "@/lib/channels/health";
 import { policyFromOutboundMetadata } from "@/lib/channels/policy";
 import { query, transaction, type Queryable } from "@/lib/db";
 import { recordErrorEvent } from "@/lib/error-tracking";
 import { logInfo, logWarn, redactErrorMessage } from "@/lib/logger";
 import { AmbiguousProviderAcceptanceError, ChannelPolicyError, ProviderSendError } from "@/lib/channels/provider-error";
+import { logDeliveryDebug, providerIdentifierHash, withDeliveryDebugContext } from "./delivery-debug";
 
 export type OutboundMessage = {
   id: string;
@@ -133,6 +135,7 @@ export async function flushOutboundMessage(
   );
   const outbound = claimed.rows[0];
   if (!outbound) {
+    logDeliveryDebug("delivery.claim_skipped", { requestId: options.requestId, outboundMessageId, reason: "not_claimable" });
     logInfo("outbox.flush_skipped", {
       requestId: options.requestId,
       outboundMessageId,
@@ -145,6 +148,19 @@ export async function flushOutboundMessage(
     };
   }
 
+  return withDeliveryDebugContext({ outboundMessageId: outbound.id, clientId: outbound.client_id,
+    channelId: outbound.channel_id, conversationId: outbound.conversation_id, attemptCount: outbound.attempt_count,
+    escalationId: outbound.escalation_id,
+    customerMessageId: typeof outbound.metadata.customerMessageId === "string" ? outbound.metadata.customerMessageId : undefined,
+    requestId: options.requestId }, () => deliverClaimedOutbound(outbound, options, maxAttempts));
+}
+
+async function deliverClaimedOutbound(outbound: OutboundMessage, options: OutboundFlushOptions, maxAttempts: number): Promise<OutboundFlushResult> {
+  const startedAt = performance.now();
+  let finalState: string = "unknown", statePersisted = false, providerReceiptHash: string | undefined;
+  let outcomeRowWritten = false;
+  let acceptanceState = "not_reported";
+  logDeliveryDebug("delivery.attempt_started", { queueAgeMs: Math.max(0, Date.now() - new Date(outbound.created_at).getTime()) });
   logInfo("outbox.flush_claimed", {
     requestId: options.requestId,
     outboundMessageId: outbound.id,
@@ -156,18 +172,24 @@ export async function flushOutboundMessage(
   });
 
   let sendAccepted = false;
+  const ownershipTransaction = outbound.metadata.purpose === "agent_answer" && Boolean(outbound.conversation_id);
   try {
     const policy = policyFromOutboundMetadata(outbound.metadata);
-    const send = async () => {
-      const result = await sendChannelText({
+    const send = async (db?: Queryable) => {
+      const input = {
         channelId: outbound.channel_id, clientId: outbound.client_id,
         externalThreadId: outbound.external_thread_id, text: outbound.body,
         ...(policy ? { policy } : {}),
-      });
+      };
+      logDeliveryDebug("delivery.dispatch_started");
+      const result = await (db ? sendChannelText(input, db) : sendChannelText(input));
       sendAccepted = true;
+      acceptanceState = "reported";
+      providerReceiptHash = providerIdentifierHash(result?.providerMessageId);
+      logDeliveryDebug("delivery.dispatch_completed", { providerReceiptHash });
       return result;
     };
-    if (outbound.metadata.purpose === "agent_answer" && outbound.conversation_id) {
+    if (ownershipTransaction) {
       const allowed = await transaction(async (db) => {
         const conversation = await db.query<{ status: string }>(
           "select status from conversations where id = $1 and client_id = $2 for share",
@@ -177,29 +199,39 @@ export async function flushOutboundMessage(
           "select id from escalations where conversation_id = $1 and client_id = $2 and (status='claimed' or (status='open' and not allow_ai_followups)) limit 1",
           [outbound.conversation_id, outbound.client_id],
         );
+        logDeliveryDebug("delivery.ownership_checked", { conversationState: conversation.rows[0]?.status ?? "missing",
+          staffReviewBlocks: Boolean(open.rows[0]), elapsedMs: Math.round(performance.now() - startedAt) });
         if (conversation.rows[0]?.status !== "active" || open.rows[0]) {
-          await db.query(
+          const saved = await db.query(
             "update outbound_messages set status = 'suppressed', last_error = 'Human-owned conversation', updated_at = now() where id = $1 and client_id = $2",
             [outbound.id, outbound.client_id],
           );
+          outcomeRowWritten = saved.rowCount === 1;
+          finalState = "suppressed";
+          acceptanceState = "not_attempted";
+          logDeliveryDebug("delivery.suppressed", { reason: "human_owned" });
           return false;
         }
-        const sent = await send();
-        await db.query(
+        const sent = await send(db);
+        const saved = await db.query(
           "update outbound_messages set status = 'sent', sent_at = now(), last_error = null, metadata = metadata || $3::jsonb, updated_at = now() where id = $1 and client_id = $2",
           [outbound.id, outbound.client_id, JSON.stringify(sent?.providerMessageId ? { providerMessageId: sent.providerMessageId } : {})],
         );
+        outcomeRowWritten = saved.rowCount === 1;
         return true;
       });
-      if (!allowed) return { status: "skipped", outboundMessageId: outbound.id,
-        reason: "Human-owned conversation; AI reply suppressed." };
+      if (!allowed) { statePersisted = outcomeRowWritten; return { status: "skipped", outboundMessageId: outbound.id,
+        reason: "Human-owned conversation; AI reply suppressed." }; }
     } else {
       const sent = await send();
-      await query(
+      const saved = await query(
         "update outbound_messages set status = 'sent', sent_at = now(), last_error = null, metadata = metadata || $3::jsonb, updated_at = now() where id = $1 and client_id = $2",
         [outbound.id, outbound.client_id, JSON.stringify(sent?.providerMessageId ? { providerMessageId: sent.providerMessageId } : {})],
       );
+      outcomeRowWritten = saved.rowCount === 1;
     }
+    finalState = "sent"; statePersisted = outcomeRowWritten;
+    if (ownershipTransaction) await recordDeliveryHealth(outbound);
     logInfo("outbox.flush_sent", {
       requestId: options.requestId,
       outboundMessageId: outbound.id,
@@ -219,7 +251,13 @@ export async function flushOutboundMessage(
       : error instanceof ChannelPolicyError || (error instanceof ProviderSendError && !error.retryable) ||
           outbound.attempt_count >= maxAttempts
         ? "dead" : "failed";
-    await query(
+    finalState = status;
+    acceptanceState = sendAccepted ? "reported" : status === "uncertain" ? "unknown" :
+      error instanceof ProviderSendError ? "rejected" : "not_reported";
+    logDeliveryDebug("delivery.failure_classified", { finalState, acceptanceState,
+      errorClass: error instanceof ProviderSendError ? "provider_rejection" : error instanceof AmbiguousProviderAcceptanceError
+        ? "acceptance_unknown" : error instanceof ChannelPolicyError ? "policy" : "internal_or_transport" });
+    const saved = await query(
       `
         update outbound_messages
         set status = $4,
@@ -229,6 +267,8 @@ export async function flushOutboundMessage(
       `,
       [outbound.id, message, outbound.client_id, status],
     );
+    statePersisted = saved.rowCount === 1;
+    if (ownershipTransaction) await recordDeliveryHealth(outbound, error);
     logWarn("outbox.flush_failed", {
       requestId: options.requestId,
       outboundMessageId: outbound.id,
@@ -255,7 +295,16 @@ export async function flushOutboundMessage(
       },
     });
     return { status: "failed", outboundMessageId: outbound.id, error: message };
+  } finally {
+    logDeliveryDebug("delivery.attempt_finished", { finalState, statePersisted, acceptanceState,
+      providerReceiptHash, elapsedMs: Math.round(performance.now() - startedAt) });
   }
+}
+
+async function recordDeliveryHealth(outbound: OutboundMessage, error?: unknown) {
+  try { await recordOutboundHealth(outbound.channel_id, outbound.client_id, error); }
+  catch (recordingError) { logWarn("channel.health_record_failed", { channelId: outbound.channel_id,
+    clientId: outbound.client_id, error: recordingError }); }
 }
 
 export async function listRetryableOutboundMessages(
