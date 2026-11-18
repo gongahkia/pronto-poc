@@ -1,0 +1,53 @@
+# Separate, authenticated channel-test service. Never apply to the public demo.
+# The worker stays disabled until channel approval and controlled-test readiness.
+services:
+  - type: web
+    name: pronto-instagram-test
+    runtime: node
+    plan: free
+    region: singapore
+    autoDeployTrigger: 'off'
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm instagram:hosted:build
+    startCommand: pnpm instagram:hosted:start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: '24.21.0'
+      - key: NODE_ENV
+        value: production
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=1536
+      - key: PRONTO_LOW_MEMORY_BUILD
+        value: '1'
+      - key: PRONTO_HOSTED_INSTAGRAM
+        value: '1'
+      - key: PRONTO_HOSTED_INSTAGRAM_WORKER
+        value: '0'
+      - key: PRONTO_DEPLOYMENT_PROFILE
+        value: standard
+      - key: PRONTO_DB_POOL_MAX
+        value: '2'
+      - key: PRONTO_CUSTOMER_DEMO_ENABLED
+        value: '0'
+      - key: PRONTO_HUDDLE_ENABLED
+        value: '0'
+      - key: PRONTO_DEMO_ONLY_DELIVERY
+        value: '0'
+      - key: PRONTO_ENFORCE_TENANT_SQL
+        value: '1'
+      - key: PRONTO_DISABLE_TENANT_SQL_GATE
+        value: '0'
+      - key: PRONTO_USE_MOCK_AI
+        value: '0'
+      - key: PRONTO_CHOPE_LIVE_READS
+        value: '0'
+      - key: CHOPE_LIVE_READ_APPROVED
+        value: '0'
+      - key: APP_BASE_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: PRONTO_SECRETS_KEY
+        sync: false

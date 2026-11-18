@@ -1,0 +1,23 @@
+name: pronto-instagram
+
+services:
+  database:
+    image: pgvector/pgvector:0.8.0-pg16
+    container_name: pronto-instagram-db
+    environment:
+      POSTGRES_DB: pronto_instagram
+      POSTGRES_USER: pronto_instagram
+      POSTGRES_PASSWORD: ${PRONTO_INSTAGRAM_DATABASE_PASSWORD:?Use --env-file .env.instagram.local with the private database password}
+    ports:
+      - "127.0.0.1:55436:5432"
+    volumes:
+      - instagram-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U pronto_instagram -d pronto_instagram"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  instagram-data:
+    name: pronto-instagram-data

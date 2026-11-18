@@ -19,6 +19,10 @@ was performed. The October WhatsApp evidence above remains historical.
 
 ## Account prerequisites
 
+For the separate deployed test service, use the [hosted Instagram test
+guide](instagram-hosted-test.md). Local Docker and HTTPS tunnels below are
+optional local workflows, not prerequisites for its hosted callback.
+
 ### Instagram Unified Login credential smoke check
 
 For a manually generated Unified Login test token, put these server-only values
@@ -75,6 +79,38 @@ Before a real DM round trip, configure and verify the channel's public HTTPS
 webhook, subscribe the app/account to the required message events, and identify
 the authorized test sender/recipient. Then run one controlled conversation using
 the process below. Credential smoke success alone does not activate a channel.
+
+### Persistent local Instagram database
+
+The dedicated channel sandbox uses
+[`deploy/instagram-test.compose.yml`](../../deploy/instagram-test.compose.yml),
+container `pronto-instagram-db`, database/user `pronto_instagram`, and named
+volume `pronto-instagram-data`. PostgreSQL with pgvector listens on
+`127.0.0.1:55436`. This is persistent channel-test data, not a disposable
+regression fixture or the saved evaluation database.
+
+The local setup stores its random password in ignored, mode-600
+`.env.instagram.local` as `PRONTO_INSTAGRAM_DATABASE_PASSWORD`; the ignored root
+`.env` has the matching `DATABASE_URL`. Keep both files private. On this laptop:
+
+```sh
+docker compose --env-file .env.instagram.local -f deploy/instagram-test.compose.yml up -d --wait
+pnpm exec node --env-file=.env --import tsx scripts/migrate.ts
+docker compose --env-file .env.instagram.local -f deploy/instagram-test.compose.yml ps
+```
+
+Stop the container while retaining its data with:
+
+```sh
+docker compose --env-file .env.instagram.local -f deploy/instagram-test.compose.yml stop
+```
+
+Keep the named volume; `down -v` deletes its data. Initialization of this
+database applies schema migrations only. No fixture seed, business creation,
+channel activation, model inference or Meta delivery is part of database setup.
+Provision the intended business and inactive channel through the authenticated
+workflows before preparing the callback. Database readiness alone does not mean
+the Instagram integration is ready for a live DM.
 
 ### Preparing the callback and Keith's handoff
 
