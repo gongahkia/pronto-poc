@@ -76,8 +76,9 @@ export async function ingestInboundMessage(inbound: NormalizedInboundMessage,
       conversationId: conversation.rows[0].id, messageId: message.id,
     };
   };
-  return existingTransaction ? ingest(existingTransaction) :
-    transaction(ingest, { isolationLevel: "serializable", retries: 2 });
+  // the channel share lock, conversation upsert and unique message/job keys
+  // serialize this ingestion without repeatable snapshots aborting duplicates.
+  return existingTransaction ? ingest(existingTransaction) : transaction(ingest);
 }
 
 export async function ingestInboundMessages(messages: NormalizedInboundMessage[]): Promise<{

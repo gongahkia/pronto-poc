@@ -63,6 +63,14 @@ const DEFAULT_STALE_SENDING_MINUTES = normalizePositiveInteger(
 const DEFAULT_MAX_ATTEMPTS = normalizePositiveInteger(Number(process.env.PRONTO_OUTBOX_MAX_ATTEMPTS), 5);
 const DEFAULT_RETRY_LIMIT = normalizePositiveInteger(Number(process.env.PRONTO_OUTBOX_RETRY_LIMIT), 25);
 
+const noEarlierUnresolvedReply = `not exists (
+  select 1 from outbound_messages earlier
+  where earlier.client_id = outbound.client_id and earlier.channel_id = outbound.channel_id
+    and earlier.external_thread_id = outbound.external_thread_id
+    and (earlier.created_at, earlier.id) < (outbound.created_at, outbound.id)
+    and earlier.status in ('pending', 'failed', 'sending', 'uncertain')
+)`;
+
 export async function enqueueOutboundMessage(
   db: Queryable,
   input: EnqueueOutboundInput,
@@ -109,15 +117,16 @@ export async function flushOutboundMessage(
   );
   const claimed = await query<OutboundMessage>(
     `
-      update outbound_messages
+      update outbound_messages outbound
       set status = 'sending',
           attempt_count = attempt_count + 1,
           updated_at = now()
-      where id = $1
-        and ($2::uuid is null or client_id = $2::uuid)
-        and attempt_count < $3
-        and status in ('pending', 'failed')
-      returning *
+      where outbound.id = $1
+        and ($2::uuid is null or outbound.client_id = $2::uuid)
+        and outbound.attempt_count < $3
+        and outbound.status in ('pending', 'failed')
+        and ${noEarlierUnresolvedReply}
+      returning outbound.*
     `,
     [outboundMessageId, options.clientId ?? null, maxAttempts],
   );
@@ -259,14 +268,16 @@ export async function listRetryableOutboundMessages(
 
   const result = await query<OutboundMessage>(
     `
-      select *
-      from outbound_messages
-      where attempt_count < $1
-        and status in ('pending', 'failed')
-      order by updated_at asc
+      select outbound.*
+      from outbound_messages outbound
+      where outbound.attempt_count < $1
+        and outbound.status in ('pending', 'failed')
+        and ($3::uuid is null or outbound.client_id = $3::uuid)
+        and ${noEarlierUnresolvedReply}
+      order by outbound.updated_at asc, outbound.created_at, outbound.id
       limit $2
     `,
-    [maxAttempts, limit],
+    [maxAttempts, limit, input.clientId ?? null],
   );
 
   return result.rows;
