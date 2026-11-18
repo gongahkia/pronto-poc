@@ -13,7 +13,7 @@ export async function readPrivateInstagramSetup(path: string): Promise<unknown> 
   } finally { await file.close(); }
 }
 
-export async function writeInstagramSetupFiles(bundle: Awaited<ReturnType<typeof prepareInstagramSetup>>, project = process.cwd()) {
+export async function instagramSetupDirectory(project = process.cwd()) {
   const root = await realpath(project), parent = resolve(root, "output/instagram-setup");
   for (const path of [join(root, "output"), parent]) {
     await mkdir(path, { recursive: true, mode: 0o700 });
@@ -21,6 +21,11 @@ export async function writeInstagramSetupFiles(bundle: Awaited<ReturnType<typeof
     if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid?.() || (stat.mode & 0o022) !== 0)
       throw new Error("Instagram setup output must use owned directories, without symlinks or shared write access.");
   }
+  return parent;
+}
+
+export async function writeInstagramSetupFiles(bundle: Awaited<ReturnType<typeof prepareInstagramSetup>>, project = process.cwd()) {
+  const parent = await instagramSetupDirectory(project);
   const directory = await mkdtemp(join(parent, "setup-"));
   for (const [name, content] of [
     ["channel-form.json", JSON.stringify(bundle.form, null, 2) + "\n"],

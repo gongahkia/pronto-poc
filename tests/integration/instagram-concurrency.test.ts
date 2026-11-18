@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 import { getPool } from "@/lib/db";
 import { encryptedChannelCredentialValues } from "@/lib/channels/credentials";
 import { claimInboundJob, finishInboundJob, ingestInboundMessage } from "@/lib/channels/inbox";
-import { enqueueOutboundMessage, flushOutboundMessage } from "@/lib/channels/outbox";
+import { enqueueOutboundMessage, flushOutboundMessage, listRetryableOutboundMessages } from "@/lib/channels/outbox";
 import { updateConversationAction } from "@/lib/conversation-actions";
 import { POST } from "@/app/api/webhooks/instagram/[channelId]/route";
 
@@ -127,5 +127,13 @@ dbDescribe("Unified Login queue concurrency", () => {
     expect((await flushOutboundMessage(first.id, { clientId })).status).toBe("skipped");
     expect((await flushOutboundMessage(second.id, { clientId })).status).toBe("skipped");
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fill a small retry batch with a chat blocked by an uncertain reply", async () => {
+    const first = await queue("uncertain head");
+    await getPool().query("update outbound_messages set status='uncertain' where id=$1", [first.id]);
+    await queue("blocked second"); await queue("blocked third");
+    const other = await queue("other chat", "customer-b");
+    expect((await listRetryableOutboundMessages({ clientId, limit: 1 })).map(row => row.id)).toEqual([other.id]);
   });
 });

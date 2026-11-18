@@ -63,13 +63,14 @@ const DEFAULT_STALE_SENDING_MINUTES = normalizePositiveInteger(
 const DEFAULT_MAX_ATTEMPTS = normalizePositiveInteger(Number(process.env.PRONTO_OUTBOX_MAX_ATTEMPTS), 5);
 const DEFAULT_RETRY_LIMIT = normalizePositiveInteger(Number(process.env.PRONTO_OUTBOX_RETRY_LIMIT), 25);
 
-const noEarlierUnresolvedReply = `not exists (
-  select 1 from outbound_messages earlier
+const earlierReplyInThread = `select 1 from outbound_messages earlier
   where earlier.client_id = outbound.client_id and earlier.channel_id = outbound.channel_id
     and earlier.external_thread_id = outbound.external_thread_id
-    and (earlier.created_at, earlier.id) < (outbound.created_at, outbound.id)
-    and earlier.status in ('pending', 'failed', 'sending', 'uncertain')
-)`;
+    and (earlier.created_at, earlier.id) < (outbound.created_at, outbound.id)`;
+const noEarlierUnresolvedReply = `not exists (${earlierReplyInThread}
+  and earlier.status in ('pending', 'failed', 'sending', 'uncertain'))`;
+const noEarlierInFlightReply = `not exists (${earlierReplyInThread}
+  and earlier.status in ('sending', 'uncertain'))`;
 
 export async function enqueueOutboundMessage(
   db: Queryable,
@@ -273,8 +274,8 @@ export async function listRetryableOutboundMessages(
       where outbound.attempt_count < $1
         and outbound.status in ('pending', 'failed')
         and ($3::uuid is null or outbound.client_id = $3::uuid)
-        and ${noEarlierUnresolvedReply}
-      order by outbound.updated_at asc, outbound.created_at, outbound.id
+        and ${noEarlierInFlightReply}
+      order by outbound.created_at, outbound.id
       limit $2
     `,
     [maxAttempts, limit, input.clientId ?? null],

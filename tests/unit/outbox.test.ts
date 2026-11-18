@@ -187,7 +187,7 @@ describe("outbound message outbox", () => {
     expect(result).toHaveLength(1);
     expect(mocks.query.mock.calls[0][0]).toContain("status in ('pending', 'failed')");
     expect(mocks.query.mock.calls[0][0]).not.toContain("status = 'sending'");
-    expect(mocks.query.mock.calls[0][1]).toEqual([4, 10]);
+    expect(mocks.query.mock.calls[0][1]).toEqual([4, 10, null]);
   });
 
   it("moves expired in-flight sends to manual reconciliation", async () => {
