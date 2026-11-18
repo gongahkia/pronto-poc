@@ -57,7 +57,7 @@ describe("Meta webhook entry points", () => {
     fakes.getInstagramChannel.mockResolvedValue(channel("instagram"));
   });
 
-  it("verifies WhatsApp and Instagram webhook challenges only for active configured channels", async () => {
+  it("verifies WhatsApp and Instagram webhook challenges for active configured channels", async () => {
     for (const route of [whatsAppGet, instagramGet]) {
       const url = "http://localhost:3000/webhook?hub.mode=subscribe&hub.verify_token=test-verify-token&hub.challenge=challenge-123";
       const response = await route(new Request(url), context);
@@ -67,6 +67,40 @@ describe("Meta webhook entry points", () => {
     }
     fakes.getWhatsAppChannel.mockResolvedValue(channel("whatsapp", "disabled"));
     expect((await whatsAppGet(new Request("http://localhost:3000/webhook"), context)).status).toBe(403);
+  });
+
+  it("verifies a configured Unified Login draft without accepting customer DMs", async () => {
+    fakes.getInstagramChannel.mockResolvedValue({ ...channel("instagram", "draft"),
+      settings: { authMode: "unified_login", verifyToken: "test-verify-token" } });
+    const url = "http://localhost:3000/webhook?hub.mode=subscribe&hub.verify_token=test-verify-token&hub.challenge=challenge-123";
+    const response = await instagramGet(new Request(url), context);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("challenge-123");
+    expect((await instagramGet(new Request(url.replace("test-verify-token", "wrong")), context)).status).toBe(403);
+    expect((await instagramPost(signedRequest("instagram", instagramPayload), context)).status).toBe(403);
+    expect(fakes.processInboundMessages).not.toHaveBeenCalled();
+  });
+
+  it.each(["facebook_login", "instagram_login", "other"])("keeps draft verification closed for %s", async authMode => {
+    fakes.getInstagramChannel.mockResolvedValue({ ...channel("instagram", "draft"),
+      settings: { authMode, verifyToken: "test-verify-token" } });
+    const request = new Request("http://localhost:3000/webhook?hub.mode=subscribe&hub.verify_token=test-verify-token&hub.challenge=challenge-123");
+    expect((await instagramGet(request, context)).status).toBe(403);
+  });
+
+  it("keeps disabled Unified Login channels closed for verification and messages", async () => {
+    fakes.getInstagramChannel.mockResolvedValue({ ...channel("instagram", "disabled"),
+      settings: { authMode: "unified_login", verifyToken: "test-verify-token" } });
+    const request = new Request("http://localhost:3000/webhook?hub.mode=subscribe&hub.verify_token=test-verify-token&hub.challenge=challenge-123");
+    expect((await instagramGet(request, context)).status).toBe(403);
+    expect((await instagramPost(signedRequest("instagram", instagramPayload), context)).status).toBe(403);
+    expect(fakes.processInboundMessages).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, ""])("rejects an unset or empty Instagram verify token", async verifyToken => {
+    fakes.getInstagramChannel.mockResolvedValue({ ...channel("instagram"), settings: { verifyToken } });
+    const request = new Request("http://localhost:3000/webhook?hub.mode=subscribe&hub.verify_token=&hub.challenge=challenge-123");
+    expect((await instagramGet(request, context)).status).toBe(403);
   });
 
   it("authenticates, maps and acknowledges a WhatsApp text without running the agent", async () => {

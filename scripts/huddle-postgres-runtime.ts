@@ -15,7 +15,7 @@ async function verify() {
   if((await lstat(target)).isSymbolicLink() || saved.kind !== 'pronto-feedback-postgres-runtime' || saved.pgSha !== pgSha || saved.vectorSha !== vectorSha || !saved.complete) throw new Error('Refusing an unidentified or incomplete fixture runtime.');
   if((await exec(join(target,'bin/postgres'),['--version'])).stdout.trim() !== `postgres (PostgreSQL) ${version}`) throw new Error('PostgreSQL fixture version mismatch.');
   const control = await readFile(join(target,'share/extension/vector.control'),'utf8');if(!control.includes(`default_version = '${vectorVersion}'`)) throw new Error('pgvector fixture version mismatch.');
-  for(const name of ['pgcrypto','vector']) await access(join(target,`lib/${name}.so`));
+  for(const name of ['pgcrypto','vector']) await access(join(target,`lib/${name}.${process.platform === 'darwin' ? 'dylib' : 'so'}`));
 }
 if(exists) {await verify();console.log(`Verified private PostgreSQL ${version} / pgvector ${vectorVersion}: ${target}/bin`);}
 else {

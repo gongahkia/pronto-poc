@@ -19,7 +19,10 @@ export async function GET(request: Request, context: Context) {
   if (!channel) {
     return new NextResponse("Not found", { status: 404 });
   }
-  if (channel.status !== "active") return new NextResponse("Channel inactive", { status: 403 });
+  // verify setup before activation; POST still rejects all inactive channels.
+  const preparingUnifiedLogin = channel.status === "draft" && channel.settings.authMode === "unified_login";
+  if (channel.status !== "active" && !preparingUnifiedLogin)
+    return new NextResponse("Channel inactive", { status: 403 });
 
   const url = new URL(request.url);
   const mode = url.searchParams.get("hub.mode");
@@ -27,8 +30,8 @@ export async function GET(request: Request, context: Context) {
   const challenge = url.searchParams.get("hub.challenge");
   const expected = channel.settings.verifyToken as string | undefined;
 
-  if (mode === "subscribe" && token === expected && challenge) {
-    return new NextResponse(challenge);
+  if (mode === "subscribe" && typeof expected === "string" && expected.length > 0 && token === expected && challenge) {
+    return new NextResponse(challenge, { headers: { "Cache-Control": "no-store" } });
   }
   return new NextResponse("Forbidden", { status: 403 });
 }

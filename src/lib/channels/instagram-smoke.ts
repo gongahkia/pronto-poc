@@ -1,4 +1,5 @@
 import { isSupportedMetaGraphVersion } from "@/lib/env";
+import { isGraphObject as record, requestInstagramGraph } from "./instagram-graph";
 
 const requiredFields = [
   "PRONTO_INSTAGRAM_TEST_ACCOUNT_ID", "PRONTO_INSTAGRAM_TEST_ACCESS_TOKEN",
@@ -14,7 +15,7 @@ export type InstagramSmokeReport = {
   limitations: string[];
 };
 
-// This checker never opens a database, starts inference, or sends a message.
+// this checker never opens a database, starts inference, or sends a message.
 export async function checkInstagramTestCredentials(
   env: Record<string, string | undefined>,
   options: { live?: boolean; fetchFn?: typeof fetch; now?: number } = {},
@@ -54,26 +55,8 @@ export async function checkInstagramTestCredentials(
   const appId = env.PRONTO_INSTAGRAM_TEST_APP_ID!.trim();
   const accountId = env.PRONTO_INSTAGRAM_TEST_ACCOUNT_ID!.trim();
   const fetchFn = options.fetchFn ?? fetch;
-  const get = async (path: string, params: Record<string, string>, authorization: string) => {
-    const url = new URL(`https://graph.facebook.com/${version}/${path}`);
-    for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
-    try {
-      const response = await fetchFn(url, { method: "GET", redirect: "error",
-        headers: { Authorization: `Bearer ${authorization}` }, signal: AbortSignal.timeout(8_000) });
-      const body: unknown = await response.json();
-      if (!record(body)) return { ok: false as const, detail: "Meta returned an invalid JSON object." };
-      if (!response.ok || record(body.error)) {
-        const error = record(body.error) ? body.error : {};
-        const code = typeof error.code === "number" ? `; code ${error.code}` : "";
-        const subcode = typeof error.error_subcode === "number" ? `; subcode ${error.error_subcode}` : "";
-        return { ok: false as const, detail: `Meta rejected the read (HTTP ${response.status}${code}${subcode}).` };
-      }
-      return { ok: true as const, body };
-    } catch {
-      // Transport errors can include the debug URL/token; never return raw errors.
-      return { ok: false as const, detail: "Meta read failed: network, timeout, redirect, or invalid JSON. No automatic retry." };
-    }
-  };
+  const get = (path: string, query: Record<string, string>, token: string) =>
+    requestInstagramGraph({ version, path, token, query, fetchFn });
 
   // Meta requires input_token in this endpoint's query; never print the URL/body.
   const debug = await get("debug_token", { input_token: token }, `${appId}|${env.PRONTO_INSTAGRAM_TEST_APP_SECRET!.trim()}`);
@@ -103,8 +86,4 @@ export async function checkInstagramTestCredentials(
   report.status = "passed";
   report.limitations.push("These reads do not establish the token's onboarding flow or business-portfolio ownership.");
   return report;
-}
-
-function record(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

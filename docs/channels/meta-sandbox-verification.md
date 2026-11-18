@@ -68,6 +68,136 @@ webhook, subscribe the app/account to the required message events, and identify
 the authorized test sender/recipient. Then run one controlled conversation using
 the process below. Credential smoke success alone does not activate a channel.
 
+### Preparing the callback and Keith's handoff
+
+The setup commands use the four existing credential fields in `.env`. They
+support the manually generated test token; a production OAuth onboarding and
+token-refresh service is a separate feature.
+
+First choose an existing, unused/inactive Instagram channel in the intended
+test business. Create it through the existing business channel page if needed.
+Prepare private operator input without connecting to any database or provider:
+
+```sh
+pnpm instagram:prepare --client-id BUSINESS_UUID --channel-id CHANNEL_UUID \
+  --callback-origin https://YOUR-TEST-HOST
+```
+
+This creates a fresh directory under ignored `output/instagram-setup/` with
+three mode-600 files: `channel-form.json`, `connection.json`, and
+`keith-private.txt`. The first contains credentials; submit it only through the
+existing authenticated operator CLI. The second binds the account/app, tenant,
+channel, callback and fresh random verify token. The third is the copyable
+Keith handoff containing the actual callback and verify token, without the API
+token or app secret. Output paths are printed; secret contents are not.
+
+Authenticate to the intended test app and submit the generated inactive
+configuration (replace SETUP_DIR with the printed directory):
+
+```sh
+pnpm admin login --base-url http://localhost:3000
+pnpm admin request /api/operator/channels --base-url http://localhost:3000 \
+  --form-file SETUP_DIR/channel-form.json
+```
+
+This deliberately saves `status=draft`; it does not activate the channel or
+write to an arbitrary database directly. Do not use an active channel for
+preparation: the draft form is for an unused/inactive channel. The setup
+generator checks identifier syntax, not database ownership; the authenticated
+server checks actual ownership. Keep `APP_BASE_URL`, web/worker database and
+encryption key consistent with the intended local test environment. The public
+callback must reach that same app through HTTPS.
+
+After Keith has configured the app-level callback and selected `messages`,
+inspect the separate account subscription:
+
+```sh
+PRONTO_META_TEST_ACCOUNT=1 PRONTO_META_READ_APPROVED=1 \
+  pnpm instagram:subscription inspect --setup-file SETUP_DIR/connection.json
+```
+
+To explicitly enable it after reviewing the target:
+
+```sh
+PRONTO_META_TEST_ACCOUNT=1 PRONTO_META_READ_APPROVED=1 PRONTO_META_SUBSCRIBE_APPROVED=1 \
+  pnpm instagram:subscription subscribe --setup-file SETUP_DIR/connection.json
+```
+
+Both modes recheck credential validity, app identity, account access and
+messaging permissions. Subscribe mode verifies the saved callback's challenge,
+adds `messages` while retaining the app's reported existing fields, and reads
+the subscription back. An already enabled messages subscription is left alone.
+Malformed/incomplete results stop without a write. No provider pagination URLs
+are followed, credentials are sent only to the fixed Graph host, and no DM or
+Pronto activation occurs. A transport failure or failed confirmation after a
+write produces `uncertain`: inspect the actual state before any deliberate
+retry. This command never retries a write automatically.
+
+We can finish the local implementation and signed webhook tests without Keith.
+Before asking him to configure Meta, prepare a channel-enabled local environment
+with a public HTTPS tunnel, a verified isolated database, and a manually
+provisioned `unified_login` channel. Save its encrypted credentials and a fresh
+random `settings.verifyToken` through the existing authenticated operator
+channel API, with `status=draft`. Keep that token out of Git and chat.
+
+Use the actual channel UUID and stable public origin to produce:
+
+```text
+Callback URL: https://<public-origin>/api/webhooks/instagram/<channel-uuid>
+Verify token: <share privately from the saved channel settings>
+Webhook field for the initial text-DM test: messages
+```
+
+The GET callback accepts the correct verification token for an encrypted,
+configured Unified Login channel whose status is draft or active. Disabled
+channels remain closed. POST notifications still require an active channel;
+verification does not queue a customer message, run the agent, or enable replies.
+Credentials stored only in an unpublished `channel_drafts` row do not configure
+the callback: the operator must first save the inactive channel's own settings.
+
+Once that URL is reachable, send Keith these instructions with its real values:
+
+> The supplied credentials passed our read-only checks. In the existing Meta
+> app, open **API setup with Unified login → Configure webhooks**. Enter the
+> callback URL and privately supplied verify token, then verify and save.
+> Subscribe to **messages** for the initial text-DM test. Please confirm the
+> verification result and the app's Development/Live mode, and report any access
+> or review errors. If the designated test account receives a tester invitation,
+> accept it. We will coordinate the test after the account subscription and
+> Pronto's test-channel setup are ready.
+
+There are two separate subscriptions: the app's selected webhook fields and
+the Instagram account's subscription to the app. Meta's [app subscriptions API
+reference](https://developers.facebook.com/docs/graph-api/reference/app/subscriptions/)
+explicitly excludes Instagram webhook creation; Keith (or an authorized app
+administrator) must configure the Instagram callback in the App Dashboard.
+After callback configuration,
+we can run the latter with the subscription command's authorized request to
+`/<instagram-account-id>/subscribed_apps` using the supplied account token;
+token permissions must still be accepted by Meta for that operation. This
+credential smoke check does not make that request. Follow Meta's [webhook setup
+guide](https://developers.facebook.com/documentation/instagram-platform/webhooks/setup)
+for the setup-specific host and access requirements. Token-read success does
+not establish the app's mode, review status or live-notification eligibility.
+
+The targeted database regression runs through signed Unified Login webhooks,
+encrypted channel credentials, durable jobs, the actual worker/agent and a fake
+Graph outbox transport. It also checks duplicate ingestion and silence after
+human takeover. With the pinned disposable runtime available, run:
+
+```sh
+pnpm test:huddle:db --test-file tests/integration/meta-rag-demo.test.ts
+```
+
+This harness creates, marks and removes its own PostgreSQL cluster. It does not
+use `.env` credentials or any existing database. It performs no live inference
+or Meta delivery; those remain separate acceptance steps.
+
+Keith does not need to recreate the app or provide a new token for local code
+work. Actual callback values cannot be finalized until the test environment's
+public origin and channel UUID are known. End-to-end delivery remains pending
+until Meta setup and a controlled test are complete.
+
 **WhatsApp:** Create a Meta developer app, test or approved WhatsApp Business
 Account and phone number, and an authorized test recipient. Record the WABA
 ID, Phone Number ID, app secret and a scoped token with

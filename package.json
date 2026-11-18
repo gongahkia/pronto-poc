@@ -36,6 +36,8 @@
     "chope:live-read": "tsx scripts/chope-live-read.ts",
     "meta:verify": "tsx scripts/meta-verify.ts",
     "instagram:smoke": "node --env-file=.env --import tsx scripts/instagram-smoke.ts",
+    "instagram:prepare": "node --env-file=.env --import tsx scripts/instagram-prepare.ts",
+    "instagram:subscription": "node --env-file=.env --import tsx scripts/instagram-subscription.ts",
     "test:watch": "vitest",
     "test:e2e": "tsx scripts/verify-test-db.ts && PRONTO_USE_MOCK_AI=1 PRONTO_LOCAL_STAFF_COMMANDS=1 PRONTO_LOCAL_STAFF_E2E=1 PRONTO_TEST_ALLOW_BUILD_IPC=0 APP_BASE_URL=http://localhost:3000 PLAYWRIGHT_BASE_URL=http://localhost:3000 NODE_OPTIONS=--import=./tests/setup/network-guard.mjs playwright test",
     "test:e2e:local-mail": "PRONTO_TEST_LOCAL_MAIL=1 PRONTO_LOCAL_EMAIL_ENABLED=1 pnpm test:e2e",
