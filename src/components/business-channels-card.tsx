@@ -36,9 +36,10 @@ export function BusinessChannelsDetail({ channels, drafts, params }: {
             </select></label>
             <label className="block text-sm">External ID<input name="externalId" defaultValue={draft?.external_id ?? selected.external_id ?? ""} className="ui-input mt-1 w-full px-3 py-2"/></label>
             {channelSetupFields[selected.kind].map(field => {
-              const igMode = settings.authMode === "instagram_login" ? "instagram_login" : "facebook_login";
-              if (selected.kind === "instagram" && ((igMode === "instagram_login" && ["pageAccessToken", "pageId"].includes(field.name)) ||
-                (igMode === "facebook_login" && ["instagramAccessToken", "tokenExpiresAt"].includes(field.name)))) return null;
+              const igMode = settings.authMode ?? "facebook_login";
+              if (selected.kind === "instagram" && ((igMode !== "facebook_login" && ["pageAccessToken", "pageId"].includes(field.name)) ||
+                (igMode !== "instagram_login" && ["instagramAccessToken", "tokenExpiresAt"].includes(field.name)) ||
+                (igMode !== "unified_login" && ["accessToken", "configId", "businessId"].includes(field.name)))) return null;
               const source = field.scope === "settings" ? settings : credentials;
               return <label key={`${field.scope}.${field.name}`} className="block text-sm">{field.label}
                 {field.options ? <select name={`${field.scope}.${field.name}`} defaultValue={String(source[field.name] ?? field.options[0])} className="ui-input mt-1 w-full px-3 py-2">
@@ -50,7 +51,7 @@ export function BusinessChannelsDetail({ channels, drafts, params }: {
             })}
             <button className="ui-primary-button px-4 py-2 text-sm">Save draft settings</button>
           </form>
-          {selected.kind === "instagram" && <form action={`/api/client/channels/${selected.id}/instagram-login`} method="post" className="mt-3">
+          {selected.kind === "instagram" && settings.authMode !== "unified_login" && <form action={`/api/client/channels/${selected.id}/instagram-login`} method="post" className="mt-3">
             <button className="ui-button px-3 py-2 text-sm">Connect with Instagram Login</button></form>}
           <details className="my-4 text-sm"><summary className="cursor-pointer text-muted">Webhook details</summary>
             <code className="mt-2 block break-all text-xs">{`${appBaseUrl()}/api/webhooks/${selected.kind}/${selected.id}`}</code></details>

@@ -11,6 +11,63 @@ database; see [safe testing](../testing/safe-regression-baseline.md).
 
 ## Account prerequisites
 
+### Instagram Unified Login credential smoke check
+
+For a manually generated Unified Login test token, put these server-only values
+in the ignored root `.env`: `PRONTO_INSTAGRAM_TEST_ACCOUNT_ID`,
+`PRONTO_INSTAGRAM_TEST_ACCESS_TOKEN`, `PRONTO_INSTAGRAM_TEST_APP_ID`, and
+`PRONTO_INSTAGRAM_TEST_APP_SECRET`. Use the **Meta** app ID/secret from that
+setup. `PRONTO_INSTAGRAM_TEST_CONFIG_ID` and
+`PRONTO_INSTAGRAM_TEST_BUSINESS_ID` are optional for this check; they are needed
+when implementing the business onboarding/token-management flow, not for these
+two credential reads. Existing shell variables take precedence over `.env`.
+
+```sh
+# Local presence/format checks only; no database or network access.
+pnpm instagram:smoke
+# Explicitly approved test-account reads only; no messages or subscriptions.
+PRONTO_META_TEST_ACCOUNT=1 PRONTO_META_READ_APPROVED=1 pnpm instagram:smoke --read
+```
+
+Read mode calls Meta's `debug_token` endpoint with app authentication, checks
+token validity, app identity, reported expiries and the `instagram_basic` /
+`instagram_manage_messages` grants, then reads `id,username` for the exact
+configured Instagram account. It does not read conversations, change a
+subscription, start a worker, write to PostgreSQL or send a DM. Missing/invalid
+inputs stop before any request; failed reads are not retried. Output omits
+tokens, secrets, account names, raw provider errors and request URLs. The debug
+endpoint requires `input_token` in its query; never log that URL.
+
+Passing means those credential reads succeeded, not that webhook delivery,
+messaging delivery, business-portfolio ownership or production access was
+verified. An expiry of zero means Meta reported no scheduled expiry, not that
+the token cannot be revoked. See Meta's [Unified Login authentication](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-unified-login/authentication)
+and [token inspection reference](https://developers.facebook.com/docs/graph-api/reference/debug_token/).
+
+Pronto's manually provisioned Unified Login channel uses
+`settings.authMode=unified_login`, `credentials.accessToken`,
+`credentials.igUserId` (or the channel external ID), `credentials.appSecret`, and
+`settings.verifyToken`. Optional `credentials.configId` and
+`credentials.businessId` retain onboarding metadata. Use the existing encrypted
+channel/draft mechanism; the smoke environment values are never global fallback
+credentials for tenant channels. The business channel detail form supports this
+mode; save a changed authentication mode before entering its mode-specific
+fields. The authenticated [operator CLI](../ops/operator-cli.md) can also save
+the settings and credentials through the existing channel endpoint.
+
+Connection checks read the configured Instagram account directly and sends use
+`graph.facebook.com/<version>/<igUserId>/messages` with the channel's own token.
+A linked Page and the Instagram Login OAuth flag are not required for this mode.
+This is manual test-token support; no Unified Login OAuth onboarding button or
+token refresh automation is added. The existing business approval, operator
+activation and channel delivery checks still apply. The protected synthetic
+hosted demo still excludes external-channel processing.
+
+Before a real DM round trip, configure and verify the channel's public HTTPS
+webhook, subscribe the app/account to the required message events, and identify
+the authorized test sender/recipient. Then run one controlled conversation using
+the process below. Credential smoke success alone does not activate a channel.
+
 **WhatsApp:** Create a Meta developer app, test or approved WhatsApp Business
 Account and phone number, and an authorized test recipient. Record the WABA
 ID, Phone Number ID, app secret and a scoped token with

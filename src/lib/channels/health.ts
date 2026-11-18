@@ -132,12 +132,13 @@ export function validateChannelHealthConfig(channel: Channel): string | null {
   }
 
   if (channel.kind === "instagram") {
-    if (channel.settings.authMode && !["facebook_login", "instagram_login"].includes(String(channel.settings.authMode)))
+    if (channel.settings.authMode && !["facebook_login", "instagram_login", "unified_login"].includes(String(channel.settings.authMode)))
       return "Unsupported Instagram login mode.";
     if (!isSupportedMetaGraphVersion(metaGraphVersion())) return "Instagram Graph API version is expired or invalid.";
     const direct = channel.settings.authMode === "instagram_login";
+    const unified = channel.settings.authMode === "unified_login";
     if (direct && process.env.PRONTO_INSTAGRAM_LOGIN_ENABLED !== "1") return "Instagram Login is disabled pending test-account authorization.";
-    const token = channel.credentials[direct ? "instagramAccessToken" : "pageAccessToken"] as string | undefined;
+    const token = channel.credentials[unified ? "accessToken" : direct ? "instagramAccessToken" : "pageAccessToken"] as string | undefined;
     const appSecret = channel.credentials.appSecret as string | undefined;
     const verifyToken = channel.settings.verifyToken as string | undefined;
     const igUserId =
@@ -148,7 +149,7 @@ export function validateChannelHealthConfig(channel: Channel): string | null {
     if (!appSecret) return "Instagram app secret is missing.";
     if (!verifyToken) return "Instagram webhook verify token is missing.";
     if (!igUserId) return "Instagram user ID is missing.";
-    if (!direct && !pageId) return "Instagram linked Page ID is missing.";
+    if (!direct && !unified && !pageId) return "Instagram linked Page ID is missing.";
     return null;
   }
 
@@ -282,19 +283,26 @@ async function checkMetaPlatformHealth(channel: Channel): Promise<ChannelHealthR
 
 async function checkInstagramHealth(channel: Channel): Promise<ChannelHealthResult> {
   const direct = channel.settings.authMode === "instagram_login";
-  const token = channel.credentials[direct ? "instagramAccessToken" : "pageAccessToken"] as string;
+  const unified = channel.settings.authMode === "unified_login";
+  const token = channel.credentials[unified ? "accessToken" : direct ? "instagramAccessToken" : "pageAccessToken"] as string;
   const pageId = channel.credentials.pageId as string;
   const igUserId = (channel.credentials.igUserId as string | undefined) ?? channel.external_id;
   const response = await fetchWithTimeout(
-    direct ? `https://graph.instagram.com/${metaGraphVersion()}/me?fields=id,account_type` :
+    unified ? `https://graph.facebook.com/${metaGraphVersion()}/${igUserId}?fields=id,username` :
+      direct ? `https://graph.instagram.com/${metaGraphVersion()}/me?fields=id,account_type` :
       `https://graph.facebook.com/${metaGraphVersion()}/${pageId}?fields=id,instagram_business_account`,
     { headers: { Authorization: `Bearer ${token}` } }, channelHealthTimeoutMs(),
   );
   if (!response.ok) return { status: "degraded",
-    detail: `Instagram linked Page check failed with HTTP ${response.status}.`, checkedLive: true };
+    detail: `Instagram ${unified ? "account" : "linked Page"} check failed with HTTP ${response.status}.`, checkedLive: true };
   let body: { id?: unknown; account_type?: unknown; instagram_business_account?: { id?: unknown } };
   try { body = await response.json() as typeof body; }
-  catch { return { status: "degraded", detail: "Instagram linked Page response was invalid.", checkedLive: true }; }
+  catch { return { status: "degraded", detail: "Instagram account response was invalid.", checkedLive: true }; }
+  if (unified) {
+    if (body.id !== igUserId) return { status: "degraded",
+      detail: "Unified Login token does not resolve to the configured Instagram account.", checkedLive: true };
+    return { status: "healthy", detail: "Unified Login token can read the configured Instagram account; messaging permission and delivery need separate verification.", checkedLive: true };
+  }
   if (direct) {
     if (body.id !== igUserId || !["BUSINESS", "CREATOR", "MEDIA_CREATOR"].includes(String(body.account_type)))
       return { status: "degraded", detail: "Instagram Login token does not resolve to the configured professional account.", checkedLive: true };

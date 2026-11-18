@@ -35,6 +35,7 @@
     "test:local-mail": "tsx scripts/verify-test-db.ts && PRONTO_RUN_DB_TESTS=1 PRONTO_ENFORCE_TENANT_SQL=1 PRONTO_PREFLIGHT_IGNORE_DOTENV=1 PRONTO_SECRETS_KEY=local-test-secrets-key-with-more-than-32-characters AUTH_SECRET=local-test-auth-secret-with-more-than-32-characters APP_BASE_URL=http://127.0.0.1:3000 PRONTO_TEST_LOCAL_MAIL=1 PRONTO_LOCAL_EMAIL_ENABLED=1 vitest run tests/integration/local-mail-demo.test.ts",
     "chope:live-read": "tsx scripts/chope-live-read.ts",
     "meta:verify": "tsx scripts/meta-verify.ts",
+    "instagram:smoke": "node --env-file=.env --import tsx scripts/instagram-smoke.ts",
     "test:watch": "vitest",
     "test:e2e": "tsx scripts/verify-test-db.ts && PRONTO_USE_MOCK_AI=1 PRONTO_LOCAL_STAFF_COMMANDS=1 PRONTO_LOCAL_STAFF_E2E=1 PRONTO_TEST_ALLOW_BUILD_IPC=0 APP_BASE_URL=http://localhost:3000 PLAYWRIGHT_BASE_URL=http://localhost:3000 NODE_OPTIONS=--import=./tests/setup/network-guard.mjs playwright test",
     "test:e2e:local-mail": "PRONTO_TEST_LOCAL_MAIL=1 PRONTO_LOCAL_EMAIL_ENABLED=1 pnpm test:e2e",

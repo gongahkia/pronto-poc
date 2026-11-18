@@ -56,7 +56,10 @@ export const channelSetupFields: Record<ChannelKind, ChannelField[]> = {
     { scope: "settings", name: "verifyToken", label: "Webhook verify token", secret: true },
   ],
   instagram: [
-    { scope: "settings", name: "authMode", label: "Instagram authentication", options: ["facebook_login", "instagram_login"] },
+    { scope: "settings", name: "authMode", label: "Instagram authentication", options: ["facebook_login", "instagram_login", "unified_login"] },
+    { scope: "credentials", name: "accessToken", label: "Unified Login access token", secret: true },
+    { scope: "credentials", name: "configId", label: "Unified Login configuration ID (optional)" },
+    { scope: "credentials", name: "businessId", label: "Unified Login business ID (optional for manual test tokens)" },
     { scope: "credentials", name: "pageAccessToken", label: "Page access token", secret: true },
     { scope: "credentials", name: "instagramAccessToken", label: "Instagram Login token", secret: true },
     { scope: "credentials", name: "tokenExpiresAt", label: "Instagram Login token expiry (ISO date)" },

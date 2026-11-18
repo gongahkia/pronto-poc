@@ -95,6 +95,36 @@ describe("Instagram adapter", () => {
     })).rejects.toThrow(/token.*missing/i);
   });
 
+  it("uses a Unified Login token on Facebook Graph without a linked Page", async () => {
+    const channel = { id: "ig-channel", client_id: "tenant-a", kind: "instagram" as const,
+      name: "Instagram", status: "active" as const, external_id: "ig-business-a",
+      credentials: { accessToken: "unified-token", pageAccessToken: "unused-page-token",
+        instagramAccessToken: "unused-direct-token" }, settings: { authMode: "unified_login" },
+      last_health_check_at: null, last_health_status: null, last_health_error: null,
+      last_outbound_at: null, last_outbound_error: null };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ message_id: "mid.unified" }))));
+    expect(await sendInstagramText({ channel, externalThreadId: "customer", text: "Hello" })).toBe("mid.unified");
+    expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/^https:\/\/graph.facebook.com\/v\d+\.\d+\/ig-business-a\/messages$/),
+      expect.objectContaining({ headers: { Authorization: "Bearer unified-token", "Content-Type": "application/json" },
+        body: JSON.stringify({ recipient: { id: "customer" }, message: { text: "Hello" } }) }));
+    await expect(sendInstagramText({ channel: { ...channel, credentials: { pageAccessToken: "wrong-path" } },
+      externalThreadId: "customer", text: "Hello" })).rejects.toThrow(/token.*missing/i);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not use environment test credentials as a tenant's send credentials", async () => {
+    vi.stubEnv("PRONTO_INSTAGRAM_TEST_ACCESS_TOKEN", "other-tenant-token");
+    const fetchFn = vi.fn();
+    vi.stubGlobal("fetch", fetchFn);
+    await expect(sendInstagramText({ channel: {
+      id: "ig-channel", client_id: "tenant-a", kind: "instagram", name: "Instagram",
+      status: "active", external_id: "ig-business-a", credentials: {}, settings: { authMode: "unified_login" },
+      last_health_check_at: null, last_health_status: null, last_health_error: null,
+      last_outbound_at: null, last_outbound_error: null,
+    }, externalThreadId: "customer", text: "Hello" })).rejects.toThrow(/token.*missing/i);
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
   it("treats a Graph transport timeout as uncertain acceptance", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "AbortError")));
     await expect(sendInstagramText({

@@ -110,6 +110,21 @@ describe("Meta webhook entry points", () => {
     expect(fakes.processInboundMessages).toHaveBeenLastCalledWith([], expect.any(Object));
   });
 
+  it("authenticates Unified Login DMs with the channel secret and exact account mapping", async () => {
+    fakes.getInstagramChannel.mockResolvedValue({ ...channel("instagram"),
+      settings: { authMode: "unified_login", verifyToken: "test-verify-token" } });
+    const response = await instagramPost(signedRequest("instagram", instagramPayload), context);
+    expect(response.status).toBe(200);
+    expect(fakes.processInboundMessages).toHaveBeenCalledWith([
+      expect.objectContaining({ channelId: "channel-a", externalThreadId: "ig-customer-a", text: "Vegetarian options?" }),
+    ], expect.any(Object));
+    expect((await instagramPost(signedRequest("instagram", instagramPayload, "foreign-secret"), context)).status).toBe(401);
+    const wrong = structuredClone(instagramPayload);
+    wrong.entry[0].id = "ig-business-b";
+    expect((await instagramPost(signedRequest("instagram", wrong), context)).status).toBe(403);
+    expect(fakes.processInboundMessages).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects Instagram signature, disabled account and tenant account mismatch", async () => {
     expect((await instagramPost(signedRequest("instagram", instagramPayload, "wrong"), context)).status).toBe(401);
     const wrong = structuredClone(instagramPayload);

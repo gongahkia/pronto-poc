@@ -91,12 +91,13 @@ export async function sendInstagramText(input: {
   externalThreadId: string;
   text: string;
 }): Promise<string> {
-  if (input.channel.settings.authMode && !["facebook_login", "instagram_login"].includes(String(input.channel.settings.authMode)))
+  if (input.channel.settings.authMode && !["facebook_login", "instagram_login", "unified_login"].includes(String(input.channel.settings.authMode)))
     throw new Error("Unsupported Instagram login mode.");
   const direct = input.channel.settings.authMode === "instagram_login";
+  const unified = input.channel.settings.authMode === "unified_login";
   if (direct && process.env.PRONTO_INSTAGRAM_LOGIN_ENABLED !== "1")
     throw new Error("Instagram Login is disabled until authorized test-account configuration is enabled.");
-  const token = input.channel.credentials[direct ? "instagramAccessToken" : "pageAccessToken"] as string | undefined;
+  const token = input.channel.credentials[unified ? "accessToken" : direct ? "instagramAccessToken" : "pageAccessToken"] as string | undefined;
   const igUserId =
     (input.channel.credentials.igUserId as string | undefined) ??
     input.channel.external_id;

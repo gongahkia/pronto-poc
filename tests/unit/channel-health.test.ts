@@ -79,4 +79,26 @@ describe("channel health config validation", () => {
       instagram_business_account: { id: "ig-b" } }), { status: 200 })));
     expect(await runChannelHealthCheck(configured)).toMatchObject({ status: "degraded", checkedLive: true });
   });
+
+  it("checks a Unified Login account directly, without a linked Page or Instagram Login opt-in", async () => {
+    vi.stubEnv("PRONTO_INSTAGRAM_LOGIN_ENABLED", "0");
+    const instagram: Channel = { ...baseChannel, kind: "instagram", external_id: "ig-a",
+      credentials: { accessToken: "unified-token", appSecret: "secret" },
+      settings: { authMode: "unified_login", verifyToken: "verify" } };
+    expect(validateChannelHealthConfig(instagram)).toBeNull();
+    expect(validateChannelHealthConfig({ ...instagram, credentials: { pageAccessToken: "wrong-path", appSecret: "secret" } })).toMatch(/token/);
+    expect(validateChannelHealthConfig({ ...instagram, credentials: { accessToken: "unified-token" } })).toMatch(/secret/);
+    expect(validateChannelHealthConfig({ ...instagram, settings: { authMode: "unified_login" } })).toMatch(/verify token/);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: "ig-a", username: "fixture" }))));
+    expect(await runChannelHealthCheck(instagram)).toMatchObject({ status: "healthy", checkedLive: true });
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining("graph.facebook.com/v25.0/ig-a?fields=id,username"),
+      expect.objectContaining({ headers: { Authorization: "Bearer unified-token" } }));
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: "ig-b" }))));
+    expect(await runChannelHealthCheck(instagram)).toMatchObject({ status: "degraded", checkedLive: true });
+  });
+
+  it("rejects an unknown Instagram auth mode instead of treating it as Page login", () => {
+    expect(validateChannelHealthConfig({ ...baseChannel, kind: "instagram", settings: { authMode: "other" } }))
+      .toMatch(/Unsupported/);
+  });
 });

@@ -52,14 +52,23 @@ Webhook URL:
 https://<public-host>/api/webhooks/instagram/<channelId>
 ```
 
-This implementation uses a manually provisioned Facebook Login linked-Page
-access token, linked Page ID, Instagram Professional account ID, app secret, and verify
-token. It does not support personal accounts or Instagram Login OAuth. The
-route validates the signature and professional-account mapping, ignores echo
-events, and persists customer DMs for the shared worker. Outbound replies use
-the same tenant's professional account and the customer sender ID. See
-[`docs/sprint1/technical-readiness.md`](../sprint1/technical-readiness.md)
-for App Review and test-account prerequisites.
+Select the authentication mode for the professional account:
+
+- `unified_login`: a manually provisioned Unified Login token in
+  `credentials.accessToken`, Instagram account ID, app secret and verify token.
+  Uses `graph.facebook.com`; no linked Facebook Page is required.
+- `facebook_login`: a linked Page access token, linked Page ID, Instagram account
+  ID, app secret and verify token. Uses `graph.facebook.com`.
+- `instagram_login`: the existing opt-in Instagram Login OAuth flow, with an
+  Instagram User token and verified expiry. Uses `graph.instagram.com`.
+
+Personal business-side accounts are unsupported. The route validates the
+signature and account mapping, ignores echo events, and persists customer DMs
+for the shared worker. Outbound replies use the same tenant's professional
+account and the customer sender ID. Use the [credential smoke check and sandbox
+guide](meta-sandbox-verification.md) before a controlled real-account test.
+Webhook verification and account/event subscriptions are separate setup steps;
+the smoke check does not perform them or activate the channel.
 
 ## Telegram
 
