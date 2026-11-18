@@ -43,6 +43,15 @@ describe("Instagram account subscription setup", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
+  it("can inspect the environment's exact app/account before a callback is chosen", async () => {
+    const fetchFn = transport();
+    expect(await manageInstagramSubscription(env, undefined, { fetchFn })).toMatchObject({ status: "inspected", mutationAttempted: false });
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    fetchFn.mockClear();
+    expect(await manageInstagramSubscription(env, undefined, { fetchFn, subscribe: true })).toMatchObject({ status: "failed", mutationAttempted: false });
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
   it("refuses mixed account/app files and missing read authorization", async () => {
     const fetchFn = transport();
     expect((await manageInstagramSubscription(env, { ...await connection(), appId: "999" }, { fetchFn })).status).toBe("failed");

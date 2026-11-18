@@ -12,10 +12,14 @@ export async function manageInstagramSubscription(env: Record<string, string | u
   options: { subscribe?: boolean; fetchFn?: typeof fetch } = {}): Promise<InstagramSubscriptionReport> {
   const report: InstagramSubscriptionReport = { status: "failed", messagesSubscribed: false,
     mutationAttempted: false, callbackVerified: false, detail: "Instagram setup could not be validated." };
-  let connection: ReturnType<typeof validateInstagramConnection>;
-  try { connection = validateInstagramConnection(setup); } catch { return report; }
-  if (connection.appId !== env.PRONTO_INSTAGRAM_TEST_APP_ID?.trim() ||
-      connection.accountId !== env.PRONTO_INSTAGRAM_TEST_ACCOUNT_ID?.trim()) {
+  let connection: ReturnType<typeof validateInstagramConnection> | undefined;
+  if (setup !== undefined) {
+    try { connection = validateInstagramConnection(setup); } catch { return report; }
+  } else if (options.subscribe) {
+    report.detail = "Subscribe requires the private connection setup file."; return report;
+  }
+  const appId = env.PRONTO_INSTAGRAM_TEST_APP_ID?.trim(), accountId = env.PRONTO_INSTAGRAM_TEST_ACCOUNT_ID?.trim();
+  if (connection && (connection.appId !== appId || connection.accountId !== accountId)) {
     report.detail = "Setup file and environment identify different apps or accounts."; return report;
   }
   if (options.subscribe && env.PRONTO_META_SUBSCRIBE_APPROVED !== "1") {
@@ -24,7 +28,7 @@ export async function manageInstagramSubscription(env: Record<string, string | u
   const smoke = await checkInstagramTestCredentials(env, { live: true, fetchFn: options.fetchFn });
   if (smoke.status !== "passed") { report.detail = "Credential/read-authorization check failed; run instagram:smoke --read for sanitized details."; return report; }
   const request = (form?: Record<string, string>) => requestInstagramGraph({
-    version: env.META_GRAPH_VERSION?.trim() || "v25.0", path: `${connection.accountId}/subscribed_apps`,
+    version: env.META_GRAPH_VERSION?.trim() || "v25.0", path: `${accountId}/subscribed_apps`,
     token: env.PRONTO_INSTAGRAM_TEST_ACCESS_TOKEN!.trim(), fetchFn: options.fetchFn,
     ...(form ? { form } : { query: { fields: "id,subscribed_fields", limit: "100" } }),
   });
@@ -33,7 +37,7 @@ export async function manageInstagramSubscription(env: Record<string, string | u
     if (!response.ok) return { ok: false as const, detail: response.detail };
     if (!Array.isArray(response.body.data) || response.body.data.some(item => !isGraphObject(item) || typeof item.id !== "string"))
       return { ok: false as const, detail: "Meta returned an invalid subscription list." };
-    const own = response.body.data.filter(item => item.id === connection.appId);
+    const own = response.body.data.filter(item => item.id === appId);
     if (own.length > 1 || !own.length && isGraphObject(response.body.paging) && response.body.paging.next)
       return { ok: false as const, detail: "Subscription results are ambiguous or incomplete; no changes made." };
     const fields: unknown = own[0]?.subscribed_fields ?? (own.length ? null : []);
@@ -50,6 +54,7 @@ export async function manageInstagramSubscription(env: Record<string, string | u
       : "This app is not subscribed to account messages. No changes made.";
     return report;
   }
+  if (!connection) return report;
   const callback = new URL(connection.callbackUrl), challenge = randomBytes(16).toString("hex");
   callback.searchParams.set("hub.mode", "subscribe");
   callback.searchParams.set("hub.verify_token", connection.verifyToken);

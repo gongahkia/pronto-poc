@@ -9,6 +9,14 @@ chat, shell arguments and
 logs. This procedure uses only a newly marked, isolated `pronto_test`
 database; see [safe testing](../testing/safe-regression-baseline.md).
 
+Update on 18 November 2026 for Unified Login: authorized read-only checks passed
+for the supplied token's app, validity, messaging permissions and exact account
+access. A separate account-subscription read reported messages not subscribed.
+Seven targeted isolated PostgreSQL regressions passed with fake Meta transport,
+including private setup persistence, duplicate ingestion and human-owned silence.
+No live subscription write, external DM, production activation or deployment
+was performed. The October WhatsApp evidence above remains historical.
+
 ## Account prerequisites
 
 ### Instagram Unified Login credential smoke check
@@ -115,6 +123,10 @@ inspect the separate account subscription:
 PRONTO_META_TEST_ACCOUNT=1 PRONTO_META_READ_APPROVED=1 \
   pnpm instagram:subscription inspect --setup-file SETUP_DIR/connection.json
 ```
+
+`inspect` also works without `--setup-file` to check the exact app/account in
+`.env` before a callback is selected. It makes read-only requests; a setup file
+is required for `subscribe`.
 
 To explicitly enable it after reviewing the target:
 
