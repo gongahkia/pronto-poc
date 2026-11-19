@@ -66,6 +66,15 @@ below were moved from that README so they remain available to coding agents.
 
 ## Product behaviour and reference guides
 
+Saved demo businesses use `config/demo-businesses/*.json` and `pnpm demo:business`
+for offline plans, non-destructive preparation and activation plans. Migration
+062 is required for a new saved business. The active client/channel/slug/seed are
+server configuration resolved through `demoBusinessScope()`, with PS.Cafe as the
+legacy default. Apply all four settings together and restart; this is not a
+zero-downtime switch. Keep history, sessions, source approvals and credentials
+bound to their original business. Instagram does not follow a switch implicitly.
+See `docs/demos/saved-businesses.md`; fixture/reset scripts remain local-only.
+
 Demo entry is `/` → public `/demo` (view chooser) → `/demo/customer` or
 `/client/inbox`. Anonymous view selection POSTs to the existing CSRF-protected
 guest-session endpoint; the name is optional (a generated friendly default). The

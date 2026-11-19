@@ -6,6 +6,7 @@ import {assertCustomerDemoEnabled} from '@/lib/customer-demo-boundary';
 import {protectedDemoDeployment,protectedDemoConfiguration} from '@/lib/deployment-profile';
 import {demoBusinessScope,LEGACY_DEMO_SCOPE} from '@/lib/demo-business';
 import {demoBusinessEnvironment,demoBusinessProfileHash,type DemoBusinessProfile} from '@/lib/demo-business-profile';
+import {hasOnlyProtectedDemoKnowledge} from '@/lib/knowledge/protected-demo';
 
 export async function assertDemoBusinessOperator(actorId:string,db:Queryable={query}){
  await assertCustomerDemoEnabled(db);
@@ -49,9 +50,13 @@ export async function prepareDemoBusiness(profile:DemoBusinessProfile,actorId:st
   await db.query(`insert into clients(id,name,slug,vertical,status,brand_voice,business_profile)
    values($1,$2,$3,$4,'pilot',$5,$6::jsonb)`,[scope.clientId,profile.name,scope.slug,profile.vertical,profile.voice.content,
    JSON.stringify({demoSeed:scope.seed,timezone:profile.timezone,approvedByRestaurant:false,
-    demoBusiness:{version:1,profileHash:hash},demoPresentation:profile.presentation,
+    demoBusiness:{version:1,profileHash:hash,channelId:scope.channelId},demoPresentation:profile.presentation,
     chopeAvailability:{enabled:false},reservationPolicy:{directBooking:false,liveAvailability:false}})]);
   await db.query(`insert into channels(id,client_id,kind,name,status,settings) values($1,$2,'console','Customer demo','active','{"transport":"customer_simulator"}')`,[scope.channelId,scope.clientId]);
+  await recordAuditLog({clientId:scope.clientId,actorUserId:actorId,action:'demo.business_prepared',targetType:'client',targetId:scope.clientId,
+   metadata:{profileHash:hash,unofficialDemo:true,sourceCount:profile.knowledge.length,externalCredentialsCopied:false}},db);
+  await db.query(`insert into demo_business_knowledge_scopes(client_id,channel_id,database_marker)
+   select $1,$2,shobj_description(oid,'pg_database') from pg_database where datname=current_database()`,[scope.clientId,scope.channelId]);
   await db.query(`insert into agent_configs(client_id,prompt_preamble,retrieval_threshold)
    values($1,'Unofficial demonstration. Answer only from approved business sources. Do not invent policies or claim booking, payment or refund actions.',0.05)`,[scope.clientId]);
   await db.query(`insert into brand_voice_documents(client_id,title,content,attributes,source_notes) values($1,$2,$3,$4,$5)`,
@@ -68,8 +73,6 @@ export async function prepareDemoBusiness(profile:DemoBusinessProfile,actorId:st
     values($1,$2,$3,$4,$5,null,'none',0,$6)`,[source.id,scope.clientId,index,chunk.content,chunk.tokenEstimate,
     {...metadata,retrievalMode:'local_text',retrievalProfile:LOCAL_TEXT_RETRIEVAL_PROFILE}]);
   }
-  await recordAuditLog({clientId:scope.clientId,actorUserId:actorId,action:'demo.business_prepared',targetType:'client',targetId:scope.clientId,
-   metadata:{profileHash:hash,unofficialDemo:true,sourceCount:profile.knowledge.length,externalCredentialsCopied:false}},db);
   return {created:true,clientId:scope.clientId,preserved:true};
  });
 }
@@ -88,7 +91,7 @@ export async function planDemoBusinessActivation(profile:DemoBusinessProfile,act
   and exists(select 1 from knowledge_sources s join knowledge_chunks k on k.source_id=s.id and k.client_id=s.client_id
    where s.client_id=$1 and coalesce(s.metadata->>'archived','false')<>'true'
     and coalesce(s.metadata->>'reviewStatus','') not ilike '%conflict%') ready`,[target.clientId])).rows[0];
- if(!ready?.ready)throw new Error('The target business needs agent configuration and available published knowledge before activation.');
+ if(!ready?.ready||!await hasOnlyProtectedDemoKnowledge({query},target.clientId))throw new Error('The target business needs agent configuration and available approved knowledge before activation.');
  const work=(await query<{busy:number}>(`select ((select count(*) from inbound_jobs where client_id=$1 and status in ('pending','processing','failed'))+
   (select count(*) from outbound_messages where client_id=$1 and status in ('pending','sending','failed','uncertain')))::int busy`,[current.clientId])).rows[0];
  const switching=current.clientId!==target.clientId;

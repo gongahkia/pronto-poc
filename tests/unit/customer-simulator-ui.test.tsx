@@ -14,6 +14,16 @@ const response = (value: unknown, status=200) => Promise.resolve(new Response(JS
 beforeEach(() => { cleanup(); HTMLElement.prototype.scrollIntoView=vi.fn(); });
 
 describe("customer simulator states", () => {
+  it('renders a different business without PS.Cafe labels or logo',async()=>{
+    vi.stubGlobal('fetch',vi.fn(()=>response(state)));
+    const alternate=businessPresentation({name:'Orchard Studio'});
+    const {container}=render(<CustomerSimulator business={alternate}/>);
+    await screen.findByRole('button',{name:'Conversation 1'});
+    expect(container.textContent).toContain('Orchard Studio');
+    expect(container.textContent).not.toContain('PS.Cafe');
+    expect(container.querySelector('img[src*="ps-cafe"]')).toBeNull();
+  });
+
   it('automatically replaces the typing indicator with the delivered reply and Singapore timestamps',async()=>{
     vi.useFakeTimers();
     let snapshot={...state,session:{id,conversation_id:id,ai_mode:'real',status:'active'},job:{status:'processing',created_at:state.now},messages:[] as unknown[]};

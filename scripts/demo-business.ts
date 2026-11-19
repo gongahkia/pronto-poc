@@ -5,6 +5,7 @@ import {parseDemoBusinessProfile,demoBusinessProfileHash,demoBusinessEnvironment
 import {prepareDemoBusiness,planDemoBusinessActivation,savedDemoBusinessIds,assertDemoBusinessOperator} from '../src/lib/demo-business-provisioning';
 import {enterTenantContext} from '../src/lib/tenant-context';
 import {getPool} from '../src/lib/db';
+import {z} from 'zod';
 
 const {values,positionals}=parseArgs({allowPositionals:true,options:{profile:{type:'string'},'actor-id':{type:'string'},
  'profile-hash':{type:'string'},'env-out':{type:'string'},'detach-instagram':{type:'boolean'}}});
@@ -23,6 +24,10 @@ async function writeEnvironment(path:string,environment:Record<string,string>){
 }
 try{
  if(positionals.length!==1||!['plan','prepare','activation-plan','list'].includes(command))throw new Error('Use plan, prepare, activation-plan or list with named options.');
+ if(values['actor-id']&&!z.uuid().safeParse(values['actor-id']).success)throw new Error('Use a valid existing operator UUID for --actor-id.');
+ if(values['env-out']&&command!=='activation-plan'||values['detach-instagram']&&command!=='activation-plan'||values['profile-hash']&&command!=='prepare')
+  throw new Error('Use --profile-hash only with prepare; --env-out and --detach-instagram only with activation-plan.');
+ if(command==='list'&&values.profile)throw new Error('List does not accept a profile.');
  enterTenantContext({role:'operator',clientId:null});
  if(command==='list'){
   databaseUsed=true;

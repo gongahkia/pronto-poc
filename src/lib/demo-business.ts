@@ -9,7 +9,7 @@ export type DemoBusinessScope=z.infer<typeof identitySchema>;
 
 // Read server configuration per operation; imports never capture a tenant from
 // another test or deployment. A partial override must never select the default.
-export function demoBusinessScope(env:NodeJS.ProcessEnv=process.env):DemoBusinessScope {
+export function demoBusinessScope(env:Record<string,string|undefined>=process.env):DemoBusinessScope {
  const values={clientId:env.PRONTO_DEMO_CLIENT_ID,channelId:env.PRONTO_DEMO_CHANNEL_ID,
   slug:env.PRONTO_DEMO_SLUG,seed:env.PRONTO_DEMO_SEED};
  if(Object.values(values).every(value=>value===undefined))return {...LEGACY_DEMO_SCOPE};

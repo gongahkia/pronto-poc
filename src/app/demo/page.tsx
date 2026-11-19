@@ -11,8 +11,8 @@ import {getDemoBusinessPresentation} from '@/lib/demo-business-branding';
 
 export const dynamic = 'force-dynamic';
 const views=[
- {href:'/demo/customer',title:'Guest / customer',description:'Ask the restaurant questions and experience replies from Pronto.',action:'Open customer chat',Icon:MessagesSquare},
- {href:'/client/inbox',title:'Client / business',description:'Review the inbox, reply as the business and manage restaurant knowledge.',action:'Open business inbox',Icon:Store},
+ {href:'/demo/customer',title:'Guest / customer',description:'Ask the business questions and experience replies from Pronto.',action:'Open customer chat',Icon:MessagesSquare},
+ {href:'/client/inbox',title:'Client / business',description:'Review the inbox, reply as the business and manage business knowledge.',action:'Open business inbox',Icon:Store},
 ];
 
 export default async function DemoEntryPage({searchParams}:{searchParams:Promise<{error?:string}>}) {

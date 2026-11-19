@@ -16,6 +16,7 @@ const fixture=await disposablePostgres();
 const env:NodeJS.ProcessEnv={...process.env,NODE_ENV:'test',DATABASE_URL:fixture.connectionString,PRONTO_TEST_DATABASE_URL:fixture.connectionString,
  PRONTO_PREFLIGHT_IGNORE_DOTENV:'1',PRONTO_ENFORCE_TENANT_SQL:'1',PRONTO_USE_MOCK_AI:'1',
  PRONTO_DEPLOYMENT_PROFILE:'',PRONTO_DEMO_PROCESSING_MODE:'',PRONTO_CUSTOMER_DEMO_ENABLED:'',PRONTO_DEMO_INSTAGRAM_ENABLED:'',
+ PRONTO_DEMO_CLIENT_ID:undefined,PRONTO_DEMO_CHANNEL_ID:undefined,PRONTO_DEMO_SLUG:undefined,PRONTO_DEMO_SEED:undefined,
  PRONTO_CHOPE_LIVE_READS:'0',CHOPE_LIVE_READ_APPROVED:'0',
  PRONTO_SECRETS_KEY:'disposable-test-secrets-key-with-more-than-32-characters',AUTH_SECRET:'disposable-test-auth-secret-with-more-than-32-characters',
  APP_BASE_URL:'http://localhost:3000'};

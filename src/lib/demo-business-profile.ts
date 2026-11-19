@@ -3,9 +3,9 @@ import {z} from 'zod';
 import {demoPresentationSchema,type DemoBusinessScope} from '@/lib/demo-business';
 import {normalizeVoiceDraft} from '@/lib/voice-draft';
 
+const publicUrl=z.url().refine(value=>{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password;});
 const sourceSchema=z.object({id:z.uuid(),title:z.string().trim().min(1).max(200),content:z.string().trim().min(1).max(16000),
- url:z.url().refine(value=>{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password;}).optional(),
- secondaryUrl:z.url().optional(),reviewStatus:z.enum(['public_fact','public_fact_with_dietary_caution','policy_conflict_withheld'])}).strict();
+ url:publicUrl.optional(),secondaryUrl:publicUrl.optional(),reviewStatus:z.enum(['public_fact','public_fact_with_dietary_caution','policy_conflict_withheld'])}).strict();
 const schema=z.object({version:z.literal(1),unofficialDemo:z.literal(true),
  identity:z.object({clientId:z.uuid(),channelId:z.uuid(),slug:z.string().regex(/^[a-z0-9][a-z0-9-]{0,99}$/),seed:z.string().regex(/^[a-z0-9][a-z0-9_-]{0,99}$/)}).strict(),
  name:z.string().trim().min(1).max(100),vertical:z.enum(['fnb','retail','services','hospitality','other']),

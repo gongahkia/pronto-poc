@@ -67,3 +67,5 @@ Technical guidance, checks and architecture references are in [AGENTS.md](AGENTS
 Huddle has been detached from Pronto: its widget, routes and SDK dependencies are removed. Existing feedback stays in PostgreSQL, with a complete private export retained. See [the removal record and tooling gap](docs/integrations/huddle-detachment.md).
 
 For a newly owned disposable regression database, use `pnpm fixtures:postgres`, then `pnpm test:isolated:db` or `pnpm test:isolated:db --eval`. These commands refuse existing database URLs and never reset hosted data.
+
+Demo business profiles and non-destructive switching: [saved demo businesses](docs/demos/saved-businesses.md). Each business retains its own history; activation uses configuration and a process restart.

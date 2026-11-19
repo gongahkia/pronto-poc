@@ -12,7 +12,7 @@ import { isGuestEmail, guestAccessEnabled } from "@/lib/guest-policy";
 import {DemoViewSwitch} from '@/components/demo-view-switch';
 import {ServiceStatusLink} from '@/components/service-status';
 import {DemoQueuePump} from '@/components/demo-queue-pump';
-import {requestDrivenDemoProcessing} from '@/lib/deployment-profile';
+import {requestDrivenDemoProcessing,protectedDemoDeployment} from '@/lib/deployment-profile';
 
 type ClientSection = "knowledge" | "inbox" | "assistant" | "analytics";
 type ClientSidebarItem = { href: string; label: string; section: ClientSection; icon: typeof Inbox };
@@ -59,6 +59,7 @@ export function AppShell({ user, children, clientActive = "inbox", workspaceName
         </header>
         <main id="main-content" className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
           {isDemo && guestAccessEnabled() && <div className="mb-4 flex flex-wrap justify-end gap-2"><ServiceStatusLink/><DemoViewSwitch/></div>}
+          {!isDemo && branded && protectedDemoDeployment() && <div role="status" className="mb-4 rounded-md border border-line bg-panel p-3 text-sm text-muted">This is a saved business workspace. Its history is retained; customer replies are paused while another demo business is active. Sign out and enter the demo again to use the active business.</div>}
           {children}
         </main>
       </div>

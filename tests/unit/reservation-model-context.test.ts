@@ -24,6 +24,12 @@ function setup(overrides = {}) {
 }
 beforeEach(() => { mocks.cached.mockReset().mockResolvedValue({ result, cacheHit: false, observationId: "observation-a" }); });
 describe("model-planned reservation assistance", () => {
+  it('labels reservation evidence with the current business name',async()=>{
+    const input=setup();
+    const context=await prepareReservationContext({...input,generation:{...input.generation,clientName:'Another restaurant'}});
+    expect(context?.chunk?.metadata.sourceTitle).toBe('Chope · Another restaurant reservation availability');
+  });
+
   it("validates relative dates against Singapore midnight instead of the UTC calendar day", () => {
     const midnight = new Date("2026-11-08T16:02:00Z");
     expect(reservationDateError({ ...query, intent: "booking", outlet: "current", date: "2026-11-09" }, "tomorrow at 7pm", midnight)).toContain("2026-11-10");

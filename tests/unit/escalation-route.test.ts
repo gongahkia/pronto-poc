@@ -68,6 +68,16 @@ describe("escalation route", () => {
     });
   });
 
+  it('rejects a customer reply from an inactive saved business before creating messages or outbox work',async()=>{
+    vi.stubEnv('PRONTO_DEPLOYMENT_PROFILE','protected-demo');
+    try{
+      const form=new FormData();form.set('action','resolve');form.set('escalationId','escalation-1');form.set('reply','Hello');
+      const response=await POST(new Request('http://localhost/api/escalations',{method:'POST',headers:{Host:'localhost',Origin:'http://localhost'},body:form}));
+      expect(response.status).toBe(409);expect(mocks.transaction).not.toHaveBeenCalled();
+      expect(mocks.enqueueOutboundMessage).not.toHaveBeenCalled();
+    }finally{vi.unstubAllEnvs();}
+  });
+
   it("enqueues and flushes owner replies after resolving an escalation", async () => {
     const form = new FormData();
     form.set("action", "resolve");

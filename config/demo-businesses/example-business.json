@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "unofficialDemo": true,
+  "identity": {
+    "clientId": "00000000-0000-4000-8000-00000000b101",
+    "channelId": "00000000-0000-4000-8000-00000000b106",
+    "slug": "orchard-studio-demo",
+    "seed": "orchard-studio-v1"
+  },
+  "name": "Orchard Studio",
+  "vertical": "services",
+  "timezone": "Asia/Singapore",
+  "presentation": {
+    "name": "Orchard Studio",
+    "assistantLabel": "Orchard Studio assistant",
+    "description": "Fictional workshop enquiries",
+    "logoPath": null
+  },
+  "voice": {
+    "title": "Orchard Studio demo voice",
+    "content": "Be warm, concise and natural. Answer only from approved workshop facts. Ask one useful question at a time. Do not claim to book, pay, refund or check live availability. Involve staff when their judgement or action is needed.",
+    "attributes": {
+      "promptMode": "custom"
+    },
+    "sourceNotes": "Fictional example business; replace with reviewed sources for a new demo.",
+    "examples": []
+  },
+  "knowledge": [
+    {
+      "id": "00000000-0000-4000-8000-00000000b201",
+      "title": "Orchard Studio workshop facts (fictional)",
+      "content": "Orchard Studio is a fictional craft workshop business for testing. Opening hours are 7:00am to 3:00pm daily. Workshops are held at 12 Orchard Walk, a fictional address. Staff must confirm workshop bookings, prices, payment and refund requests. No live availability is available in this demonstration.",
+      "reviewStatus": "public_fact"
+    }
+  ]
+}

@@ -167,7 +167,7 @@ export async function prepareReservationContext(input: {
     : "Only published observations above support availability claims. Unknown means a read could not establish availability. Use the requested date/time/party; ask only for missing or ambiguous details. No booking was created. Complete on Chope and verify selections; preselection is experimental."}`;
   return { chunk: { id: `chope:${link.outletId}:${request.date ?? "pending"}:${request.partySize ?? "pending"}`,
     source_id: "integration-source:chope", client_id: clientId, chunk_index: 0, content,
-    token_estimate: estimateTokens(content), score: 1, metadata: { sourceTitle: "Chope · PS.Cafe reservation availability",
+    token_estimate: estimateTokens(content), score: 1, metadata: { sourceTitle: `Chope · ${input.generation.clientName} reservation availability`,
       sourceUrl: link.url, live_source: true, reservation: metadata } },
     metadata, allowedUrls: [...new Set([link.url, ...choices.map(choice => choice.url)])], status, extraction };
 }

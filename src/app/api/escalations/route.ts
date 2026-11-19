@@ -1,3 +1,5 @@
+import {protectedDemoDeployment} from "@/lib/deployment-profile";
+import {demoBusinessScope} from "@/lib/demo-business";
 import { publicAppUrl } from "@/lib/http/redirect";
 import { assertSameOrigin } from "@/lib/http/csrf";
 import { NextResponse } from "next/server";
@@ -95,6 +97,11 @@ export async function POST(request: Request) {
   }
   if (!canAccessClient(user, escalation.client_id)) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
+
+  if (protectedDemoDeployment() && escalation.client_id !== demoBusinessScope().clientId &&
+      (action === "retry_outbound" || action === "resolve" && String(form.get("reply") ?? "").trim())) {
+    return NextResponse.json({ error: "This saved business is inactive. Switch back to it before sending customer replies." }, { status: 409 });
   }
 
   if (action === "retry_outbound") {
