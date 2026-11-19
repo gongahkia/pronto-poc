@@ -80,9 +80,80 @@ skipped in the standard suite. The two published, non-conflicting sources from
 the existing demo were exported read-only and copied as pending submissions in
 the new business. Gabriel's review controls and concrete onboarding drafts are
 prepared; no business approval, knowledge publication or full channel
-activation was fabricated. The worker remains off. Real incoming receipt,
-outgoing acceptance/recipient observation and an actual AI conversation are
-still unverified.
+activation was fabricated. The worker remains off.
+
+A native message from the planned tester was received at 09:55:07 SGT on
+19 November. The saved probe receipt passed signature verification, and a
+separate Meta profile read confirmed the sender's username. This verifies the
+incoming path for this test in Development mode. The separately authorized test
+reply was accepted by Meta at 10:08:29 SGT on 19 November; its provider receipt
+and exactly one local attempt are saved in the private audit evidence. Recipient
+observation and an actual AI conversation are still unverified.
+
+## Controlled outgoing acknowledgement
+
+`pnpm instagram:probe:reply --runtime-file PRIVATE_RUNTIME_JSON --plan-file PRIVATE_PLAN_JSON`
+performs read-only readiness checks and previews a fixed test acknowledgement.
+The runtime file contains the isolated hosted environment; the plan names the
+exact client, channel, probe, signed receipt, database marker, receiving business
+account ID and expected sender username. Both files must be private owned files
+(mode 600). The CLI requires the separate Neon test database with verified TLS;
+it does not fall back to `.env` or the local database.
+
+Only after explicitly authorizing the displayed real DM, add `--send` and set
+`PRONTO_META_PROBE_REPLY_APPROVED=1`. The recipient comes from the actual signed
+receipt, and Meta must confirm the planned username. The draft probe must still
+be valid, with the worker off. A transaction locks and rechecks the current
+channel/receipt and commits an `instagram.probe_reply_started` audit record
+before calling the existing Instagram send adapter. Concurrent commands share
+that claim. One attempted send blocks later attempts for that probe, including
+after a timeout, process crash, provider rejection or outcome-recording failure.
+Do not retry an uncertain attempt; inspect its audit trail and ask the recipient
+what arrived. Disabling/reconfiguring before the locked recheck rejects the
+send; a request already in flight cannot be recalled.
+
+The outcome is recorded as accepted, rejected or uncertain, without raw provider
+errors or message content. Acceptance is not recipient-observed delivery. This
+diagnostic leaves the channel draft and creates no AI job or ordinary outbox
+entry; full channel activation and its separate approvals remain required.
+The hosted read-only preview passed on 19 November. Following explicit user
+authorization, one acknowledgement was attempted and Meta returned a message
+receipt. The committed attempt and acceptance were independently read back;
+Keith subsequently confirmed receipt at 10:16 SGT and quoted the exact message
+in the user-provided Telegram screenshot. This is recipient-reported delivery,
+not a Meta delivery/seen webhook. No repeat send was made.
+Ten disposable database cases passed, covering concurrent invocations,
+ambiguous outcomes, an outcome-audit failure, recipient/tenant mismatches and
+configuration changes. Typecheck, lint, the hosted build and all 1,089 standard
+tests passed; optional database/browser checks are skipped in the standard run
+and the ten reply cases were run separately on a disposable database.
+
+## Scoped AI configuration
+
+The separate hosted test can opt into Groq `openai/gpt-oss-20b` with PostgreSQL
+text retrieval. `PRONTO_HOSTED_INSTAGRAM_AI=1` requires explicit client, channel,
+business account, database marker and messaging-scoped tester IDs using the
+`PRONTO_HOSTED_INSTAGRAM_*` settings in `.env.example`. Obtain sender IDs from
+the verified webhook receipt, not an app tester/account listing. No public demo
+flags or synthetic customer sessions are enabled by this scope.
+
+Migration 061 adds owner-operated `instagram_test_knowledge_scopes` enrollment.
+Enroll the exact tenant/channel/marker only after checking the database identity
+and credentials. Grant the restricted runtime role SELECT only on this new
+table, with no INSERT/UPDATE/DELETE grant or PUBLIC access. Database triggers
+reject non-vector chunks for an unenrolled tenant or mismatched database marker;
+the existing vector and synthetic demo profiles retain their validation.
+Migration/enrollment alone grants no source, assistant or channel approval.
+
+Source review, exact-revision assistant approval and operator publication still
+apply. The operator model endpoint permits only the exact Groq/`none` embedding
+pair inside the verified test scope. Ingestion, worker processing and outgoing
+dispatch check the tester allowlist; the worker scopes the whole turn, including
+handoff intake and crash recovery. Published settings must match this model,
+approved published knowledge must exist, and the existing Groq key/free-tier
+confirmation must be present. Missing prerequisites fail closed with no provider
+or mock fallback. Ordinary deployments and public-demo eligibility retain their
+existing behavior. The worker stays disabled during review.
 
 The [Render configuration](../../deploy/render-instagram.blueprint.yaml.example)
 uses one Free web service. It builds with `pnpm instagram:hosted:build` and starts

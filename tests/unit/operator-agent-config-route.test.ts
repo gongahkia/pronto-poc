@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   requireUser: vi.fn(),
   stageAgentConfig: vi.fn(),
   logWarn: vi.fn(),
+  usesInstagramTestTextKnowledge: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -17,6 +18,9 @@ vi.mock("@/lib/assistant-drafts", () => ({
 vi.mock("@/lib/logger", () => ({
   logWarn: mocks.logWarn,
 }));
+vi.mock("@/lib/channels/instagram-test-ai", () => ({
+  usesInstagramTestTextKnowledge: mocks.usesInstagramTestTextKnowledge, instagramTestModel: "openai/gpt-oss-20b",
+}));
 
 import { POST } from "@/app/api/operator/agent-config/route";
 
@@ -29,6 +33,7 @@ describe("operator agent config route", () => {
       role: "operator",
     });
     mocks.stageAgentConfig.mockResolvedValue({ config: { id: "config-1" } });
+    mocks.usesInstagramTestTextKnowledge.mockResolvedValue(false);
   });
 
   it("stages agent tuning for a client and returns JSON", async () => {
@@ -114,6 +119,17 @@ describe("operator agent config route", () => {
     const response = await POST(formRequest(form));
 
     expect(response.status).toBe(400);
+    expect(mocks.stageAgentConfig).not.toHaveBeenCalled();
+  });
+  it("accepts only the exact Groq/local-text pair in the verified Instagram workspace", async () => {
+    const form = validForm();
+    form.set("responseProvider", "groq"); form.set("responseModel", "openai/gpt-oss-20b");
+    form.set("embeddingProvider", "none"); form.set("embeddingModel", "none");
+    expect((await POST(formRequest(form))).status).toBe(400);
+    mocks.usesInstagramTestTextKnowledge.mockResolvedValue(true);
+    expect((await POST(formRequest(form))).status).toBe(200);
+    mocks.stageAgentConfig.mockClear(); form.set("responseModel", "different-model");
+    expect((await POST(formRequest(form))).status).toBe(400);
     expect(mocks.stageAgentConfig).not.toHaveBeenCalled();
   });
 });

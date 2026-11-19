@@ -9,6 +9,7 @@ import { processInboundMessages } from "@/lib/channels/process";
 import { isBodyWithinLimit } from "@/lib/http-limits";
 import { requestIdFromRequest, requestIdHeaders } from "@/lib/logger";
 import { instagramProbeConfig, recordInstagramProbe } from "@/lib/channels/instagram-probe";
+import { instagramTestAiProfile } from "@/lib/channels/instagram-test-ai";
 
 type Context = {
   params: Promise<{ channelId: string }>;
@@ -94,6 +95,12 @@ export async function POST(request: Request, context: Context) {
       ? NextResponse.json({ ok: true, probe: true, duplicate: observed.duplicate },
         { headers: { ...requestIdHeaders(requestId), "Cache-Control": "no-store" } })
       : new NextResponse("Channel inactive", { status: 403, headers: requestIdHeaders(requestId) });
+  }
+  try {
+    for (const sender of new Set(messages.map(message => message.externalThreadId)))
+      await instagramTestAiProfile(channel, sender);
+  } catch {
+    return new NextResponse("Instagram test scope unavailable", { status: 403, headers: requestIdHeaders(requestId) });
   }
   return NextResponse.json(await processInboundMessages(messages, { requestId }), {
     headers: requestIdHeaders(requestId),

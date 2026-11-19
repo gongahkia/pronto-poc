@@ -20,6 +20,7 @@ import { generateHandoffIntake } from "@/lib/agent/handoff-intake";
 import {handoffFollowupNotice} from '@/lib/agent/handoff-wording';
 import { shouldUseMockAi } from "@/lib/env";
 import { withAgentTurn, assertTurnActive } from "@/lib/agent/turn-budget";
+import { instagramTestAiProfile } from "./instagram-test-ai";
 
 export async function processInboundJob(input: { jobId?: string; requestId?: string; clientId?: string; channelId?: string;
   reservationConnector?: ReservationConnector } = {}): Promise<
@@ -65,6 +66,14 @@ async function execute(job: InboundJob, requestId?: string,
   if (protectedDemoDeployment() && !isCustomerDemoChannel(channel)) return "skipped";
   if (channel.kind === "email" && channel.credentials.provider === "local_smtp" &&
       (process.env.NODE_ENV === "production" || process.env.PRONTO_LOCAL_EMAIL_ENABLED !== "1")) return "skipped";
+
+  const profile = await instagramTestAiProfile(channel, conversation.external_thread_id);
+  const run = () => executeMessage(job, channel, message, conversation, requestId, reservationConnector);
+  return profile ? withAiExecutionProfile(profile, run) : run();
+}
+
+async function executeMessage(job: InboundJob, channel: Channel, message: Message, conversation: Conversation,
+  requestId?: string, reservationConnector?: ReservationConnector): Promise<"answered" | "escalated" | "skipped"> {
 
   // Recover a model decision already persisted before a worker crash.
   const answer = await query<Message>(

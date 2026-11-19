@@ -38,6 +38,7 @@
     "instagram:smoke": "node --env-file=.env --import tsx scripts/instagram-smoke.ts",
     "instagram:prepare": "node --env-file=.env --import tsx scripts/instagram-prepare.ts",
     "instagram:subscription": "node --env-file=.env --import tsx scripts/instagram-subscription.ts",
+    "instagram:probe:reply": "node --import tsx scripts/instagram-probe-reply.ts",
     "instagram:hosted:build": "node scripts/hosted-instagram-build.mjs",
     "instagram:hosted:start": "node --max-old-space-size=64 scripts/hosted-instagram.ts",
     "test:watch": "vitest",

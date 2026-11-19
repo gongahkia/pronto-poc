@@ -6,6 +6,7 @@ import { LlmConfigurationError, normalizeProviderError, ProviderRequestError } f
 import { buildGroundedAnswerInstructions, buildGroundedAnswerUserInput } from "@/lib/llm/prompt";
 import { demoModelChoices, GEMINI_EMBEDDING_MODEL } from "@/lib/llm/demo-models";
 import { logInfo } from "@/lib/logger";
+import { instagramTestAiConfiguration, instagramTestModel } from "@/lib/channels/instagram-test-ai";
 import { parseReservationExtraction, reservationExtractionJsonSchema } from "@/lib/llm/reservation-extraction";
 import type { GenerateAnswerInput, GroundedAnswerDecision, LlmCallContext, LlmProvider } from "@/lib/llm/types";
 
@@ -26,10 +27,15 @@ export function freeProviderRequirements(provider: "gemini" | "groq"): string[] 
     ...(process.env[tier] !== "1" ? [`${tier}=1 after checking the account's free tier`] : [])];
 }
 export function freeProviderApiKey(provider: "gemini" | "groq", clientId?: string): string {
-  const missing = freeProviderRequirements(provider);
+  const profile = aiExecutionProfile();
+  const instagramTest = provider === "groq" && Boolean(clientId) && profile?.instagramTestClientId === clientId &&
+    instagramTestAiConfiguration()?.clientId === clientId && profile?.mode === "real" &&
+    profile.provider === "groq" && profile.model === instagramTestModel && profile.retrievalMode === "local_text" &&
+    profile.embeddingProvider === "none" && profile.embeddingModel === "none";
+  const missing = freeProviderRequirements(provider).filter(item => !instagramTest || item !== "PRONTO_DEMO_REAL_AI_APPROVED=1");
   if (missing.length) throw new LlmConfigurationError(provider, missing.join(", "));
-  if (!aiExecutionProfile()?.syntheticDemo || clientId !== "00000000-0000-4000-8000-00000000a101")
-    throw new LlmConfigurationError(provider, "Free-tier POC inference is restricted to synthetic PS.Cafe demo content.");
+  if (!instagramTest && (!profile?.syntheticDemo || clientId !== "00000000-0000-4000-8000-00000000a101"))
+    throw new LlmConfigurationError(provider, "Free-tier POC inference requires synthetic PS.Cafe demo content or the explicitly scoped Instagram test.");
   return envApiKeyForProvider(provider)!;
 }
 

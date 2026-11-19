@@ -15,6 +15,7 @@ import { lookupReplyThreadingHints, sendEmail } from "@/lib/channels/email";
 import type { Channel } from "@/lib/types";
 import { assertCustomerDemoEnabled, isCustomerDemoChannel } from "@/lib/customer-demo-boundary";
 import { protectedDemoDeployment } from "@/lib/deployment-profile";
+import { instagramTestAiProfile } from "./instagram-test-ai";
 
 export async function sendChannelText(input: {
   channelId: string;
@@ -97,6 +98,7 @@ export async function sendChannelText(input: {
     }
 
     if (channel.kind === "instagram") {
+      await instagramTestAiProfile(channel, input.externalThreadId);
       if (!(await hasRecentCustomerMessage(channel, input.externalThreadId, db))) {
         throw new ChannelPolicyError("Instagram reply requires a recent customer-initiated conversation.");
       }

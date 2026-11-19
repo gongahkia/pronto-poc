@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { stageAgentConfig } from "@/lib/assistant-drafts";
 import { logWarn } from "@/lib/logger";
 import { canAccessClient } from "@/lib/rbac";
+import { instagramTestModel, usesInstagramTestTextKnowledge } from "@/lib/channels/instagram-test-ai";
 
 export async function POST(request: Request) {
   const csrf = assertSameOrigin(request);
@@ -27,7 +28,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
 
-  if (!isAllowedResponseProvider(responseProvider)) {
+  const instagramTest = (responseProvider === "groq" || embeddingProvider === "none") &&
+    await usesInstagramTestTextKnowledge(clientId);
+  if (instagramTest && (responseProvider !== "groq" || responseModel !== instagramTestModel ||
+      embeddingProvider !== "none" || embeddingModel !== "none"))
+    return NextResponse.json({ error: "The Instagram test requires the configured Groq model and local text retrieval." }, { status: 400 });
+  if (!isAllowedResponseProvider(responseProvider) && !instagramTest) {
     logWarn("agent_config.invalid_response_provider", {
       actorUserId: user.userId,
       clientId,
@@ -36,7 +42,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Response provider is not supported." }, { status: 400 });
   }
 
-  if (!["mock", "openai", "azure"].includes(embeddingProvider)) {
+  if (!["mock", "openai", "azure"].includes(embeddingProvider) && !instagramTest) {
     logWarn("agent_config.invalid_embedding_provider", {
       actorUserId: user.userId,
       clientId,

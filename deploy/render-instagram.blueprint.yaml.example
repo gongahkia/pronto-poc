@@ -23,6 +23,8 @@ services:
         value: '1'
       - key: PRONTO_HOSTED_INSTAGRAM_WORKER
         value: '0'
+      - key: PRONTO_HOSTED_INSTAGRAM_AI
+        value: '0'
       - key: PRONTO_DEPLOYMENT_PROFILE
         value: standard
       - key: PRONTO_DB_POOL_MAX

@@ -11,7 +11,8 @@ import {
 } from "@/lib/triage-flow";
 import type { AgentConfigUpdate } from "@/lib/agent/config";
 import { normalizeVoiceDraft } from "@/lib/voice-draft";
-import { usesDemoTextKnowledge } from "@/lib/customer-demo-boundary";
+import { DEMO_CLIENT_ID, usesDemoTextKnowledge } from "@/lib/customer-demo-boundary";
+import { usesInstagramTestTextKnowledge } from "@/lib/channels/instagram-test-ai";
 import { LOCAL_TEXT_RETRIEVAL_PROFILE } from "@/lib/llm/demo-models";
 
 export type KnowledgeDraftChange = {
@@ -153,7 +154,7 @@ export async function stageKnowledge(input: {
     const actor = await query<{ role: string }>("select role from users where id = $1", [input.actorUserId]);
     if (actor.rows[0]?.role !== "operator") throw new Error("Only Pronto may prepare an approved suggestion.");
   }
-  const localText = await usesDemoTextKnowledge(input.clientId);
+  const localText = await usesDemoTextKnowledge(input.clientId) || await usesInstagramTestTextKnowledge(input.clientId);
   await ensureDraft(input.clientId, input.actorUserId);
   const sourceId = input.sourceId ?? randomUUID();
   const draft = await getAssistantDraft(input.clientId);
@@ -229,7 +230,8 @@ export async function stageKnowledge(input: {
          values ($1, $2, $3, $4, $5, $6::vector, $7, $8, $9::jsonb)`,
         [input.clientId, sourceId, index, chunk.content, chunk.tokenEstimate,
           localText ? null : vectorLiteral(embeddings[index]), embeddingModel, localText ? 0 : embeddings[index].length,
-          JSON.stringify(localText ? { retrievalMode: "local_text", retrievalProfile: LOCAL_TEXT_RETRIEVAL_PROFILE } : {})],
+          JSON.stringify(localText ? { retrievalMode: "local_text", retrievalProfile: LOCAL_TEXT_RETRIEVAL_PROFILE,
+            ...(input.clientId !== DEMO_CLIENT_ID ? { retrievalScope: "instagram_hosted_test" } : {}) } : {})],
       );
     }
     await db.query(

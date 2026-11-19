@@ -6,6 +6,7 @@ import {getDemoProcessingStatus} from '@/lib/demo-processing-status';
 import { assertCustomerDemoEnabled } from "@/lib/customer-demo-boundary";
 import { requireRealDemoConfiguration, profileForDemoChoice } from "@/lib/customer-demo-ai";
 import { DEFAULT_DEMO_MODEL } from "@/lib/llm/demo-models";
+import { assertInstagramTestAiReady } from "@/lib/channels/instagram-test-ai";
 
 type ReadinessCheck = {
   name: string;
@@ -62,6 +63,14 @@ export async function GET() {
     checks.push({ name: "Database", status: "fail", detail: "Database is unavailable." });
   }
   if (checks.at(-1)?.status === "pass") {
+    if (process.env.PRONTO_HOSTED_INSTAGRAM === "1") {
+      try {
+        await assertInstagramTestAiReady();
+        checks.push({ name: "Instagram test AI", status: "pass", detail: "Scoped test prerequisites are configured." });
+      } catch {
+        checks.push({ name: "Instagram test AI", status: "fail", detail: "Scoped test prerequisites are unavailable." });
+      }
+    }
     if (demoIdentityVerified) {
       try {
         // Local configuration and published-knowledge checks only: no inference,
