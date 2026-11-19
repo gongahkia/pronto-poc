@@ -1,5 +1,7 @@
 # Shared Huddle 0.4 promotion — 15 November 2026
 
+Historical record: Huddle was detached from Pronto on 19 November 2026. Its routes, SDKs and CLI commands are retired. See [the detachment record](huddle-detachment.md); stored feedback and migration history are retained.
+
 Pronto consumes the paired real private 0.4.0 browser/host archives from Huddle revision `306d373c60e558667942016f36714597d5ca08fc`. Checksums are recorded in `vendor/README.md`. Huddle UI is reviewed in its examples/testing workbench before this engineering integration. The same upstream widget supports explicit local-only and host-backed team modes across its maintained framework fixtures. Pronto continues to use its existing PostgreSQL, host sessions and approved public-demo policy; it never switches to browser-local storage.
 
 The shared dock replaces Pronto's duplicate floating launcher. The accepted draggable/collapsible panel, persistent pins/previews, shared colors, mentions for internal policy, automatic updates, compact composers and transfer tools come from the SDK. Guest name onboarding uses a host-owned, bounded, audited same-origin profile endpoint; server-derived identity and historical attribution remain intact. Expanded review pauses inbox refresh; collapsed review permits it while retaining the document nonce and SDK instance.

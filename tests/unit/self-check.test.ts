@@ -8,7 +8,8 @@ describe("post-generation self-check", () => {
   it.each(['Hi!', 'Hello! 👋', 'Hello there! How can I assist you today?', 'How may I help you?',
     "Hey, what's up? Looking for a table?", 'Hey! Looking for a table, or got a quick question?',
     'What can I help you with?', 'Anytime!', 'No worries, happy to help!', 'Anytime! Enjoy your visit!',
-    "You're welcome! Have a great day!", 'See you soon!', '您好！', 'Hai!', 'வணக்கம்!'])('accepts a pure social reply using operating context: %s', answer => {
+    "You're welcome! Have a great day!", 'See you soon!', 'No problem!', 'Anytime! Let us know if you need anything else.',
+    '您好！', 'Hai!', 'வணக்கம்!'])('accepts a pure social reply using operating context: %s', answer => {
     expect(evaluatePostGenerationSelfCheck({decision:answerDecision({answer,citedChunkIds:[]}),retrievedChunks:[],
       operationalContext:'Role: AI assistant. Scope: greet, welcome and thank customers; help with enquiries.'}).passed).toBe(true);
   });

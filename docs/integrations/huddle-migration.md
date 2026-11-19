@@ -1,5 +1,7 @@
 # Private feedback migration and rollback
 
+Historical record: Huddle was detached from Pronto on 19 November 2026. Its routes, SDKs and CLI commands are retired. See [the detachment record](huddle-detachment.md); stored feedback and migration history are retained.
+
 Historical one-off cutover runbook: the production migration/recovery commands below are retired after the actual source passed migration parity. Use [current feedback controls](huddle-control.md) for status, readonly rollback, complete current export and resume. Equivalent legacy CLI fixtures are restricted to explicitly marked disposable databases; no original tables or backups are removed.
 
 This temporary Pronto tooling converts the complete legacy PostgreSQL feedback tables to `huddle.feedback.v2`. It does not start a service, create accounts, load dotenv files, provision hosting, deliver messages or run inference. Keep it until actual source migration and hosted parity are accepted. Fixture success does not establish that acceptance.

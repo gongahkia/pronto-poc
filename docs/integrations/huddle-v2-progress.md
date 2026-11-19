@@ -1,5 +1,7 @@
 # Host-backed feedback implementation evidence
 
+Historical record: Huddle was detached from Pronto on 19 November 2026. Its routes, SDKs and CLI commands are retired. See [the detachment record](huddle-detachment.md); stored feedback and migration history are retained.
+
 The approved Huddle frontend-only plan supersedes the service-backed guide during this migration. Starting Pronto revision is ac588e6. Huddle's browser-workflow milestone is e645e7f. No original feedback, backups, credentials, evaluation data or budget files have been modified, and no inference worker, paid loop, push or deployment has run.
 
 The first security change introduces one internal feedback policy for the legacy GET/POST/export routes and launcher. It rejects absent sessions, every guest.invalid identity independently of the guest-flow switch, and authenticated customers/operators outside the existing PRONTO_DEMO_ALLOWED_USER_IDS named-user policy. Invited users still pass the existing verified demo database/tenant checks. Authorization failure hides the launcher without exposing a fallback. Public chooser/customer simulation authorization is unchanged.

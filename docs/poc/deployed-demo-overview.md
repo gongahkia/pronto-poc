@@ -1,5 +1,11 @@
 # Deployed demo: overview, strengths and limits
 
+Historical overview dated 28 October 2026. For the current Instagram pilot, see
+[Instagram in the public demo](../channels/instagram-public-demo.md). Huddle was
+detached on 19 November; its widget/routes are no longer available. Stored
+feedback and accounts are retained; do not apply old account-cleanup advice
+below to the hosted workspace. See [the removal record](../integrations/huddle-detachment.md).
+
 Status as of 28 October 2026. The public proof of concept runs at
 `https://pronto-ai-poc.onrender.com`. It uses synthetic data only (an unofficial
 PS.Cafe Raffles City workspace); nothing it sends reaches a real customer.
@@ -13,7 +19,6 @@ The deployed demo lets a reviewer experience both sides of one conversation:
 |---|---|---|
 | Customer | `/demo/customer` | Chat as a customer. Replies come from a real model (Groq GPT-OSS 20B) using approved text from the business's knowledge. |
 | Business | `/client` (Inbox, Business Knowledge, Insights) | See the conversation, take it over, reply as the business, release it back to the assistant, review and approve knowledge, read analytics. |
-| Reviewer | **Feedback** button on every page | Pin a comment on an element or leave a page comment; reply, resolve and export. |
 
 The assistant answers only from approved knowledge. When a safety check rejects
 its answer (for example low overlap with the cited sources) it pauses the
@@ -96,14 +101,7 @@ sessions. Details are in [prototype feedback](../ops/prototype-feedback.md).
   or after deleting guests.
 
 **Feedback overlay**
-- Polling, not push: comments can take several seconds to appear.
-- Read state and drafts are per browser; clearing site data removes them.
-- Pins are best-effort. A large redesign can leave a pin missing, and native
-  `<dialog>` elements have no embedded feedback control.
-- Exports are a live snapshot, not an immutable archive.
-- Comments are text only: no screenshots, drawing or attachments.
-- It works only inside this app. It is not a general tool for commenting on other
-  sites.
+Huddle is detached. Existing data is retained, with a complete private export.
 
 **Product**
 - Single synthetic tenant. Chope live reads and booking writes are off; there are
@@ -120,7 +118,7 @@ sessions. Details are in [prototype feedback](../ops/prototype-feedback.md).
 |---|---|
 | Redeploy | Push to `main`, then Render → **Manual Deploy → Deploy latest commit**. |
 | Apply migrations | `set -a; source <private env file>; set +a; pnpm migrate` using the **direct** Neon URL. |
-| Export feedback | `GET /api/demo/feedback/export?status=all&complete=1` while signed in. |
+| Historical feedback | Retained in PostgreSQL and the complete private detachment export; former routes are retired. |
 | Take it offline | Suspend the Render service. |
 | Reset the demo | New empty database, marker comment, migrations, then `pnpm demo:protected bootstrap <private json>`. Bootstrap refuses a non-empty database. |
 | Rotate the database password | Reset it in Neon, then update `DATABASE_URL` in Render with the new **pooled** string. |
