@@ -87,8 +87,9 @@ A native message from the planned tester was received at 09:55:07 SGT on
 separate Meta profile read confirmed the sender's username. This verifies the
 incoming path for this test in Development mode. The separately authorized test
 reply was accepted by Meta at 10:08:29 SGT on 19 November; its provider receipt
-and exactly one local attempt are saved in the private audit evidence. Recipient
-observation and an actual AI conversation are still unverified.
+and exactly one local attempt are saved in the private audit evidence. Keith's
+10:16 SGT confirmation establishes recipient-reported receipt. An actual AI
+conversation remains unverified.
 
 ## Controlled outgoing acknowledgement
 
@@ -154,6 +155,17 @@ approved published knowledge must exist, and the existing Groq key/free-tier
 confirmation must be present. Missing prerequisites fail closed with no provider
 or mock fallback. Ordinary deployments and public-demo eligibility retain their
 existing behavior. The worker stays disabled during review.
+
+Validation for this scope: 1,112 standard tests passed (177 optional checks
+skipped). Separately, three scoped Instagram database cases, five existing demo
+knowledge-publication cases, fourteen free-provider demo cases and nine
+Instagram concurrency cases passed on disposable PostgreSQL with fake provider
+HTTP. Typecheck, lint and the hosted production build passed. One concurrent
+typecheck encountered Next's generated-file refresh; the sequential rerun after
+the successful build passed. The isolated hosted database has migration 061 and
+the exact enrollment, with the runtime role verified as read-only on the new
+enrollment table. These checks do not establish real Groq acceptance or an AI
+reply delivered through Instagram.
 
 The [Render configuration](../../deploy/render-instagram.blueprint.yaml.example)
 uses one Free web service. It builds with `pnpm instagram:hosted:build` and starts
