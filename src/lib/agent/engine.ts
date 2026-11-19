@@ -35,7 +35,7 @@ import {
 } from "@/lib/agent/runtime-limits";
 import { estimateTokens } from "@/lib/knowledge/chunk";
 import { retrieveKnowledge, retrieveKnowledgeText } from "@/lib/knowledge/retrieve";
-import { conversationKnowledgeQuery } from "@/lib/knowledge/query";
+import { normalizeKnowledgeQuery, conversationKnowledgeQuery } from "@/lib/knowledge/query";
 import { loadConversationContext } from "@/lib/agent/conversation-context";
 import { withAgentTurn, assertTurnActive, turnBudgetSnapshot } from "@/lib/agent/turn-budget";
 import { handoffQuestionsAllowed, handoffReplyFromDecision, type HandoffIntakeReply } from "@/lib/agent/handoff-intake";
@@ -329,6 +329,12 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
       sources: staticChunks.map(chunk => ({ chunkId: chunk.id, sourceId: chunk.source_id,
         version: chunk.metadata.sourceVersion ?? null, contentHash: chunk.metadata.sourceContentHash,
         approvalEvidence: chunk.metadata.approvalEvidence })) });
+    if (requireModelReply && !staticChunks.length && aiDisclosure.shouldDisclose) {
+      staticChunks = await retrieveKnowledgeText(input.clientId, normalizeKnowledgeQuery(client.name).searchQuery, 5,
+        { requestId: input.requestId, conversationId: input.conversationId });
+      staticChunks = staticChunks.map(chunk => ({ ...chunk, metadata: { ...chunk.metadata, retrievalPurpose: "identity_fallback" } }));
+      trace.addStep("identity_fallback", { supportsBusinessAnswer: false, chunkIds: staticChunks.map(chunk => chunk.id) });
+    }
   } else {
     let embedding: number[];
     try {
