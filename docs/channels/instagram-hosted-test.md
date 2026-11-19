@@ -63,6 +63,27 @@ mode. It does not prove outgoing API acceptance or observed recipient delivery,
 and does not satisfy the separate full-activation approvals. Keep the resulting
 audit record as evidence; do not manually mark unobserved checks complete.
 
+Probe deployment verified on 19 November 2026 from commit `f557353`: the live
+endpoint rejected a non-matching signed message with 403 and an invalid
+signature with 401, retained callback verification, and had zero probe receipts,
+inbound jobs and outbound rows before the native DM test. No positive signed
+fixture was sent to the hosted service. A two-hour nonce window was configured
+through the authenticated operator API; its exact phrase and expiry are in the
+private `output/instagram-hosted/keith-probe.txt` handoff. An expired window
+requires a deliberately renewed probe before another test.
+
+The three disposable PostgreSQL probe regressions passed, including eight
+concurrent retries producing one audit record without creating conversations or
+jobs. All nine existing Instagram concurrency cases also passed. Typecheck,
+lint, the hosted build and 1,089 standard tests passed; 164 optional checks were
+skipped in the standard suite. The two published, non-conflicting sources from
+the existing demo were exported read-only and copied as pending submissions in
+the new business. Gabriel's review controls and concrete onboarding drafts are
+prepared; no business approval, knowledge publication or full channel
+activation was fabricated. The worker remains off. Real incoming receipt,
+outgoing acceptance/recipient observation and an actual AI conversation are
+still unverified.
+
 The [Render configuration](../../deploy/render-instagram.blueprint.yaml.example)
 uses one Free web service. It builds with `pnpm instagram:hosted:build` and starts
 with `pnpm instagram:hosted:start`. The build copies the standalone static assets
