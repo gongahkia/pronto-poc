@@ -11,7 +11,7 @@ import {prepareDemoBusiness,planDemoBusinessActivation,savedDemoBusinessIds} fro
 import {assertSavedDemoWorkspaces} from '@/lib/demo-business-preflight';
 import {createGuestReviewer} from '@/lib/guest-access';
 import {createDemoSession,getDemoState,sendDemoMessage} from '@/lib/customer-demo';
-import {retrieveKnowledgeText} from '@/lib/knowledge/retrieve';
+import {retrieveKnowledgeText,hasApprovedTextKnowledge} from '@/lib/knowledge/retrieve';
 import {processInboundJob} from '@/lib/channels/inbox-worker';
 import {FreeTierProvider,freeProviderApiKey} from '@/lib/llm/free-providers';
 import {withAiExecutionProfile} from '@/lib/llm/execution-mode';
@@ -106,6 +106,18 @@ dbDescribe('separate saved demo businesses',()=>{
   expect((await getPool().query('select count(*)::int n from channels where client_id=any($1::uuid[]) and kind<>\'console\'',[[first.identity.clientId,second.identity.clientId]])).rows[0].n).toBe(0);
   // The ordinary seeded tenant is deliberately ineligible for the protected boundary.
   await expect(assertSavedDemoWorkspaces([operator])).rejects.toThrow(/Only prepared/);
+ });
+
+ it('requires the requested client to match the authenticated tenant, independently of the selected demo filter',async()=>{
+  await prepare(first);await prepare(second);select(second);
+  // fixture represents another business's already approved knowledge.
+  await getPool().query(`update knowledge_sources set metadata=metadata || $2::jsonb where client_id=$1`,
+   [first.identity.clientId,JSON.stringify({approvedBy:operator,approvedAt:new Date().toISOString()})]);
+  enterTenantContext({role:'client',clientId:second.identity.clientId});
+  await expect(retrieveKnowledgeText(first.identity.clientId,'opening hours')).rejects.toThrow(/Client-scoped query/);
+  await expect(hasApprovedTextKnowledge(first.identity.clientId)).rejects.toThrow(/Client-scoped query/);
+  const own=await retrieveKnowledgeText(second.identity.clientId,'opening hours');
+  expect(own.length).toBeGreaterThan(0);expect(own.every(chunk=>chunk.client_id===second.identity.clientId)).toBe(true);
  });
 
  it('keeps new-business knowledge drafts private until exact-revision approval and publication',async()=>{

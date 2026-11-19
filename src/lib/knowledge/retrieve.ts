@@ -7,10 +7,12 @@ import {demoBusinessScope} from '@/lib/demo-business';
 // Live chunks are populated by publication, never pending submissions/drafts.
 // This POC additionally requires retained business-review evidence, or its
 // explicitly curated public demo facts. Flagged/archived material is withheld.
+// Compare tenant parameters here so only the actual k.client_id predicate can
+// satisfy the SQL tenant guard; eligibility must not authorize another tenant.
 const approvedTextSource = (demoScopeParameter:string) => `coalesce(s.metadata->>'archived','false')<>'true'
   and coalesce(s.metadata->>'reviewStatus','') not ilike '%conflict%'
   and ((s.metadata->>'approvedBy' is not null and s.metadata->>'approvedAt' is not null)
-    or (s.client_id=${demoScopeParameter}::uuid
+    or ($1::uuid=${demoScopeParameter}::uuid
       and s.source_type='curated_demo' and s.metadata->>'demoSeed'='true'
       and s.metadata->>'reviewStatus' in ('public_fact','public_fact_with_dietary_caution')))`;
 
