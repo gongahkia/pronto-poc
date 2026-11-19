@@ -7,7 +7,7 @@ import {
 } from "@/lib/channels/instagram";
 import { processInboundMessages } from "@/lib/channels/process";
 import { isBodyWithinLimit } from "@/lib/http-limits";
-import { requestIdFromRequest, requestIdHeaders } from "@/lib/logger";
+import { logInfo, requestIdFromRequest, requestIdHeaders } from "@/lib/logger";
 import { instagramProbeConfig, recordInstagramProbe } from "@/lib/channels/instagram-probe";
 import { instagramTestAiProfile } from "@/lib/channels/instagram-test-ai";
 import { isDemoInstagramChannel } from "@/lib/channels/instagram-demo";
@@ -46,6 +46,7 @@ export async function GET(request: Request, context: Context) {
 }
 
 export async function POST(request: Request, context: Context) {
+  const receivedAt = Date.now();
   const requestId = requestIdFromRequest(request);
   const { channelId } = await context.params;
   const channel = await getInstagramChannel(channelId, protectedDemoDeployment() ? DEMO_CLIENT_ID : undefined);
@@ -112,6 +113,13 @@ export async function POST(request: Request, context: Context) {
     return new NextResponse("Instagram test scope unavailable", { status: 403, headers: requestIdHeaders(requestId) });
   }
   const result = await processInboundMessages(messages, { requestId });
+  const ages = messages.flatMap(message => {
+    const timestamp = Date.parse(message.occurredAt ?? "");
+    return Number.isFinite(timestamp) ? [Math.max(0, receivedAt - timestamp)] : [];
+  });
+  logInfo("instagram.webhook_ingested", { requestId, channelId, accepted: result.accepted,
+    duplicates: result.duplicates, ingestionMs: Date.now() - receivedAt,
+    oldestProviderAgeMs: ages.length ? Math.max(...ages) : null });
   if (isDemoInstagramChannel(channel) && result.jobIds.length) after(async () => {
     try { const { processDemoInstagramQueue } = await import("@/lib/demo-processing"); await processDemoInstagramQueue(channelId); }
     catch (error) { logWarn("instagram.demo_processing_interrupted", { channelId, error }); }

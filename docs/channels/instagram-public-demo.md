@@ -44,6 +44,22 @@ demo; normal provider retries and inbox activity resume saved work. This setup
 does not establish continuous delivery or production capacity. Meta's existing
 Development/tester restrictions still apply.
 
+The first native AI exchange exposed reversed Meta delivery: the hours question
+arrived before an earlier greeting. Each inbound job and external reply ran once,
+but the greeting saw the later enquiry and repeated its hours. Instagram context
+now excludes customer turns (and their answers) with a later provider timestamp.
+Standalone social turns use the business identity without retrieving unrelated
+knowledge or invoking booking/integration tools. Ordinary enquiries and triage
+keep their existing grounded path. Separate messages can still receive separate
+appropriate replies; this does not batch messages or recall sends in flight.
+
+The same exchange's logs show both Free services starting up before ingestion.
+The 64–80 seconds before ingestion are separate from the sub-1.5-second model
+turns. Webhook logs now record ingestion duration, duplicate count and oldest
+provider-event age without customer text or credentials. The relay can start
+with `node --max-old-space-size=64 scripts/hosted-instagram.ts` directly to avoid
+downloading pnpm during a cold start. Free-service sleep remains a limitation.
+
 Validate with `pnpm typecheck`, `pnpm lint`, `pnpm test`, the production build,
 and disposable database cases `instagram-public-demo.test.ts`,
 `demo-request-processing.test.ts` and `instagram-concurrency.test.ts`. Fake HTTP

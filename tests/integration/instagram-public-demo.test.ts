@@ -42,10 +42,17 @@ dbDescribe("public demo Instagram transport with real isolated PostgreSQL and fa
       const target = resource instanceof Request ? resource.url : String(resource);
       if (target.startsWith("https://api.groq.com/")) {
         const body = resource instanceof Request ? await resource.json() : JSON.parse(String(options?.body));
+        const greeting = body.messages.some((message: { role: string; content: string }) =>
+          message.role === "user" && message.content.endsWith("Current customer message:\nHi there"));
+        if (greeting) {
+          // the real defect: a late greeting saw the newer hours question and
+          // an unrelated identity-fallback source, then answered hours again.
+          expect(JSON.stringify(body.messages)).not.toContain("source_chunk chunk_id=");
+        }
         const chunkId = JSON.stringify(body.messages).match(/chunk_id=\\?"([^"\\]+)/)?.[1];
         return new Response(JSON.stringify({ id: "fixture-groq", model: "openai/gpt-oss-20b", choices: [{ finish_reason: "stop", message: { content: JSON.stringify({
-          action: handoff ? "escalate" : "answer", answer: handoff ? "Our team will review your refund enquiry." : "PS.Cafe Raffles City closes at 10:00pm daily.",
-          confidence: 0.99, reasonCode: handoff ? "complaint_or_refund" : "grounded_answer", reasonDetail: "Explicit fake provider fixture.", citedChunkIds: handoff ? [] : [chunkId],
+          action: handoff ? "escalate" : "answer", answer: handoff ? "Our team will review your refund enquiry." : greeting ? "Hello! How can I help you at PS.Cafe Raffles City?" : "PS.Cafe Raffles City closes at 10:00pm daily.",
+          confidence: 0.99, reasonCode: handoff ? "complaint_or_refund" : "grounded_answer", reasonDetail: "Explicit fake provider fixture.", citedChunkIds: handoff || greeting ? [] : [chunkId],
         }) } }], usage: { prompt_tokens: 100, completion_tokens: 30 } }), { headers: { "Content-Type": "application/json" } });
       }
       if (target.startsWith("https://graph.facebook.com/") && target.endsWith("/messages"))
@@ -55,9 +62,9 @@ dbDescribe("public demo Instagram transport with real isolated PostgreSQL and fa
   });
   afterEach(async () => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs();callbacks.length = 0;await removePsCafeDemo(); });
   afterAll(async () => { await getPool().end(); });
-  const request = (id = "fixture-incoming", sender = senderId, text = "What time do you close today?") => {
+  const request = (id = "fixture-incoming", sender = senderId, text = "What time do you close today?", timestamp = Date.now()) => {
     const raw = JSON.stringify({ object: "instagram", entry: [{ id: accountId, messaging: [{ sender: { id: sender }, recipient: { id: accountId },
-      timestamp: Date.now(), message: { mid: id, text } }] }] });
+      timestamp, message: { mid: id, text } }] }] });
     return new Request("http://localhost/webhook", { method: "POST", body: raw,
       headers: { "x-hub-signature-256": "sha256=" + createHmac("sha256", secret).update(raw).digest("hex") } });
   };
@@ -82,6 +89,24 @@ dbDescribe("public demo Instagram transport with real isolated PostgreSQL and fa
     expect(fetch).toHaveBeenCalledTimes(2);
     expect((await POST(request("other", "99999"), context())).status).toBe(403);
     expect((await getPool().query("select id from inbound_jobs where client_id=$1 and channel_id=$2", [DEMO_CLIENT_ID, channelId])).rowCount).toBe(1);
+  });
+  it.each([{ order: "earlier", offset: -16000, history: 0 }, { order: "later", offset: 16000, history: 2 }])(
+    "answers hours once when a $order greeting arrives after the hours question", async ({ offset, history }) => {
+    const now = Date.now() - 60000;
+    expect((await POST(request("hours-first", senderId, "What time are you open today?", now), context())).status).toBe(200);
+    await Promise.all(callbacks.splice(0).map(run => run()));
+    expect((await POST(request("late-greeting", senderId, "Hi there", now + offset), context())).status).toBe(200);
+    await Promise.all(callbacks.splice(0).map(run => run()));
+    const replies = (await getPool().query("select id,body,metadata from messages where client_id=$1 and channel_id=$2 and sender_role='agent' order by created_at", [DEMO_CLIENT_ID, channelId])).rows;
+    expect(replies).toHaveLength(2);
+    expect(replies[0].body).toContain("10:00pm");
+    expect(replies[1].body).toBe("Hello! How can I help you at PS.Cafe Raffles City?");
+    expect(replies[1].metadata.citedChunkIds).toEqual([]);
+    const trace = (await getPool().query("select steps from agent_traces where client_id=$1 and agent_message_id=$2", [DEMO_CLIENT_ID, replies[1].id])).rows[0];
+    expect(trace.steps.find((step: { label: string }) => step.label === "conversation_context").detail.historyMessageIds).toHaveLength(history);
+    expect((await getPool().query("select status,attempt_count from outbound_messages where client_id=$1 and channel_id=$2", [DEMO_CLIENT_ID, channelId])).rows)
+      .toEqual([{ status: "sent", attempt_count: 1 }, { status: "sent", attempt_count: 1 }]);
+    expect(fetch).toHaveBeenCalledTimes(4);
   });
   it("routes a complaint for staff review and preserves takeover when the tester sends another question", async () => {
     handoff = true;expect((await POST(request("refund", senderId, "I want a refund for my order."), context())).status).toBe(200);

@@ -35,7 +35,7 @@ import {
 } from "@/lib/agent/runtime-limits";
 import { estimateTokens } from "@/lib/knowledge/chunk";
 import { retrieveKnowledge, retrieveKnowledgeText } from "@/lib/knowledge/retrieve";
-import { normalizeKnowledgeQuery, conversationKnowledgeQuery } from "@/lib/knowledge/query";
+import { conversationKnowledgeQuery } from "@/lib/knowledge/query";
 import { loadConversationContext } from "@/lib/agent/conversation-context";
 import { withAgentTurn, assertTurnActive, turnBudgetSnapshot } from "@/lib/agent/turn-budget";
 import { handoffQuestionsAllowed, handoffReplyFromDecision, type HandoffIntakeReply } from "@/lib/agent/handoff-intake";
@@ -313,8 +313,15 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
     retrievalMode: localTextRetrieval ? "local_text" : "hybrid_vector",
   });
 
+  const conversationalTurn = requireModelReply && (smallTalkGreeting.shouldAnswer || aiDisclosure.shouldDisclose);
+  const socialTurn = requireModelReply && smallTalkGreeting.shouldAnswer;
   let staticChunks: KnowledgeChunk[];
-  if (localTextRetrieval) {
+  if (socialTurn) {
+    // business identity comes from the operating context; unrelated source
+    // facts made late greetings repeat an already answered hours enquiry.
+    staticChunks = [];
+    trace.addStep("conversational_context", { businessKnowledgeWithheld: true });
+  } else if (localTextRetrieval) {
     staticChunks = await retrieveKnowledgeText(input.clientId, normalizedKnowledgeQuery.searchQuery, 5, {
       requestId: input.requestId, conversationId: input.conversationId,
     });
@@ -322,12 +329,6 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
       sources: staticChunks.map(chunk => ({ chunkId: chunk.id, sourceId: chunk.source_id,
         version: chunk.metadata.sourceVersion ?? null, contentHash: chunk.metadata.sourceContentHash,
         approvalEvidence: chunk.metadata.approvalEvidence })) });
-    if (requireModelReply && !staticChunks.length && (smallTalkGreeting.shouldAnswer || aiDisclosure.shouldDisclose)) {
-      staticChunks = await retrieveKnowledgeText(input.clientId, normalizeKnowledgeQuery(client.name).searchQuery, 5,
-        { requestId: input.requestId, conversationId: input.conversationId });
-      staticChunks = staticChunks.map(chunk => ({ ...chunk, metadata: { ...chunk.metadata, retrievalPurpose: "identity_fallback" } }));
-      trace.addStep("identity_fallback", { supportsBusinessAnswer: false, chunkIds: staticChunks.map(chunk => chunk.id) });
-    }
   } else {
     let embedding: number[];
     try {
@@ -386,7 +387,7 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
       ...(aiExecutionMode() === "real" ? { embeddingProvider } : {}),
     });
   }
-  const integrationResults = await runIntegrationsForMessage({
+  const integrationResults = socialTurn ? [] : await runIntegrationsForMessage({
     clientId: input.clientId,
     message: input.customerMessage,
     requestId: input.requestId,
@@ -402,7 +403,7 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
   );
   let reservationContext: ReservationModelContext | null = null;
   let reservationPlanningError: unknown;
-  if (requireModelReply && ["fnb", "restaurant", "food_and_beverage"].includes((client.vertical ?? "").toLowerCase()) &&
+  if (requireModelReply && !socialTurn && ["fnb", "restaurant", "food_and_beverage"].includes((client.vertical ?? "").toLowerCase()) &&
       mayNeedReservationContext(input.customerMessage, recentMessages)) {
     try {
       reservationContext = await prepareReservationContext({
@@ -538,7 +539,7 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
     maxOutputTokens: agentMaxOutputTokens(),
     timeoutMs: agentTimeoutMs(),
     maxPromptTokens: agentMaxPromptTokens(),
-    conversationalTurn: requireModelReply && (smallTalkGreeting.shouldAnswer || aiDisclosure.shouldDisclose),
+    conversationalTurn,
     escalationRules: config.escalation_rules,
     channelKind: input.channelKind,
     reservationContext: !!reservationContext,

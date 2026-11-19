@@ -41,4 +41,23 @@ dbDescribe("conversation context follows the current durable job", () => {
     expect(await loadConversationContext({ clientId, conversationId: first.conversationId, customerMessageId: other.messageId })).toEqual([]);
     expect(await loadConversationContext({ clientId: randomUUID(), conversationId: first.conversationId, customerMessageId: first.messageId })).toEqual([]);
   });
+
+  it("excludes an Instagram question and its answer from an earlier greeting delivered late", async () => {
+    await getPool().query("update channels set kind='instagram' where id=$1 and client_id=$2", [channelId, clientId]);
+    const incoming = (text: string, occurredAt: string) => ingestInboundMessage({ channelId, channelKind: "instagram",
+      externalMessageId: randomUUID(), externalThreadId: "late-instagram", customerHandle: "synthetic", text, occurredAt, raw: {} });
+    const question = await incoming("What time are you open today?", "2026-11-19T04:26:26.103Z");
+    const answer = (await getPool().query<{id:string}>(`insert into messages(client_id,channel_id,conversation_id,external_message_id,sender_role,body,metadata)
+      values($1,$2,$3,$4,'agent','We close at 10:00pm.',$5) returning id`,
+    [clientId, channelId, question.conversationId, randomUUID(), { customerMessageId: question.messageId }])).rows[0];
+    const greeting = await incoming("Hi there", "2026-11-19T04:26:09.807Z");
+    const input = { clientId, conversationId: greeting.conversationId, customerMessageId: greeting.messageId };
+    expect(await loadConversationContext(input)).toEqual([]);
+    expect((await loadConversationContext({ ...input, includeCurrent: true })).map(m => m.id)).toEqual([greeting.messageId]);
+    const followup = await incoming("And on Sunday?", "2026-11-19T04:27:00.000Z");
+    const ids = (await loadConversationContext({ ...input, customerMessageId: followup.messageId })).map(m => m.id);
+    expect(ids).toEqual(expect.arrayContaining([question.messageId, answer.id, greeting.messageId]));
+    const equalTime = await incoming("Thanks", "2026-11-19T04:27:00.000Z");
+    expect((await loadConversationContext({ ...input, customerMessageId: equalTime.messageId })).map(m => m.id)).toContain(followup.messageId);
+  });
 });
