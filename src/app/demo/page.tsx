@@ -33,7 +33,7 @@ export default async function DemoEntryPage({searchParams}:{searchParams:Promise
       <form action="/api/auth/guest" method="post">
         {!user&&<div className="mb-5 max-w-sm"><label className="block text-sm font-medium" htmlFor="reviewer-name">Your name <span className="font-normal text-muted">(optional)</span></label>
           <input id="reviewer-name" name="name" maxLength={40} autoComplete="name" placeholder="e.g. Keith" className="ui-input mt-2 w-full px-3 py-2 text-sm"/>
-          <p className="mt-2 text-xs leading-5 text-muted">Used to identify your feedback. No account or password needed.</p></div>}
+          <p className="mt-2 text-xs leading-5 text-muted">Used for your demo session. No account or password needed.</p></div>}
         <div className="grid gap-4 sm:grid-cols-2">
           {views.map(({href,title,description,action,Icon})=>{
             const content=<><Icon size={24} aria-hidden="true" className="mb-4 text-accent"/><h2 className="text-lg font-semibold">{title}</h2>

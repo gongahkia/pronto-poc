@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 import { establishSession } from "@/lib/auth";
 import { safeReturnTo } from "@/lib/auth-navigation";
 import { DemoError } from "@/lib/customer-demo-boundary";
-import { createGuestReviewer } from "@/lib/guest-access";
+import { createGuestReviewer, guestDisplayName } from "@/lib/guest-access";
 import { guestAccessEnabled } from "@/lib/guest-policy";
 import { assertSameOrigin } from "@/lib/http/csrf";
 import { publicAppUrl } from "@/lib/http/redirect";
-import {createAnonymousIdentity} from '@huddle/host';
 
 // Starts a reviewer session for the shared demo. Only exists on demo deployments (see guestAccessEnabled).
 export async function POST(request: Request) {
@@ -18,7 +17,7 @@ export async function POST(request: Request) {
   const visitor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("user-agent") || "unknown";
   try {
     const name=form.get('name');
-    const user = await createGuestReviewer(name===null || typeof name==='string' && !name.trim() ? createAnonymousIdentity().name : name, visitor);
+    const user = await createGuestReviewer(name===null || typeof name==='string' && !name.trim() ? guestDisplayName() : name, visitor);
     await establishSession(user);
   } catch (error) {
     if (error instanceof DemoError) {

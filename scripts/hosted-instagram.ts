@@ -10,7 +10,7 @@ export function hostedInstagramCommands(env: NodeJS.ProcessEnv): HostedCommand[]
   if (env.NODE_ENV !== "production" || env.PRONTO_HOSTED_INSTAGRAM !== "1" ||
       env.PRONTO_DEPLOYMENT_PROFILE !== "standard" ||
       env.PRONTO_CUSTOMER_DEMO_ENABLED !== "0" || env.PRONTO_DEMO_ONLY_DELIVERY !== "0" ||
-      env.PRONTO_HUDDLE_ENABLED !== "0" || env.PRONTO_USE_MOCK_AI !== "0" ||
+      env.PRONTO_USE_MOCK_AI !== "0" ||
       env.PRONTO_CHOPE_LIVE_READS !== "0" || env.CHOPE_LIVE_READ_APPROVED !== "0" ||
       env.PRONTO_DISABLE_TENANT_SQL_GATE === "1" || env.PRONTO_TEST_DATABASE_URL ||
       !["0", "1"].includes(env.PRONTO_HOSTED_INSTAGRAM_WORKER ?? ""))

@@ -31,8 +31,6 @@ services:
         value: '2'
       - key: PRONTO_CUSTOMER_DEMO_ENABLED
         value: '0'
-      - key: PRONTO_HUDDLE_ENABLED
-        value: '0'
       - key: PRONTO_DEMO_ONLY_DELIVERY
         value: '0'
       - key: PRONTO_ENFORCE_TENANT_SQL

@@ -1,9 +1,0 @@
-import {z} from 'zod';
-export const feedbackPath=z.string().min(1).max(300).regex(/^\/(?:client(?:\/|$)|demo\/customer(?:\/|$))[^?#]*$/,'Feedback must refer to a prototype page.');
-export const feedbackAnchor=z.object({selector:z.string().min(1).max(700),label:z.string().min(1).max(120),quote:z.string().max(300),tag:z.string().max(40).optional(),feedbackId:z.string().max(200).optional(),x:z.number().min(0).max(1),y:z.number().min(0).max(1)}).strict();
-const body=z.string().trim().min(1).max(3000);
-export const feedbackMutation=z.discriminatedUnion('action',[
- z.object({action:z.literal('create'),requestId:z.string().uuid(),path:feedbackPath,anchor:feedbackAnchor,body}).strict(),
- z.object({action:z.literal('reply'),requestId:z.string().uuid(),threadId:z.string().uuid(),body}).strict(),
- z.object({action:z.literal('status'),threadId:z.string().uuid(),status:z.enum(['open','resolved'])}).strict(),
-]);

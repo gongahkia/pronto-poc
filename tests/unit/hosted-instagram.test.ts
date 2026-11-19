@@ -6,7 +6,7 @@ import { hostedInstagramCommands, superviseHostedInstagram } from "../../scripts
 const env = {
   NODE_ENV: "production" as const, PRONTO_HOSTED_INSTAGRAM: "1", PRONTO_HOSTED_INSTAGRAM_WORKER: "0",
   PRONTO_DEPLOYMENT_PROFILE: "standard", PRONTO_CUSTOMER_DEMO_ENABLED: "0", PRONTO_DEMO_ONLY_DELIVERY: "0",
-  PRONTO_HUDDLE_ENABLED: "0", PRONTO_USE_MOCK_AI: "0", PRONTO_CHOPE_LIVE_READS: "0", CHOPE_LIVE_READ_APPROVED: "0",
+  PRONTO_USE_MOCK_AI: "0", PRONTO_CHOPE_LIVE_READS: "0", CHOPE_LIVE_READ_APPROVED: "0",
   APP_BASE_URL: "https://instagram.example.test", DATABASE_URL: "postgres://runtime:private@unit.neon.tech/pronto_instagram?sslmode=verify-full",
   AUTH_SECRET: "unit-authentication-key-1234567890-abcdef", PRONTO_SECRETS_KEY: "unit-encryption-key-1234567890-abcdef",
 };

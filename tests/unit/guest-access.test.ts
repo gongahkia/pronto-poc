@@ -58,7 +58,7 @@ describe("request proxy", () => {
   });
   it("treats a guest session like any other signed-in business user", () => {
     guestEnv();
-    for (const path of ["/api/client/settings", "/api/client/knowledge", "/api/demo/customer", "/api/demo/feedback"])
+    for (const path of ["/api/client/settings", "/api/client/knowledge", "/api/demo/customer"])
       expect(proxy(req(path, "POST", "guest-1@guest.invalid")).status).toBe(200);
   });
 });

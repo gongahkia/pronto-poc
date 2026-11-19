@@ -9,7 +9,7 @@ export function AutoRefresh({ intervalMs = 20000 }: { intervalMs?: number }) {
   useEffect(() => {
     const id = window.setInterval(() => {
       if (document.visibilityState === "visible" &&
-          !document.querySelector('[data-feedback-open], [data-huddle-open]:not([data-huddle-collapsed]), dialog[open]') &&
+          !document.querySelector('dialog[open]') &&
           !document.activeElement?.matches("input, textarea, select")) router.refresh();
     }, intervalMs);
     return () => window.clearInterval(id);

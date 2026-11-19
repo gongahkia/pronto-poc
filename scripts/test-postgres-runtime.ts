@@ -7,7 +7,7 @@ import {availableParallelism} from 'node:os';
 const exec = promisify(execFile), version = '18.6', pgSha = '555610c24d53e4316da5b7d3fc25c279d96856d5e0e23ee308c328c5fa881d9f';
 const vectorVersion = '0.8.7', vectorCommit = 'f37c13f68b57d2c3472b2214fbcff699d6d34876', vectorSha = '83d673c3b287cddbf3879f86215f043f2c2b56c69d37b2a77504910db1ed6e56';
 const root = resolve('output/runtime'), target = join(root,'pronto-postgres-18.6-vector-0.8.7'), marker = join(target,'pronto-runtime.json'), nonce = randomUUID();
-if(process.version !== 'v24.21.0') throw new Error('Use the pinned Node 24.21.0 runtime.');
+if(process.version !== 'v24.21.0') throw new Error('Use the pinned Node 24.21.0 runtime for test PostgreSQL.');
 await mkdir(root,{recursive:true});
 let exists = false;try {await access(target);exists = true;} catch { /* create only a new owned runtime */ }
 async function verify() {

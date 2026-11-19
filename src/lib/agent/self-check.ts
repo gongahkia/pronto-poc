@@ -128,7 +128,9 @@ function isPlainSocialReply(answer: string): boolean {
   const checkIn = 'what(?: s| is) up';
   const question = '(?:(?:have|got|do you have) (?:a )?(?:quick )?question)';
   const invitation = `(?:${help}|what can (?:i|we) help (?:you )?with(?: today)?|looking for a table(?: or ${question})?|${question})`;
-  return new RegExp(`^(?:${greeting}(?: ${checkIn})?(?: ${invitation})?|${checkIn}(?: ${invitation})?|${invitation}|thank you|thanks|you(?: re| are) welcome|(?:anytime|no worries)(?: (?:happy|glad) to help)?)$`).test(text)
+  const acknowledgement = '(?:thank you|thanks|you(?: re| are) welcome|(?:anytime|no worries)(?: (?:happy|glad) to help)?)';
+  const farewell = '(?:have a (?:great|good|lovely|nice) (?:day|evening|weekend)|enjoy your (?:day|evening|visit|meal)|see you(?: soon| then)?|take care)';
+  return new RegExp(`^(?:${greeting}(?: ${checkIn})?(?: ${invitation})?|${checkIn}(?: ${invitation})?|${invitation}|${acknowledgement}(?: ${farewell})?|${farewell})$`).test(text)
     || /^(?:你好|您好|嗨|哈囉|哈喽|謝謝|谢谢|不客气|不客氣|hai|helo|selamat pagi|selamat petang|selamat malam|terima kasih|sama sama|வணக்கம்|நன்றி)$/.test(text);
 }
 

@@ -21,12 +21,6 @@ importers:
 
   .:
     dependencies:
-      '@huddle/browser':
-        specifier: file:vendor/huddle-browser-0.4.0.tgz
-        version: file:vendor/huddle-browser-0.4.0.tgz(react@19.2.4)
-      '@huddle/host':
-        specifier: file:vendor/huddle-host-0.4.0.tgz
-        version: file:vendor/huddle-host-0.4.0.tgz
       '@vercel/functions':
         specifier: ^3.10.3
         version: 3.10.3
@@ -506,49 +500,6 @@ packages:
       '@noble/hashes': ^1.8.0 || ^2.0.0
     peerDependenciesMeta:
       '@noble/hashes':
-        optional: true
-
-  '@huddle/browser@file:vendor/huddle-browser-0.4.0.tgz':
-    resolution: {integrity: sha512-5Rq+I3gX5urDkCkxIOLnJyVX3sqDLhrJg2AdLg36adMVf+BwZ0kFppz3cy2mjBkx2cl6aId3Je74sklwCeYbXg==, tarball: file:vendor/huddle-browser-0.4.0.tgz}
-    version: 0.4.0
-    peerDependencies:
-      '@angular/core': '>=20 <23'
-      preact: '>=10 <12'
-      react: '>=18 <20'
-      solid-js: '>=1.8 <2'
-      svelte: '>=4 <6'
-      vue: '>=3.3 <4'
-    peerDependenciesMeta:
-      '@angular/core':
-        optional: true
-      preact:
-        optional: true
-      react:
-        optional: true
-      solid-js:
-        optional: true
-      svelte:
-        optional: true
-      vue:
-        optional: true
-
-  '@huddle/host@file:vendor/huddle-host-0.4.0.tgz':
-    resolution: {integrity: sha512-rKImY6OCA+7zLZZGE2O6BEcNgmF+G3q9qBenezfsUvd/oawObUREZbAtNPFXGKoiMD5forzA/GAZbymYZtqMSg==, tarball: file:vendor/huddle-host-0.4.0.tgz}
-    version: 0.4.0
-    engines: {node: '>=24.21.0 <25'}
-    peerDependencies:
-      '@types/express': 5.0.6
-      express: 5.3.0
-      fastify: 5.12.8
-      mongodb: 7.9.0
-    peerDependenciesMeta:
-      '@types/express':
-        optional: true
-      express:
-        optional: true
-      fastify:
-        optional: true
-      mongodb:
         optional: true
 
   '@humanfs/core@0.19.2':
@@ -3778,9 +3729,6 @@ packages:
   zod@4.6.6:
     resolution: {integrity: sha512-4UmzQUF5fxvfcYHlbjBmejU+w+hbDnWFx4aS8kBx7nPBHcO2SqPbpAG8snbdg+Xse4pRefR98hgjFgIMCI/UhA==}
 
-  zod@4.6.7:
-    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
-
   zustand@4.5.7:
     resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
     engines: {node: '>=12.7.0'}
@@ -4120,14 +4068,6 @@ snapshots:
       levn: 0.4.1
 
   '@exodus/bytes@1.15.0': {}
-
-  '@huddle/browser@file:vendor/huddle-browser-0.4.0.tgz(react@19.2.4)':
-    optionalDependencies:
-      react: 19.2.4
-
-  '@huddle/host@file:vendor/huddle-host-0.4.0.tgz':
-    dependencies:
-      zod: 4.6.7
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -7478,8 +7418,6 @@ snapshots:
       zod: 4.6.6
 
   zod@4.6.6: {}
-
-  zod@4.6.7: {}
 
   zustand@4.5.7(@types/react@19.2.14)(react@19.2.4):
     dependencies:

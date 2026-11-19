@@ -6,7 +6,6 @@ ENV PATH=$PNPM_HOME:$PATH
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY vendor ./vendor
 RUN pnpm install --frozen-lockfile
 
 FROM node:24.21.0-bookworm-slim AS builder
@@ -24,7 +23,6 @@ ENV PATH=$PNPM_HOME:$PATH
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY vendor ./vendor
 RUN pnpm install --prod --frozen-lockfile
 
 FROM node:24.21.0-bookworm-slim AS runner

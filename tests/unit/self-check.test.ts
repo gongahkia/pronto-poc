@@ -7,12 +7,14 @@ import { reservationClarificationContext, type ReservationModelContext } from "@
 describe("post-generation self-check", () => {
   it.each(['Hi!', 'Hello! 👋', 'Hello there! How can I assist you today?', 'How may I help you?',
     "Hey, what's up? Looking for a table?", 'Hey! Looking for a table, or got a quick question?',
-    'What can I help you with?', 'Anytime!', 'No worries, happy to help!', '您好！', 'Hai!', 'வணக்கம்!'])('accepts a pure social reply using operating context: %s', answer => {
+    'What can I help you with?', 'Anytime!', 'No worries, happy to help!', 'Anytime! Enjoy your visit!',
+    "You're welcome! Have a great day!", 'See you soon!', '您好！', 'Hai!', 'வணக்கம்!'])('accepts a pure social reply using operating context: %s', answer => {
     expect(evaluatePostGenerationSelfCheck({decision:answerDecision({answer,citedChunkIds:[]}),retrievedChunks:[],
       operationalContext:'Role: AI assistant. Scope: greet, welcome and thank customers; help with enquiries.'}).passed).toBe(true);
   });
   it.each(['Hello! We open at 8am.', 'Hello! Free parking is available.', 'Hello! Your reservation is confirmed.', 'Hello! Visit https://evil.example/pay',
-    'Hey! Looking for a table? We open at 8am.', 'No worries, your refund will be approved.', 'Looking for a table? Free parking is available.'])('does not exempt a greeting containing business claims: %s', answer => {
+    'Hey! Looking for a table? We open at 8am.', 'No worries, your refund will be approved.', 'Looking for a table? Free parking is available.',
+    'Enjoy your visit! Free parking is available.'])('does not exempt a greeting containing business claims: %s', answer => {
     expect(evaluatePostGenerationSelfCheck({decision:answerDecision({answer,citedChunkIds:[]}),retrievedChunks:[],
       operationalContext:'Role: AI assistant. Scope: greet and welcome customers.'}).passed).toBe(false);
   });

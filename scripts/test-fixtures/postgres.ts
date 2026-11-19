@@ -11,8 +11,8 @@ import {Pool} from 'pg';
 const exec = promisify(execFile);
 async function waitAtMost(promise:Promise<unknown>,ms:number) {let timer:ReturnType<typeof setTimeout> | undefined;try {await Promise.race([promise,new Promise<void>(done => {timer = setTimeout(done,ms);})]);} finally {if(timer) clearTimeout(timer);}}
 export async function disposablePostgres() {
-  if(process.version !== 'v24.21.0') throw new Error('Use Node 24.21.0 for disposable feedback verification.');
-  const bin = resolve(process.env.PRONTO_HUDDLE_TEST_PG_BIN || 'output/runtime/pronto-postgres-18.6-vector-0.8.7/bin');
+  if(process.version !== 'v24.21.0') throw new Error('Use Node 24.21.0 for disposable database verification.');
+  const bin = resolve(process.env.PRONTO_TEST_PG_BIN || 'output/runtime/pronto-postgres-18.6-vector-0.8.7/bin');
   for(const program of ['postgres','initdb','pg_dump','pg_restore']) await access(join(bin,program));
   if((await exec(join(bin,'postgres'),['--version'])).stdout.trim() !== 'postgres (PostgreSQL) 18.6') throw new Error('The fixture requires PostgreSQL 18.6 with pgcrypto/pgvector.');
   const listener = createServer();await new Promise<void>((done,fail) => {listener.once('error',fail);listener.listen(0,'127.0.0.1',done);}); const address = listener.address();if(!address || typeof address === 'string') throw new Error('No loopback fixture port.');const port = address.port;await new Promise<void>(done => listener.close(() => done()));

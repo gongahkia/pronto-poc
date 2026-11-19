@@ -1,5 +1,9 @@
 # Host-backed Huddle feedback
 
+Historical integration guide: Huddle was detached on 19 November 2026. The SDK,
+routes and commands below are retired. See [the removal record](huddle-detachment.md)
+for retained data and the installation/removal tooling gap.
+
 Huddle runs inside Pronto using Pronto’s existing sessions, backend and PostgreSQL database. The private browser and host SDK archives are vendored with checksums and source revisions in [vendor/README.md](../../vendor/README.md). No separately deployed Huddle product service, project setup, Huddle account, popup approval or sibling checkout is needed.
 
 The server-owned `PRONTO_HUDDLE_ACCESS` selects the policy on every feedback surface, including legacy reads/writes/exports and new session/thread/reply/update/transfer endpoints. It defaults to `internal`; invalid values fail closed.

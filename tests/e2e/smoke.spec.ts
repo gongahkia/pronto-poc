@@ -76,6 +76,10 @@ test("an authorized PS.Cafe responder can render the inbox", async ({ page }) =>
   await expect(page.getByRole("link", { name: "Needs attention",exact:true })).toBeVisible();
   for (const label of ["Inbox", "Business Knowledge", "Insights"])
     await expect(page.getByRole("navigation").getByRole("link", { name: label }).first()).toBeVisible();
+  await expect(page.getByRole('button',{name:/feedback|review details/i})).toHaveCount(0);
+  await expect(page.locator('[data-huddle-root], [data-feedback-ui]')).toHaveCount(0);
+  for(const path of ['/api/demo/feedback','/api/demo/feedback/export','/api/demo/feedback/profile','/api/demo/feedback/v2/session'])
+    expect((await page.request.get(path)).status()).toBe(404);
 });
 
 test("client account cannot inspect operator diagnostics and the retired UI is unavailable", async ({ page }) => {

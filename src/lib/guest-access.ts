@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { createHmac, randomInt, randomUUID } from "node:crypto";
 import { recordAuditLog } from "@/lib/audit";
 import { query, transaction } from "@/lib/db";
 import { staffCapabilities } from "@/lib/staff-permissions";
@@ -9,6 +9,12 @@ import type { User } from "@/lib/types";
 const MAX_GUESTS = 500;
 const WINDOW_MS = 15 * 60 * 1000;
 const LIMITS = { global: 60, perVisitor: 8 };
+
+export function guestDisplayName(): string {
+  const adjectives = ["Sunny", "Curious", "Kind", "Calm", "Bright", "Happy", "Gentle", "Friendly"];
+  const animals = ["Otter", "Panda", "Koala", "Robin", "Dolphin", "Owl", "Fox", "Penguin"];
+  return `${adjectives[randomInt(adjectives.length)]} ${animals[randomInt(animals.length)]}`;
+}
 
 export function cleanGuestName(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
@@ -34,7 +40,7 @@ async function allowGuestCreation(visitor: string, now = new Date()): Promise<bo
 // A guest is a demo-tenant business user with no password and every staff capability: this is a public, synthetic POC.
 export async function createGuestReviewer(rawName: unknown, visitor: string): Promise<User> {
   const name = cleanGuestName(rawName);
-  if (!name) throw new DemoError("Enter your name so your comments are attributed to you.", 400);
+  if (!name) throw new DemoError("Enter a name for your demo session.", 400);
   if (!await allowGuestCreation(visitor)) throw new DemoError("Too many new visitors right now. Please wait a few minutes and try again.", 429);
   const count = await query<{ n: number }>(
     `select count(*)::int n from users where client_id=$1 and email like $2`, [DEMO_CLIENT_ID, `%@${GUEST_EMAIL_DOMAIN}`]);

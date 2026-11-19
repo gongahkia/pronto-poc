@@ -1,5 +1,10 @@
 # Feedback operations after cutover
 
+Historical runbook: these commands were retired when Huddle was detached on
+19 November 2026. A complete export was retained first. See
+[the removal record](huddle-detachment.md); do not run these old commands as
+current application operations.
+
 Public reviewers use Pronto’s existing chooser without an account/password. Database operations remain restricted to an existing named operator with secure access to the verified database. These are host administration commands, not a Huddle login or service.
 
 The one-off production migration and legacy recovery commands are retired. Their CLI regression fixtures require an explicitly marked disposable database. Original tables, user records, private backups and neutral exports remain intact. The shared recovery/conversion helpers stay available to those guarded fixtures and to the recorded recovery history.

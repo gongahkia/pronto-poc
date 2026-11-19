@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Send, MessageCircle } from "lucide-react";
 import { PsCafeLogo } from "@/components/ps-cafe-logo";
 import { MessageText } from "@/components/message-text";
@@ -50,7 +50,7 @@ async function demoRequest(path: string, body?: unknown) {
   return data;
 }
 
-export function CustomerSimulator({feedback}:{feedback?:ReactNode}={}) {
+export function CustomerSimulator() {
   const [state, setState] = useState<State | null>(null);
   const [sessions,setSessions]=useState<State['sessions']>([]);
   const [sessionId, setSessionId] = useState("");
@@ -130,7 +130,7 @@ export function CustomerSimulator({feedback}:{feedback?:ReactNode}={}) {
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div><p className="text-xs font-semibold uppercase tracking-wide text-accent">Pronto</p>
           <h1 className="text-xl font-semibold">Messages</h1></div>
-        <div className="flex flex-wrap items-center gap-2"><DemoViewSwitch/><ServiceStatusLink/>{feedback}</div>
+        <div className="flex flex-wrap items-center gap-2"><DemoViewSwitch/><ServiceStatusLink/></div>
       </header>
       <div className="grid gap-4 md:grid-cols-[15rem_minmax(0,1fr)]">
         <aside className="ui-panel min-w-0 space-y-4 p-4">

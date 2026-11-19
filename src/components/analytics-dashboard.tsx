@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { useEffect,useRef,useState,type ReactNode } from 'react';
 import { ArrowRight,ArrowUpRight,BarChart3,CheckCheck,Clock3,GitBranch,Layers3,MessageSquare,RefreshCw,Sparkles } from 'lucide-react';
 import { Badge } from '@/components/badge';
-import { feedbackId } from '@/lib/feedback/anchor';
 import type { AnalyticsData,Sentiment } from '@/lib/analytics/types';
 const number=(value:number)=>value.toLocaleString('en-SG');
 const human=(value:string)=>value.replace(/_/g,' ').replace(/^./,c=>c.toUpperCase());
@@ -117,7 +116,7 @@ export function AnalyticsDashboard({data}:{data:AnalyticsData}) {
   <p className="text-xs leading-5 text-muted">Last {data.days} calendar days, in UTC. Assistant completed means the current enquiry has a delivered assistant reply and no pending customer message or team handoff. It does not imply customer-confirmed resolution.</p>
  </div>;
 }
-function Metric({icon,title,value,detail}:{icon:ReactNode;title:string;value:string;detail:string}){return <section className="ui-panel p-5" data-feedback-id={feedbackId('metric',title)}><h2 className="flex items-center gap-2 text-sm font-medium text-muted"><span className="text-accent" aria-hidden="true">{icon}</span>{title}</h2><p className="mt-3 text-3xl font-semibold tabular-nums">{value}</p><p className="mt-2 text-xs leading-5 text-muted">{detail}</p></section>;}
+function Metric({icon,title,value,detail}:{icon:ReactNode;title:string;value:string;detail:string}){return <section className="ui-panel p-5"><h2 className="flex items-center gap-2 text-sm font-medium text-muted"><span className="text-accent" aria-hidden="true">{icon}</span>{title}</h2><p className="mt-3 text-3xl font-semibold tabular-nums">{value}</p><p className="mt-2 text-xs leading-5 text-muted">{detail}</p></section>;}
 function EvidenceButton({ids,show}:{ids:string[];show:(ids:string[])=>void}){return <button type="button" onClick={()=>show(ids)} className="inline-flex items-center gap-1 text-xs text-accent">{ids.length} supporting conversation{ids.length===1?'':'s'}<ArrowRight size={13} aria-hidden="true"/></button>;}
 function HandoffReasons({handoffs}:{handoffs:AnalyticsData['handoffs']}){return <section className="ui-panel p-5"><h2 className="font-semibold">Handoff drivers</h2><p className="mt-1 text-xs leading-5 text-muted">Recorded reasons for bringing in your team during this period.</p><div className="mt-4 divide-y divide-line">{handoffs.map(row=><div key={row.reason} className="flex justify-between gap-3 py-2 text-sm"><span>{human(row.reason)}</span><span className="tabular-nums">{row.count}</span></div>)}{!handoffs.length&&<p className="text-sm text-muted">No handoffs recorded in this period.</p>}</div></section>;}
 function ActivityChart({data}:{data:AnalyticsData}){

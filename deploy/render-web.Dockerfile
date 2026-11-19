@@ -10,7 +10,6 @@ ENV NODE_OPTIONS=--max-old-space-size=1536
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY vendor ./vendor
 RUN pnpm install --frozen-lockfile
 # Explicit input list excludes dotenv files, private deployment JSON and Git.
 COPY src ./src
