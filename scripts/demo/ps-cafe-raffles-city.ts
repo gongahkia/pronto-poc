@@ -1,4 +1,4 @@
-import psCafeBusiness from "../../config/demo-businesses/ps-cafe.json";
+import psCafeBusiness from "../../config/demo-businesses/ps-cafe.json" with {type:"json"};
 import { getPool, vectorLiteral } from "../../src/lib/db";
 import { deterministicEmbedding } from "../../src/lib/llm/mock";
 import { chunkText } from "../../src/lib/knowledge/chunk";
