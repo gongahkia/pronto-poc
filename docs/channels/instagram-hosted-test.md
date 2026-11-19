@@ -29,6 +29,40 @@ the ordinary encrypted channel credentials and approval gates. There are no
 guest sessions, public feedback access, fixture seed or automatic channel
 activation. The local Docker database is not the hosted database.
 
+Update on 19 November: Keith reports that Meta verified the saved callback and
+subscribed the app-level `messages` field at v27.0. A single account subscription
+POST was accepted. Its immediate read-back appeared empty; a later read returned
+the token-scoped singleton `{"data":[{"subscribed_fields":["messages"]}]}`.
+The reader now accepts that single entry after independently verifying the
+token's app/account, while rejecting mixed or paginated unlabelled lists. The
+original uncertain operation was reconciled with reads only; no POST was
+repeated. The sender account's subscription was not changed.
+
+## Receive-only transport probe
+
+Full channel activation requires observed delivery evidence. Before granting
+normal delivery, the hosted test can accept a narrowly scoped inbound probe
+while the channel remains draft and the worker is off. An operator saves
+`settings.instagramProbe` through the existing authenticated channel endpoint:
+`id` (fresh UUID), `nonceHash` (SHA-256 of the exact private `pronto-test NONCE`
+message), `startedAt`, and `expiresAt`. The maximum window is two hours.
+There is no plaintext nonce in channel settings.
+
+Only the explicit hosted standard profile, a Unified Login draft channel and
+`PRONTO_HOSTED_INSTAGRAM_WORKER=0` enable this path. The request must pass the
+normal body, signature and receiving-account checks. The exact nonce is
+required. The locked channel is checked again against current configuration,
+credentials and expiry; disabling or reconfiguring it closes an in-flight probe.
+Concurrent repeats create one `instagram.probe_received` audit record with the
+provider message/sender IDs, timestamp and text hash. No message body is saved,
+and no conversation, model call, inbound job, outbox row or reply is created.
+Ordinary draft/disabled channels retain their previous rejection behavior.
+
+The first coordinated message tests real webhook eligibility in Development
+mode. It does not prove outgoing API acceptance or observed recipient delivery,
+and does not satisfy the separate full-activation approvals. Keep the resulting
+audit record as evidence; do not manually mark unobserved checks complete.
+
 The [Render configuration](../../deploy/render-instagram.blueprint.yaml.example)
 uses one Free web service. It builds with `pnpm instagram:hosted:build` and starts
 with `pnpm instagram:hosted:start`. The build copies the standalone static assets

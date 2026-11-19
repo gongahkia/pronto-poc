@@ -219,6 +219,9 @@ The GET callback accepts the correct verification token for an encrypted,
 configured Unified Login channel whose status is draft or active. Disabled
 channels remain closed. POST notifications still require an active channel;
 verification does not queue a customer message, run the agent, or enable replies.
+The separate [hosted receive-only probe](instagram-hosted-test.md#receive-only-transport-probe)
+can acknowledge one explicitly configured nonce while draft, without ordinary
+ingestion or any outbound send.
 Credentials stored only in an unpublished `channel_drafts` row do not configure
 the callback: the operator must first save the inactive channel's own settings.
 

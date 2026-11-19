@@ -8,6 +8,7 @@ import {
 import { processInboundMessages } from "@/lib/channels/process";
 import { isBodyWithinLimit } from "@/lib/http-limits";
 import { requestIdFromRequest, requestIdHeaders } from "@/lib/logger";
+import { instagramProbeConfig, recordInstagramProbe } from "@/lib/channels/instagram-probe";
 
 type Context = {
   params: Promise<{ channelId: string }>;
@@ -19,7 +20,7 @@ export async function GET(request: Request, context: Context) {
   if (!channel) {
     return new NextResponse("Not found", { status: 404 });
   }
-  // verify setup before activation; POST still rejects all inactive channels.
+  // verify setup before activation; the receive-only probe is a separate opt-in.
   const preparingUnifiedLogin = channel.status === "draft" && channel.settings.authMode === "unified_login";
   if (channel.status !== "active" && !preparingUnifiedLogin)
     return new NextResponse("Channel inactive", { status: 403 });
@@ -46,7 +47,8 @@ export async function POST(request: Request, context: Context) {
       headers: requestIdHeaders(requestId),
     });
   }
-  if (channel.status !== "active") return new NextResponse("Channel inactive", { status: 403, headers: requestIdHeaders(requestId) });
+  const probe = instagramProbeConfig(channel);
+  if (channel.status !== "active" && !probe) return new NextResponse("Channel inactive", { status: 403, headers: requestIdHeaders(requestId) });
 
   const rawBody = await request.text();
   if (!isBodyWithinLimit(rawBody)) {
@@ -85,6 +87,14 @@ export async function POST(request: Request, context: Context) {
     return new NextResponse("Business account mismatch", { status: 403, headers: requestIdHeaders(requestId) });
   }
   const messages = normalizeInstagramPayload(channelId, payload);
+  if (probe) {
+    const observed = await recordInstagramProbe({ channel, rawBody,
+      signature: request.headers.get("x-hub-signature-256") });
+    return observed
+      ? NextResponse.json({ ok: true, probe: true, duplicate: observed.duplicate },
+        { headers: { ...requestIdHeaders(requestId), "Cache-Control": "no-store" } })
+      : new NextResponse("Channel inactive", { status: 403, headers: requestIdHeaders(requestId) });
+  }
   return NextResponse.json(await processInboundMessages(messages, { requestId }), {
     headers: requestIdHeaders(requestId),
   });
