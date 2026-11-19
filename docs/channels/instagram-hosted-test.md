@@ -167,6 +167,20 @@ the exact enrollment, with the runtime role verified as read-only on the new
 enrollment table. These checks do not establish real Groq acceptance or an AI
 reply delivered through Instagram.
 
+Hosted capability update verified on 19 November at 10:39 SGT: Render deployed
+`f9b9af0` to the separate test service, and `/api/status` reports that exact
+revision. Public liveness and callback verification passed, wrong-token and
+invalid-signature requests were rejected, the public customer demo remains
+disabled, and authenticated source/profile/model review forms are available.
+All five transport activation-evidence kinds are recorded for the current
+channel revision, including Keith's reported receipt. The two copied sources
+still match the original export and remain pending at revision 1; model settings
+are assistant draft revision 2. No source is published, no business approval was
+created, and the channel remains draft with the worker off. Readiness returns
+503 as expected in this state. The private `pilot-review.txt` and structured
+`pilot-review.json` contain the concrete source/model/profile/test plan for human
+review before applying the existing business approvals and activation gates.
+
 The [Render configuration](../../deploy/render-instagram.blueprint.yaml.example)
 uses one Free web service. It builds with `pnpm instagram:hosted:build` and starts
 with `pnpm instagram:hosted:start`. The build copies the standalone static assets

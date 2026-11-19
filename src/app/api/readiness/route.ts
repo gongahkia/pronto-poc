@@ -7,6 +7,7 @@ import { assertCustomerDemoEnabled } from "@/lib/customer-demo-boundary";
 import { requireRealDemoConfiguration, profileForDemoChoice } from "@/lib/customer-demo-ai";
 import { DEFAULT_DEMO_MODEL } from "@/lib/llm/demo-models";
 import { assertInstagramTestAiReady } from "@/lib/channels/instagram-test-ai";
+import { assertDemoInstagramReady } from "@/lib/channels/instagram-demo";
 
 type ReadinessCheck = {
   name: string;
@@ -63,6 +64,10 @@ export async function GET() {
     checks.push({ name: "Database", status: "fail", detail: "Database is unavailable." });
   }
   if (checks.at(-1)?.status === "pass") {
+    if (process.env.PRONTO_DEMO_INSTAGRAM_ENABLED === "1") {
+      try { await assertDemoInstagramReady(); checks.push({ name: "Demo Instagram", status: "pass", detail: "Demo Instagram prerequisites are configured." }); }
+      catch { checks.push({ name: "Demo Instagram", status: "fail", detail: "Demo Instagram prerequisites are unavailable." }); }
+    }
     if (process.env.PRONTO_HOSTED_INSTAGRAM === "1") {
       try {
         await assertInstagramTestAiReady();

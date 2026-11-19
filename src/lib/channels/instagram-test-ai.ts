@@ -6,6 +6,7 @@ import type { Channel } from "@/lib/types";
 import { envApiKeyForProvider } from "@/lib/llm/credentials";
 import { hasApprovedTextKnowledge } from "@/lib/knowledge/retrieve";
 import { decryptChannelCredentials } from "./credentials";
+import { demoInstagramAiProfile, isDemoInstagramChannel } from "./instagram-demo";
 
 export const instagramTestModel = "openai/gpt-oss-20b";
 const settings = z.object({
@@ -49,6 +50,7 @@ export async function usesInstagramTestTextKnowledge(clientId: string): Promise<
 }
 
 export async function instagramTestAiProfile(channel: Channel, senderId: string): Promise<AiExecutionProfile | null> {
+  if (isDemoInstagramChannel(channel)) return demoInstagramAiProfile(channel, senderId);
   const config = instagramTestAiConfiguration();
   if (process.env.PRONTO_HOSTED_INSTAGRAM !== "1" || channel.kind !== "instagram") return null;
   if (!config || channel.client_id !== config.clientId || channel.id !== config.channelId ||

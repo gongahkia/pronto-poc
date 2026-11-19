@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import {
   getInstagramChannel,
   instagramPayloadMatchesChannel,
@@ -10,6 +10,12 @@ import { isBodyWithinLimit } from "@/lib/http-limits";
 import { requestIdFromRequest, requestIdHeaders } from "@/lib/logger";
 import { instagramProbeConfig, recordInstagramProbe } from "@/lib/channels/instagram-probe";
 import { instagramTestAiProfile } from "@/lib/channels/instagram-test-ai";
+import { isDemoInstagramChannel } from "@/lib/channels/instagram-demo";
+import { protectedDemoDeployment } from "@/lib/deployment-profile";
+import { logWarn } from "@/lib/logger";
+import { DEMO_CLIENT_ID } from "@/lib/customer-demo-boundary";
+
+export const maxDuration = 180;
 
 type Context = {
   params: Promise<{ channelId: string }>;
@@ -17,7 +23,7 @@ type Context = {
 
 export async function GET(request: Request, context: Context) {
   const { channelId } = await context.params;
-  const channel = await getInstagramChannel(channelId);
+  const channel = await getInstagramChannel(channelId, protectedDemoDeployment() ? DEMO_CLIENT_ID : undefined);
   if (!channel) {
     return new NextResponse("Not found", { status: 404 });
   }
@@ -41,7 +47,7 @@ export async function GET(request: Request, context: Context) {
 export async function POST(request: Request, context: Context) {
   const requestId = requestIdFromRequest(request);
   const { channelId } = await context.params;
-  const channel = await getInstagramChannel(channelId);
+  const channel = await getInstagramChannel(channelId, protectedDemoDeployment() ? DEMO_CLIENT_ID : undefined);
   if (!channel) {
     return new NextResponse("Not found", {
       status: 404,
@@ -49,6 +55,8 @@ export async function POST(request: Request, context: Context) {
     });
   }
   const probe = instagramProbeConfig(channel);
+  if (protectedDemoDeployment() && !isDemoInstagramChannel(channel))
+    return new NextResponse("Channel outside demo scope", { status: 403, headers: requestIdHeaders(requestId) });
   if (channel.status !== "active" && !probe) return new NextResponse("Channel inactive", { status: 403, headers: requestIdHeaders(requestId) });
 
   const rawBody = await request.text();
@@ -102,7 +110,12 @@ export async function POST(request: Request, context: Context) {
   } catch {
     return new NextResponse("Instagram test scope unavailable", { status: 403, headers: requestIdHeaders(requestId) });
   }
-  return NextResponse.json(await processInboundMessages(messages, { requestId }), {
+  const result = await processInboundMessages(messages, { requestId });
+  if (isDemoInstagramChannel(channel) && result.jobIds.length) after(async () => {
+    try { const { processDemoInstagramQueue } = await import("@/lib/demo-processing"); await processDemoInstagramQueue(channelId); }
+    catch (error) { logWarn("instagram.demo_processing_interrupted", { channelId, error }); }
+  });
+  return NextResponse.json(result, {
     headers: requestIdHeaders(requestId),
   });
 }

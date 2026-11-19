@@ -16,6 +16,7 @@ import type { Channel } from "@/lib/types";
 import { assertCustomerDemoEnabled, isCustomerDemoChannel } from "@/lib/customer-demo-boundary";
 import { protectedDemoDeployment } from "@/lib/deployment-profile";
 import { instagramTestAiProfile } from "./instagram-test-ai";
+import { isDemoInstagramChannel } from "./instagram-demo";
 
 export async function sendChannelText(input: {
   channelId: string;
@@ -44,9 +45,10 @@ export async function sendChannelText(input: {
   if (channel.status !== "active") {
     throw new Error("Channel is disabled or inactive; outbound send blocked.");
   }
-  if (protectedDemoDeployment() && !isCustomerDemoChannel(channel))
+  if (protectedDemoDeployment() && !isCustomerDemoChannel(channel) && !isDemoInstagramChannel(channel))
     throw new ChannelPolicyError("Protected demo delivery permits only the synthetic console channel.");
   if (process.env.PRONTO_DEMO_ONLY_DELIVERY === "1" && channel.kind !== "console" &&
+      !isDemoInstagramChannel(channel) &&
       !(channel.kind === "email" && channel.credentials.provider === "local_smtp"))
     throw new ChannelPolicyError("External provider delivery is disabled in the customer-demo sandbox.");
   if (["whatsapp", "instagram", "messenger", "email"].includes(channel.kind) &&

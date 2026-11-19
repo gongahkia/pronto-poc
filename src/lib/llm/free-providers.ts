@@ -7,6 +7,7 @@ import { buildGroundedAnswerInstructions, buildGroundedAnswerUserInput } from "@
 import { demoModelChoices, GEMINI_EMBEDDING_MODEL } from "@/lib/llm/demo-models";
 import { logInfo } from "@/lib/logger";
 import { instagramTestAiConfiguration, instagramTestModel } from "@/lib/channels/instagram-test-ai";
+import { demoInstagramConfiguration } from "@/lib/channels/instagram-demo";
 import { parseReservationExtraction, reservationExtractionJsonSchema } from "@/lib/llm/reservation-extraction";
 import type { GenerateAnswerInput, GroundedAnswerDecision, LlmCallContext, LlmProvider } from "@/lib/llm/types";
 
@@ -28,13 +29,17 @@ export function freeProviderRequirements(provider: "gemini" | "groq"): string[] 
 }
 export function freeProviderApiKey(provider: "gemini" | "groq", clientId?: string): string {
   const profile = aiExecutionProfile();
+  const instagramDemo = provider === "groq" && clientId === "00000000-0000-4000-8000-00000000a101" &&
+    profile?.instagramDemoClientId === clientId && Boolean(demoInstagramConfiguration()) &&
+    profile.mode === "real" && profile.provider === "groq" && profile.model === instagramTestModel &&
+    profile.retrievalMode === "local_text" && profile.embeddingProvider === "none" && profile.embeddingModel === "none";
   const instagramTest = provider === "groq" && Boolean(clientId) && profile?.instagramTestClientId === clientId &&
     instagramTestAiConfiguration()?.clientId === clientId && profile?.mode === "real" &&
     profile.provider === "groq" && profile.model === instagramTestModel && profile.retrievalMode === "local_text" &&
     profile.embeddingProvider === "none" && profile.embeddingModel === "none";
   const missing = freeProviderRequirements(provider).filter(item => !instagramTest || item !== "PRONTO_DEMO_REAL_AI_APPROVED=1");
   if (missing.length) throw new LlmConfigurationError(provider, missing.join(", "));
-  if (!instagramTest && (!profile?.syntheticDemo || clientId !== "00000000-0000-4000-8000-00000000a101"))
+  if (!instagramTest && !instagramDemo && (!profile?.syntheticDemo || clientId !== "00000000-0000-4000-8000-00000000a101"))
     throw new LlmConfigurationError(provider, "Free-tier POC inference requires synthetic PS.Cafe demo content or the explicitly scoped Instagram test.");
   return envApiKeyForProvider(provider)!;
 }

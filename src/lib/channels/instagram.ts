@@ -34,7 +34,8 @@ export function instagramPayloadMatchesChannel(payload: Record<string, unknown>,
   if (!entries.length) return false;
   return entries.every((entry) => isRecord(entry) && entry.id === igUserId &&
     (Array.isArray(entry.messaging) ? entry.messaging.every((event) =>
-      !isRecord(event) || !isRecord(event.recipient) || event.recipient.id === igUserId) : true));
+      !isRecord(event) || !isRecord(event.recipient) || event.recipient.id === igUserId ||
+      (isRecord(event.message) && event.message.is_echo === true && isRecord(event.sender) && event.sender.id === igUserId)) : true));
 }
 
 export function normalizeInstagramPayload(
@@ -179,10 +180,10 @@ function channelFetchTimeoutMs(): number {
   return Number(process.env.PRONTO_CHANNEL_FETCH_TIMEOUT_MS ?? 10_000);
 }
 
-export async function getInstagramChannel(channelId: string): Promise<Channel | null> {
+export async function getInstagramChannel(channelId: string, clientId?: string): Promise<Channel | null> {
   const result = await query<Channel>(
-    "select * from channels where id = $1 and kind = 'instagram'",
-    [channelId],
+    "select * from channels where id = $1 and kind = 'instagram'" + (clientId ? " and client_id=$2" : ""),
+    clientId ? [channelId, clientId] : [channelId],
   );
   const row = result.rows[0];
   if (!row || usesLegacyPlaintextCredentials(row) ||

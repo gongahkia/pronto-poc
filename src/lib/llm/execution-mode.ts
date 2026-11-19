@@ -6,6 +6,7 @@ export type AiExecutionProfile = {
   provider?: string; model?: string; embeddingProvider?: string; embeddingModel?: string;
   syntheticDemo?: boolean;
   instagramTestClientId?: string;
+  instagramDemoClientId?: string;
   retrievalMode?: "local_text";
 };
 const execution = new AsyncLocalStorage<AiExecutionProfile>();
