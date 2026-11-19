@@ -11,5 +11,5 @@ export default async function AnalyticsPage({searchParams}:{searchParams?:Promis
  const params=await searchParams??{};const period=['7','30','90'].includes(params.period??'')?params.period:'30';
  const [client,data]=await Promise.all([getClient(user.clientId),getAnalyticsData(user.clientId,period)]);
  if(!client)throw new Error('Business not found.');
- return <AppShell user={user} active="client" clientActive="analytics" workspaceName={client.name}><AnalyticsDashboard key={`${data.days}:${data.snapshot?.id??'empty'}`} data={data}/></AppShell>;
+ return <AppShell user={user} active="client" clientActive="analytics" workspaceName={client.name} workspaceProfile={client.business_profile}><AnalyticsDashboard key={`${data.days}:${data.snapshot?.id??'empty'}`} data={data}/></AppShell>;
 }

@@ -1,11 +1,12 @@
+import {demoBusinessScope} from "@/lib/demo-business";
 import { query, type Queryable } from "@/lib/db";
-import { DEMO_CLIENT_ID } from "@/lib/customer-demo-boundary";
+
 
 // Administrative preflight accepts curated fixtures and synthetic sources that
 // completed the existing review/publication workflow. Metadata alone is not
 // publication evidence. Preflight checks the single-tenant boundary separately.
 // Archived sources and live versions with pending edits retain their provenance.
-export async function hasOnlyProtectedDemoKnowledge(db: Queryable = { query }): Promise<boolean> {
+export async function hasOnlyProtectedDemoKnowledge(db: Queryable = { query },clientId=demoBusinessScope().clientId): Promise<boolean> {
   const result = await db.query<{ safe: boolean }>(`select not exists (
     select 1 from knowledge_sources s where s.client_id = $1 and not coalesce((
       (s.source_type = 'curated_demo'
@@ -45,6 +46,6 @@ export async function hasOnlyProtectedDemoKnowledge(db: Queryable = { query }): 
         )
       )
     ), false)
-  ) as safe`, [DEMO_CLIENT_ID]);
+  ) as safe`, [clientId]);
   return result.rows[0]?.safe === true;
 }

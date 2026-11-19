@@ -2,21 +2,22 @@ import { query, vectorLiteral } from "@/lib/db";
 import { logInfo } from "@/lib/logger";
 import type { KnowledgeChunk } from "@/lib/types";
 import { GEMINI_EMBEDDING_PROFILE, LOCAL_TEXT_RETRIEVAL_PROFILE } from "@/lib/llm/demo-models";
+import {demoBusinessScope} from '@/lib/demo-business';
 
 // Live chunks are populated by publication, never pending submissions/drafts.
 // This POC additionally requires retained business-review evidence, or its
 // explicitly curated public demo facts. Flagged/archived material is withheld.
-const approvedTextSource = `coalesce(s.metadata->>'archived','false')<>'true'
+const approvedTextSource = (demoScopeParameter:string) => `coalesce(s.metadata->>'archived','false')<>'true'
   and coalesce(s.metadata->>'reviewStatus','') not ilike '%conflict%'
   and ((s.metadata->>'approvedBy' is not null and s.metadata->>'approvedAt' is not null)
-    or (s.client_id='00000000-0000-4000-8000-00000000a101'::uuid
+    or (s.client_id=${demoScopeParameter}::uuid
       and s.source_type='curated_demo' and s.metadata->>'demoSeed'='true'
       and s.metadata->>'reviewStatus' in ('public_fact','public_fact_with_dietary_caution')))`;
 
 export async function hasApprovedTextKnowledge(clientId: string): Promise<boolean> {
   const result = await query<{ ready: boolean }>(`select exists(select 1 from knowledge_chunks k
     join knowledge_sources s on s.id=k.source_id and s.client_id=k.client_id
-    where k.client_id=$1 and ${approvedTextSource}) as ready`, [clientId]);
+    where k.client_id=$1 and ${approvedTextSource('$2')}) as ready`, [clientId,demoBusinessScope().clientId]);
   return result.rows[0]?.ready === true;
 }
 
@@ -36,9 +37,9 @@ export async function retrieveKnowledgeText(clientId: string, searchQuery: strin
     from knowledge_chunks k join knowledge_sources s on s.id=k.source_id and s.client_id=k.client_id
     left join lateral (select version_number from knowledge_source_versions
       where source_id=s.id and client_id=s.client_id and content=s.content order by version_number desc limit 1) v on true,
-    search where k.client_id=$1 and ${approvedTextSource}
+    search where k.client_id=$1 and ${approvedTextSource('$5')}
       and to_tsvector('simple',s.title || E'\\n' || k.content) @@ search.query
-    order by keyword_rank desc,k.id limit $3`, [clientId,searchQuery,boundedLimit*4,LOCAL_TEXT_RETRIEVAL_PROFILE]);
+    order by keyword_rank desc,k.id limit $3`, [clientId,searchQuery,boundedLimit*4,LOCAL_TEXT_RETRIEVAL_PROFILE,demoBusinessScope().clientId]);
   const chunks = dedupeChunks(result.rows.map(row => ({ ...row,
     score: Math.min(Number(row.keyword_rank) * 8, 1) })), boundedLimit);
   logInfo("knowledge.retrieval_completed", { clientId, ...options, mode: "local_text",

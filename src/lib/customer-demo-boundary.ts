@@ -1,16 +1,20 @@
 import { query, type Queryable } from "@/lib/db";
 import type { Channel } from "@/lib/types";
 import { protectedDemoConfiguration, protectedDemoDeployment } from "@/lib/deployment-profile";
+import {demoBusinessScope,LEGACY_DEMO_SCOPE} from '@/lib/demo-business';
 
-export const DEMO_CLIENT_ID = "00000000-0000-4000-8000-00000000a101";
-export const DEMO_CHANNEL_ID = "00000000-0000-4000-8000-00000000a106";
-export const DEMO_SLUG = "ps-cafe-raffles-city-demo";
+// Legacy fixture exports remain stable for saved evaluation evidence. Runtime
+// code resolves the selected business through demoBusinessScope instead.
+export const DEMO_CLIENT_ID = LEGACY_DEMO_SCOPE.clientId;
+export const DEMO_CHANNEL_ID = LEGACY_DEMO_SCOPE.channelId;
+export const DEMO_SLUG = LEGACY_DEMO_SCOPE.slug;
 
 export class DemoError extends Error {
   constructor(message: string, public readonly status = 400) { super(message); }
 }
 
 export async function assertCustomerDemoEnabled(db: Queryable = { query }): Promise<void> {
+  demoBusinessScope();
   if (protectedDemoDeployment()) {
     let settings: ReturnType<typeof protectedDemoConfiguration>;
     try { settings = protectedDemoConfiguration(); }
@@ -36,19 +40,21 @@ export async function assertCustomerDemoEnabled(db: Queryable = { query }): Prom
 }
 
 export function isCustomerDemoChannel(channel: Pick<Channel, "id" | "client_id" | "kind" | "settings">): boolean {
-  return channel.id === DEMO_CHANNEL_ID && channel.client_id === DEMO_CLIENT_ID &&
+  const scope=demoBusinessScope();
+  return channel.id === scope.channelId && channel.client_id === scope.clientId &&
     channel.kind === "console" && channel.settings.transport === "customer_simulator";
 }
 
 // Knowledge authoring shares the same verified synthetic boundary as chat.
 // Missing provider keys never select this mode for an ordinary business.
 export async function usesDemoTextKnowledge(clientId: string): Promise<boolean> {
-  if (clientId !== DEMO_CLIENT_ID ||
+  const scope=demoBusinessScope();
+  if (clientId !== scope.clientId ||
       (!protectedDemoDeployment() && process.env.PRONTO_CUSTOMER_DEMO_ENABLED !== "1")) return false;
   await assertCustomerDemoEnabled();
   const identity = await query<{ safe: boolean }>(`select exists(select 1 from clients
-    where id = $1 and slug = $2 and business_profile->>'demoSeed' = 'ps-cafe-raffles-city-v1') as safe`,
-  [DEMO_CLIENT_ID, DEMO_SLUG]);
+    where id = $1 and slug = $2 and business_profile->>'demoSeed' = $3) as safe`,
+  [scope.clientId, scope.slug, scope.seed]);
   if (!identity.rows[0]?.safe) throw new DemoError("Synthetic knowledge tenant identity verification failed.", 503);
   return true;
 }

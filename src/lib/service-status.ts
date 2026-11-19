@@ -1,6 +1,7 @@
+import {demoBusinessScope} from "@/lib/demo-business";
 import {getPool} from '@/lib/db';
 import {protectedDemoDeployment} from '@/lib/deployment-profile';
-import {assertCustomerDemoEnabled,DEMO_CLIENT_ID,DEMO_CHANNEL_ID} from '@/lib/customer-demo-boundary';
+import { assertCustomerDemoEnabled } from "@/lib/customer-demo-boundary";
 import {requireRealDemoConfiguration,profileForDemoChoice} from '@/lib/customer-demo-ai';
 import {DEFAULT_DEMO_MODEL} from '@/lib/llm/demo-models';
 import {replyFailure} from '@/lib/reply-failure';
@@ -41,7 +42,7 @@ export async function getServiceStatus():Promise<ServiceStatus>{
     (select max(created_at) from agent_traces where client_id=$1 and response_provider=$3 and status='failed') last_failure,
     (select reason_code from agent_traces where client_id=$1 and response_provider=$3 and status='failed' order by created_at desc limit 1) failure_code,
     (select failure_code from provider_cooldowns where client_id=$1 and provider=$3 and retry_after>now()) cooldown_code,
-    (select retry_after from provider_cooldowns where client_id=$1 and provider=$3 and retry_after>now()) retry_after`,[DEMO_CLIENT_ID,instagram?[DEMO_CHANNEL_ID,instagram.channelId]:DEMO_CHANNEL_ID,provider]);
+    (select retry_after from provider_cooldowns where client_id=$1 and provider=$3 and retry_after>now()) retry_after`,[demoBusinessScope().clientId,instagram?[demoBusinessScope().channelId,instagram.channelId]:demoBusinessScope().channelId,provider]);
    const t=result.rows[0];if(!t)throw Error('Status observation unavailable');
    const recentFailure=t.cooldown_code||t.last_failure&&(!t.last_success||new Date(t.last_failure)>new Date(t.last_success));
    if(recentFailure){const failure=replyFailure(t.cooldown_code??t.failure_code);

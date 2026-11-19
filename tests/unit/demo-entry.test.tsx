@@ -6,6 +6,7 @@ vi.mock('@/lib/auth',()=>({requireUser:mocks.requireUser,getSessionUser:mocks.ge
 vi.mock('@/lib/customer-demo',()=>({assertDemoActor:mocks.assertDemoActor}));
 vi.mock('next/navigation',()=>({redirect:mocks.redirect,notFound:mocks.notFound}));
 vi.mock('next/link',()=>({default:({children,href}:ComponentProps<'a'>)=><a href={href}>{children}</a>}));
+vi.mock('@/lib/demo-business-branding',()=>({getDemoBusinessPresentation:async()=>({name:'PS.Cafe Raffles City'})}));
 import DemoEntryPage from '@/app/demo/page';
 import Home from '@/app/page';
 import LoginPage from '@/app/login/page';

@@ -9,7 +9,7 @@ export default async function BrandVoicePage() {
   const user = await requireUser("client");
   if (!user.clientId) throw new Error("Business assignment required.");
   const settings = await getBusinessReplySettings(user.clientId);
-  return <AppShell user={user} active="client" clientActive="knowledge" workspaceName={settings.client.name}>
+  return <AppShell user={user} active="client" clientActive="knowledge" workspaceName={settings.client.name} workspaceProfile={settings.client.business_profile}>
     <BusinessKnowledgeDetailHeader title="Brand voice" description="Tone, reply length and example wording." status={<BrandVoiceStatus settings={settings}/>}/>
     <div className="space-y-5">
       <section className="ui-panel"><h2 className="p-5 font-semibold">{settings.draft?.voice ? "Saved style draft" : "Current reply style"}</h2><BrandVoiceSummary settings={settings}/></section>

@@ -1,3 +1,4 @@
+import {demoBusinessScope} from "@/lib/demo-business";
 import { createHash, randomUUID } from "node:crypto";
 import { recordAuditLog } from "@/lib/audit";
 import { query, transaction, vectorLiteral, type Queryable } from "@/lib/db";
@@ -11,7 +12,7 @@ import {
 } from "@/lib/triage-flow";
 import type { AgentConfigUpdate } from "@/lib/agent/config";
 import { normalizeVoiceDraft } from "@/lib/voice-draft";
-import { DEMO_CLIENT_ID, usesDemoTextKnowledge } from "@/lib/customer-demo-boundary";
+import { usesDemoTextKnowledge } from "@/lib/customer-demo-boundary";
 import { usesInstagramTestTextKnowledge } from "@/lib/channels/instagram-test-ai";
 import { LOCAL_TEXT_RETRIEVAL_PROFILE } from "@/lib/llm/demo-models";
 
@@ -231,7 +232,7 @@ export async function stageKnowledge(input: {
         [input.clientId, sourceId, index, chunk.content, chunk.tokenEstimate,
           localText ? null : vectorLiteral(embeddings[index]), embeddingModel, localText ? 0 : embeddings[index].length,
           JSON.stringify(localText ? { retrievalMode: "local_text", retrievalProfile: LOCAL_TEXT_RETRIEVAL_PROFILE,
-            ...(input.clientId !== DEMO_CLIENT_ID ? { retrievalScope: "instagram_hosted_test" } : {}) } : {})],
+            ...(input.clientId !== demoBusinessScope().clientId ? { retrievalScope: "instagram_hosted_test" } : {}) } : {})],
       );
     }
     await db.query(

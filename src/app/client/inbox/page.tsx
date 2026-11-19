@@ -59,7 +59,7 @@ export default async function ClientInboxPage({
   const visibleConversations = conversations.slice(0, limit);
 
   return (
-    <AppShell user={user} active="client" clientActive="inbox" workspaceName={client.name}>
+    <AppShell user={user} active="client" clientActive="inbox" workspaceName={client.name} workspaceProfile={client.business_profile}>
       <AutoRefresh intervalMs={3000}/>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>

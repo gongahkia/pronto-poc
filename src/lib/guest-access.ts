@@ -1,8 +1,9 @@
+import {demoBusinessScope} from "@/lib/demo-business";
 import { createHmac, randomInt, randomUUID } from "node:crypto";
 import { recordAuditLog } from "@/lib/audit";
 import { query, transaction } from "@/lib/db";
 import { staffCapabilities } from "@/lib/staff-permissions";
-import { DEMO_CLIENT_ID, DemoError } from "@/lib/customer-demo-boundary";
+import { DemoError } from "@/lib/customer-demo-boundary";
 import { GUEST_EMAIL_DOMAIN } from "@/lib/guest-policy";
 import type { User } from "@/lib/types";
 
@@ -43,17 +44,17 @@ export async function createGuestReviewer(rawName: unknown, visitor: string): Pr
   if (!name) throw new DemoError("Enter a name for your demo session.", 400);
   if (!await allowGuestCreation(visitor)) throw new DemoError("Too many new visitors right now. Please wait a few minutes and try again.", 429);
   const count = await query<{ n: number }>(
-    `select count(*)::int n from users where client_id=$1 and email like $2`, [DEMO_CLIENT_ID, `%@${GUEST_EMAIL_DOMAIN}`]);
+    `select count(*)::int n from users where client_id=$1 and email like $2`, [demoBusinessScope().clientId, `%@${GUEST_EMAIL_DOMAIN}`]);
   if (count.rows[0].n >= MAX_GUESTS) throw new DemoError("The demo has reached its visitor limit. Please ask the host for access.", 503);
   const user = await transaction(async (db) => {
     const created = await db.query<User>(
       `insert into users(client_id,email,name,role,password_hash) values($1,$2,$3,'client','!') returning *`,
-      [DEMO_CLIENT_ID, `guest-${randomUUID()}@${GUEST_EMAIL_DOMAIN}`, name]);
+      [demoBusinessScope().clientId, `guest-${randomUUID()}@${GUEST_EMAIL_DOMAIN}`, name]);
     await db.query(`insert into staff_permission_grants(client_id,user_id,permission,granted_by)
-      select $1,$2,p,$2 from unnest($3::text[]) p`, [DEMO_CLIENT_ID, created.rows[0].id, [...staffCapabilities]]);
+      select $1,$2,p,$2 from unnest($3::text[]) p`, [demoBusinessScope().clientId, created.rows[0].id, [...staffCapabilities]]);
     return created.rows[0];
   });
-  await recordAuditLog({ clientId: DEMO_CLIENT_ID, actorUserId: user.id, action: "auth.guest_reviewer_created",
+  await recordAuditLog({ clientId: demoBusinessScope().clientId, actorUserId: user.id, action: "auth.guest_reviewer_created",
     targetType: "user", targetId: user.id, metadata: { name } });
   return user;
 }

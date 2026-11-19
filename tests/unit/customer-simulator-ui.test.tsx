@@ -1,6 +1,8 @@
+import {businessPresentation,LEGACY_DEMO_SCOPE} from "@/lib/demo-business";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, cleanup, within,act,fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+const business=businessPresentation({name:"PS.Cafe Raffles City",business_profile:{demoSeed:LEGACY_DEMO_SCOPE.seed}});
 import { CustomerSimulator } from "@/components/customer-simulator";
 
 const id="00000000-0000-4000-8000-000000000001";
@@ -17,9 +19,9 @@ describe("customer simulator states", () => {
     let snapshot={...state,session:{id,conversation_id:id,ai_mode:'real',status:'active'},job:{status:'processing',created_at:state.now},messages:[] as unknown[]};
     vi.stubGlobal('fetch',vi.fn((url:string)=>response(url.includes('sessionId')?snapshot:state)));
     try{
-      render(<CustomerSimulator/>);await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
+      render(<CustomerSimulator business={business}/>);await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
       fireEvent.click(screen.getByRole('button',{name:'Conversation 1'}));await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
-      expect(screen.getByRole('status',{name:'PS.Cafe is replying…'})).toBeTruthy();
+      expect(screen.getByRole('status',{name:'PS.Cafe Raffles City is replying…'})).toBeTruthy();
       expect(screen.queryByRole('button',{name:'Refresh status'})).toBeNull();
       snapshot={...snapshot,job:{status:'completed',created_at:state.now},messages:[
         {id:'customer',sender:'customer',body:'When do you open?',created_at:state.now},
@@ -27,7 +29,7 @@ describe("customer simulator states", () => {
         {id:'staff',sender:'human',body:'Our team can help too.',created_at:state.now}]};
       await act(async()=>{await vi.advanceTimersByTimeAsync(2500);});
       expect(screen.getByText('We open at 10:00am daily.')).toBeTruthy();
-      expect(screen.queryByRole('status',{name:'PS.Cafe is replying…'})).toBeNull();
+      expect(screen.queryByRole('status',{name:'PS.Cafe Raffles City is replying…'})).toBeNull();
       const times=document.querySelectorAll('time');expect(times).toHaveLength(3);
       for(const time of times){expect(time.dateTime).toBe(state.now.replace('Z','.000Z'));expect(time.textContent).toMatch(/1:00\s?pm SGT/);}
       snapshot={...snapshot,messages:[...snapshot.messages,{id:'focus',sender:'human',body:'A new reply while away.',created_at:state.now}]};
@@ -38,7 +40,7 @@ describe("customer simulator states", () => {
   it('recovers from a polling failure automatically without retaining a stale error',async()=>{
     vi.useFakeTimers();vi.stubGlobal('fetch',vi.fn().mockRejectedValueOnce(new Error('Offline')).mockImplementation(()=>response(state)));
     try{
-      render(<CustomerSimulator/>);await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
+      render(<CustomerSimulator business={business}/>);await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
       expect(screen.getByText(/Reconnecting automatically/)).toBeTruthy();
       await act(async()=>{await vi.advanceTimersByTimeAsync(2500);});
       expect(screen.queryByText(/Reconnecting automatically/)).toBeNull();
@@ -51,7 +53,7 @@ describe("customer simulator states", () => {
     const selected=(selectedId:string,body:string)=>({...list,session:{id:selectedId,conversation_id:selectedId,status:'active',ai_mode:'real'},messages:[{id:selectedId,sender:'business',body,created_at:state.now}]});
     vi.stubGlobal('fetch',vi.fn((url:string)=>url.includes(`sessionId=${id}`)?new Promise(resolve=>{finish=resolve;}):response(url.includes('sessionId')?selected(other,'Current conversation'):list)));
     try{
-      render(<CustomerSimulator/>);await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
+      render(<CustomerSimulator business={business}/>);await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
       fireEvent.click(screen.getByRole('button',{name:'Conversation 2'}));await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
       fireEvent.click(screen.getByRole('button',{name:'Conversation 1'}));await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
       expect(screen.getByText('Current conversation')).toBeTruthy();
@@ -63,7 +65,7 @@ describe("customer simulator states", () => {
   it.each(['escalated','closed'])('does not show assistant typing while a conversation is %s',async status=>{
     const snapshot={...state,session:{id,conversation_id:id,ai_mode:'real',status},job:{status:'pending',created_at:state.now}};
     vi.stubGlobal('fetch',vi.fn((url:string)=>response(url.includes('sessionId')?snapshot:state)));
-    render(<CustomerSimulator/>);await userEvent.click(await screen.findByRole('button',{name:'Conversation 1'}));
+    render(<CustomerSimulator business={business}/>);await userEvent.click(await screen.findByRole('button',{name:'Conversation 1'}));
     if(status==='closed')await screen.findByText('Conversation closed');
     else await waitFor(()=>expect((screen.getByLabelText('Message PS.Cafe Raffles City') as HTMLTextAreaElement).disabled).toBe(false));
     expect(screen.queryByText(/assistant is paused/)).toBeNull();
@@ -74,7 +76,7 @@ describe("customer simulator states", () => {
     const snapshot={...state,session:{id,conversation_id:id,ai_mode:'mock',status:'active',staff_review_pending:true},
       job:{status:'pending',created_at:state.now},messages:[{id:'handoff',sender:'business',body:'Our team will help with this. I can still help with other questions.',created_at:state.now}]};
     vi.stubGlobal('fetch',vi.fn((url:string)=>response(url.includes('sessionId')?snapshot:state)));
-    render(<CustomerSimulator/>);
+    render(<CustomerSimulator business={business}/>);
     await userEvent.click(await screen.findByRole('button',{name:/Conversation 1/}));
     const input=await screen.findByLabelText('Message PS.Cafe Raffles City') as HTMLTextAreaElement;
     await waitFor(()=>expect(input.disabled).toBe(false));
@@ -88,7 +90,7 @@ describe("customer simulator states", () => {
     vi.useFakeTimers();let finish!:(value:Response)=>void;
     const fetcher=vi.fn().mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;})).mockImplementation(()=>response(state));vi.stubGlobal('fetch',fetcher);
     try{
-      render(<CustomerSimulator/>);await act(async()=>{await vi.advanceTimersByTimeAsync(7500);});expect(fetcher).toHaveBeenCalledTimes(1);
+      render(<CustomerSimulator business={business}/>);await act(async()=>{await vi.advanceTimersByTimeAsync(7500);});expect(fetcher).toHaveBeenCalledTimes(1);
       await act(async()=>{finish(new Response(JSON.stringify(state)));await vi.advanceTimersByTimeAsync(0);});
       expect(screen.getByRole('button',{name:'Conversation 1'})).toBeTruthy();
       await act(async()=>{await vi.advanceTimersByTimeAsync(2500);});expect(fetcher).toHaveBeenCalledTimes(2);
@@ -97,7 +99,7 @@ describe("customer simulator states", () => {
   it("disables unconfigured models and removes mock and configured-provider options", async () => {
     const fetcher=vi.fn((url: string, options?: RequestInit) => options?.method==="POST"
       ? response({error:"Configure GROQ_API_KEY securely on the server."},503) : response(state));
-    vi.stubGlobal("fetch",fetcher); render(<CustomerSimulator/>);
+    vi.stubGlobal("fetch",fetcher); render(<CustomerSimulator business={business}/>);
     await screen.findByText("Unavailable");
     await userEvent.click(screen.getByText("Model settings"));
     expect((screen.getByLabelText("AI model") as HTMLSelectElement).value).toBe("");
@@ -116,7 +118,7 @@ describe("customer simulator states", () => {
       {id:"gemini-lite",available:false,detail:"Not ready."}]};
     const fetcher=vi.fn((url:string, options?:RequestInit)=>options?.method==="POST"
       ? response({id},201) : response(configured));
-    vi.stubGlobal("fetch",fetcher);render(<CustomerSimulator/>);
+    vi.stubGlobal("fetch",fetcher);render(<CustomerSimulator business={business}/>);
     await screen.findByText("Unavailable");
     await userEvent.click(screen.getByText("Model settings"));
     const mode=screen.getByLabelText("AI model");
@@ -137,7 +139,7 @@ describe("customer simulator states", () => {
       }
       return response(url.includes("sessionId") ? {...state,session:{id,conversation_id:id,ai_mode:"mock",status:"active"}} : state);
     }));
-    render(<CustomerSimulator/>); await userEvent.click(await screen.findByRole("button",{name:/Conversation 1/}));
+    render(<CustomerSimulator business={business}/>); await userEvent.click(await screen.findByRole("button",{name:/Conversation 1/}));
     const input=await screen.findByLabelText("Message PS.Cafe Raffles City");
     await waitFor(()=>expect((input as HTMLTextAreaElement).disabled).toBe(false));
     await userEvent.type(input,"What time do you close?"); await userEvent.click(screen.getByRole("button",{name:"Send message"}));
@@ -150,7 +152,7 @@ describe("customer simulator states", () => {
         {id:"customer",body:"Can I book?",sender:"customer",created_at:state.now,generation_mode:null},
         {id:"business",body:"Please check https://www.chope.co/singapore-restaurants/restaurant/ps-cafe-raffles-city",sender:"business",created_at:state.now,generation_mode:"mock"}]};
     vi.stubGlobal("fetch",vi.fn((url:string)=>response(url.includes("sessionId")?snapshot:state)));
-    render(<CustomerSimulator/>); await userEvent.click(await screen.findByRole("button",{name:/Conversation 1/}));
+    render(<CustomerSimulator business={business}/>); await userEvent.click(await screen.findByRole("button",{name:/Conversation 1/}));
     await screen.findByRole('link',{name:/https:\/\/www.chope.co/});
     expect(screen.queryByText(/Our reply is taking longer/)).toBeNull();
     expect(screen.queryByText(/assistant is paused/)).toBeNull();
@@ -171,7 +173,7 @@ describe("customer simulator states", () => {
       const configured={...state,modelChoices:[{id:"groq-oss",available:true,detail:"Configured."}]};
       return response(url.includes("sessionId")?{...configured,session:{id:selected,conversation_id:selected,ai_mode:"real",status:"active"}}:configured);
     }));
-    render(<CustomerSimulator/>); await userEvent.click(await screen.findByRole("button",{name:/Conversation 1/}));
+    render(<CustomerSimulator business={business}/>); await userEvent.click(await screen.findByRole("button",{name:/Conversation 1/}));
     const input=screen.getByLabelText("Message PS.Cafe Raffles City") as HTMLTextAreaElement;
     await waitFor(()=>expect(input.disabled).toBe(false));
     await userEvent.click(screen.getByRole("button",{name:"New conversation"}));
@@ -185,7 +187,7 @@ describe("customer simulator states", () => {
     const snapshot={...state,session:{id,conversation_id:id,ai_mode:"mock",status:"active"},
       job:{status:"completed",created_at:state.now,delivery_status:"failed"}};
     vi.stubGlobal("fetch",vi.fn((url:string)=>response(url.includes("sessionId")?snapshot:state)));
-    render(<CustomerSimulator/>); await userEvent.click(await screen.findByRole("button",{name:/Conversation 1/}));
+    render(<CustomerSimulator business={business}/>); await userEvent.click(await screen.findByRole("button",{name:/Conversation 1/}));
     await screen.findByText(/reply has not been delivered/);
     expect(screen.queryByText(/PS.Cafe assistant/)).toBeNull();
   });
@@ -196,7 +198,7 @@ describe("customer simulator states", () => {
         generation_mode:"real",response_provider:"groq",response_model:"openai/gpt-oss-20b"},
         {id:"human",body:"Our team has reviewed your enquiry.",sender:"human",created_at:state.now,generation_mode:null}]};
     vi.stubGlobal("fetch",vi.fn((url:string)=>response(url.includes("sessionId")?snapshot:state)));
-    render(<CustomerSimulator/>);await userEvent.click(await screen.findByRole("button",{name:/Conversation 1/}));
+    render(<CustomerSimulator business={business}/>);await userEvent.click(await screen.findByRole("button",{name:/Conversation 1/}));
     const history=within(screen.getByLabelText("Message history"));
     await history.findByText("Our team has reviewed your enquiry.");
     expect(history.getByText("Our team")).toBeTruthy();

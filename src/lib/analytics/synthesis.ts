@@ -1,8 +1,9 @@
+import {demoBusinessScope} from "@/lib/demo-business";
 import { query } from '@/lib/db';
 import { envApiKeyForProvider } from '@/lib/llm/credentials';
 import { generateStructuredInsights } from '@/lib/llm/structured-insights';
 import { withAiExecutionProfile } from '@/lib/llm/execution-mode';
-import { DEMO_CLIENT_ID } from '@/lib/customer-demo-boundary';
+
 import { selectModel } from '@/lib/llm/catalog';
 import { recordAgentUsageEvent,estimateGenerationCost,estimateGenerationCostFromTokens } from '@/lib/costing';
 import { getAnalyticsData } from './data';
@@ -49,7 +50,7 @@ Return only the JSON object matching the supplied schema. Keep summaries concise
   const packet=JSON.stringify({window:{days:data.days,from:data.from,until:data.until},metrics:data.totals,sampleCount:data.sample.length,
    conversations:data.sample.map(c=>({id:c.id,channel:c.channel,needsTeam:c.needsTeam,assistantCompleted:c.assistantCompleted,messages:c.messages}))});
   if(packet.length>65000)throw new Error('The conversation sample exceeds the analysis context budget.');
-  const result=await withAiExecutionProfile({mode:'real',provider:model.provider,model:model.model,syntheticDemo:clientId===DEMO_CLIENT_ID},()=>
+  const result=await withAiExecutionProfile({mode:'real',provider:model.provider,model:model.model,syntheticDemo:clientId===demoBusinessScope().clientId},()=>
    generateStructuredInsights({clientId,...model,instructions,data:packet,schema:synthesisJsonSchema}));
   await recordAgentUsageEvent({clientId,provider:model.provider,model:result.actualModel,operation:'generation',
    estimate:result.usage?estimateGenerationCostFromTokens({...result.usage,costLabel:selectModel({provider:model.provider,task:'agent_answer'}).costLabel}):estimateGenerationCost({inputText:instructions+packet,outputText:JSON.stringify(result.value),costLabel:selectModel({provider:model.provider,task:'agent_answer'}).costLabel}),

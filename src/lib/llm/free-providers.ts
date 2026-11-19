@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { z } from "zod";
+import {demoBusinessScope} from '@/lib/demo-business';
 import { aiExecutionProfile } from "@/lib/llm/execution-mode";
 import { envApiKeyForProvider } from "@/lib/llm/credentials";
 import { LlmConfigurationError, normalizeProviderError, ProviderRequestError } from "@/lib/llm/errors";
@@ -29,7 +30,7 @@ export function freeProviderRequirements(provider: "gemini" | "groq"): string[] 
 }
 export function freeProviderApiKey(provider: "gemini" | "groq", clientId?: string): string {
   const profile = aiExecutionProfile();
-  const instagramDemo = provider === "groq" && clientId === "00000000-0000-4000-8000-00000000a101" &&
+  const instagramDemo = provider === "groq" && clientId === demoBusinessScope().clientId &&
     profile?.instagramDemoClientId === clientId && Boolean(demoInstagramConfiguration()) &&
     profile.mode === "real" && profile.provider === "groq" && profile.model === instagramTestModel &&
     profile.retrievalMode === "local_text" && profile.embeddingProvider === "none" && profile.embeddingModel === "none";
@@ -39,8 +40,8 @@ export function freeProviderApiKey(provider: "gemini" | "groq", clientId?: strin
     profile.embeddingProvider === "none" && profile.embeddingModel === "none";
   const missing = freeProviderRequirements(provider).filter(item => !instagramTest || item !== "PRONTO_DEMO_REAL_AI_APPROVED=1");
   if (missing.length) throw new LlmConfigurationError(provider, missing.join(", "));
-  if (!instagramTest && !instagramDemo && (!profile?.syntheticDemo || clientId !== "00000000-0000-4000-8000-00000000a101"))
-    throw new LlmConfigurationError(provider, "Free-tier POC inference requires synthetic PS.Cafe demo content or the explicitly scoped Instagram test.");
+  if (!instagramTest && !instagramDemo && (!profile?.syntheticDemo || clientId !== demoBusinessScope().clientId))
+    throw new LlmConfigurationError(provider, "Free-tier POC inference requires the selected synthetic demo business or the explicitly scoped Instagram test.");
   return envApiKeyForProvider(provider)!;
 }
 

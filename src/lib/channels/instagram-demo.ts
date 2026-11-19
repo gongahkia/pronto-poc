@@ -1,6 +1,7 @@
+import {demoBusinessScope} from "@/lib/demo-business";
 import { z } from "zod";
 import { query } from "@/lib/db";
-import { DEMO_CLIENT_ID, assertCustomerDemoEnabled, DemoError } from "@/lib/customer-demo-boundary";
+import { assertCustomerDemoEnabled, DemoError } from "@/lib/customer-demo-boundary";
 import { protectedDemoConfiguration } from "@/lib/deployment-profile";
 import type { Channel } from "@/lib/types";
 import type { AiExecutionProfile } from "@/lib/llm/execution-mode";
@@ -19,7 +20,7 @@ export function demoInstagramConfiguration() {
 }
 export function isDemoInstagramChannel(channel: Pick<Channel, "id" | "client_id" | "kind" | "settings" | "external_id">): boolean {
   const scope = demoInstagramConfiguration();
-  return Boolean(scope && channel.id === scope.channelId && channel.client_id === DEMO_CLIENT_ID &&
+  return Boolean(scope && channel.id === scope.channelId && channel.client_id === demoBusinessScope().clientId &&
     channel.kind === "instagram" && channel.external_id === scope.accountId && channel.settings.authMode === "unified_login");
 }
 export async function assertDemoInstagramScope(channel: Channel, senderId?: string): Promise<void> {
@@ -37,12 +38,12 @@ export async function demoInstagramAiProfile(channel: Channel, senderId: string)
   const config = await requireRealDemoConfiguration(true, profileForDemoChoice("groq-oss"));
   return { mode: "real", provider: config.provider, model: config.model,
     embeddingProvider: config.embeddingProvider, embeddingModel: config.embeddingModel,
-    retrievalMode: "local_text", instagramDemoClientId: DEMO_CLIENT_ID };
+    retrievalMode: "local_text", instagramDemoClientId: demoBusinessScope().clientId };
 }
 export async function assertDemoInstagramReady(): Promise<void> {
   const scope = demoInstagramConfiguration();
   if (!scope) return;
-  const { rows: [stored] } = await query<Channel>("select * from channels where client_id=$1 and id=$2", [DEMO_CLIENT_ID, scope.channelId]);
+  const { rows: [stored] } = await query<Channel>("select * from channels where client_id=$1 and id=$2", [demoBusinessScope().clientId, scope.channelId]);
   if (!stored) throw new DemoError("The demo Instagram channel is unavailable.", 503);
   const { decryptChannelCredentials } = await import("./credentials");
   await demoInstagramAiProfile(decryptChannelCredentials(stored), scope.senderIds[0]);

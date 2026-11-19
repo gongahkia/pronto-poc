@@ -22,7 +22,7 @@ export default async function ClientKnowledgePage({ searchParams }: { searchPara
     redirect(`/client/knowledge/channels${query.size ? `?${query}` : ""}`);
   }
   const settings = await getBusinessReplySettings(user.clientId);
-  return <AppShell user={user} active="client" clientActive="knowledge" workspaceName={settings.client.name}>
+  return <AppShell user={user} active="client" clientActive="knowledge" workspaceName={settings.client.name} workspaceProfile={settings.client.business_profile}>
     <div className="mb-6 flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold">Business Knowledge</h1>
       <p className="mt-1 text-sm text-muted">Manage what Pronto knows, how it replies and when your team steps in.</p></div>
       {settings.draft && <Link href="/client/approvals" className="ui-button px-3 py-2 text-sm">Review pending changes</Link>}</div>

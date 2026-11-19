@@ -40,7 +40,7 @@ export default async function ClientKnowledgeSourcePage({ params, searchParams }
     ...questions.filter(item => item.status === "open" && item.source_references.some(ref => ref.sourceId === sourceId)).map(item => ({ id: item.id, kind: "question", title: item.question, status: "open" })),
   ];
   const reference = safeSourceUrl(source?.metadata.sourceUrl ?? source?.metadata.sourceReference);
-  return <AppShell user={user} active="client" clientActive="knowledge" workspaceName={client.name}>
+  return <AppShell user={user} active="client" clientActive="knowledge" workspaceName={client.name} workspaceProfile={client.business_profile}>
     <div className="mb-5 flex items-center gap-3"><Link href="/client/knowledge" aria-label="Back to knowledge" title="Back to knowledge"
       className="-ml-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-surface-hover hover:text-foreground"><ArrowLeft size={20} aria-hidden="true"/></Link>
       <div className="min-w-0"><h1 className="text-xl font-semibold">{title}</h1><p className="mt-1 text-sm text-muted">Source information and proposed updates.</p></div></div>

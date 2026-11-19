@@ -30,7 +30,7 @@ export default async function KnowledgeReviewPage({ params }: { params: Promise<
     hasStaffCapability(user, user.clientId, "knowledge.approve"),
   ]);
   if (!client) notFound();
-  return <AppShell user={user} active="client" clientActive="knowledge" workspaceName={client.name}>
+  return <AppShell user={user} active="client" clientActive="knowledge" workspaceName={client.name} workspaceProfile={client.business_profile}>
     <div className="mb-5 flex items-center gap-3"><Link href="/client/knowledge" aria-label="Back to knowledge" title="Back to knowledge"
       className="-ml-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-surface-hover hover:text-foreground"><ArrowLeft size={20} aria-hidden="true"/></Link>
       <div className="min-w-0"><h1 className="text-xl font-semibold">{review.kind === "question" ? "Improve an answer" : review.item.title}</h1>

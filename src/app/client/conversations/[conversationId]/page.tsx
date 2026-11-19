@@ -50,7 +50,7 @@ export default async function ClientConversationPage({
   const policy = await getEscalationPolicy(user.clientId);
 
   return (
-    <AppShell user={user} active="client" clientActive="inbox" workspaceName={client.name}>
+    <AppShell user={user} active="client" clientActive="inbox" workspaceName={client.name} workspaceProfile={client.business_profile}>
       <AutoRefresh intervalMs={3000}/>
       <div className="mb-5 flex items-center gap-3">
         <Link href="/client/inbox" aria-label="Back to inbox" title="Back to inbox"

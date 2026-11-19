@@ -1,7 +1,8 @@
+import {demoBusinessScope} from "@/lib/demo-business";
 import { query } from "@/lib/db";
 import { selectModel } from "@/lib/llm/catalog";
 import { envApiKeyForProvider } from "@/lib/llm/credentials";
-import { DemoError, DEMO_CLIENT_ID } from "@/lib/customer-demo-boundary";
+import { DemoError } from "@/lib/customer-demo-boundary";
 import type { AgentConfig } from "@/lib/types";
 import { demoModelChoice, demoModelChoices, GEMINI_EMBEDDING_MODEL, GEMINI_EMBEDDING_PROFILE,
   type DemoAiProfile } from "@/lib/llm/demo-models";
@@ -69,13 +70,13 @@ export function realDemoConfiguration(config: AgentConfig, profile?: DemoAiProfi
 }
 
 export async function requireRealDemoConfiguration(requireKnowledge = true, profile?: DemoAiProfile) {
-  const result = await query<AgentConfig>("select * from agent_configs where client_id=$1", [DEMO_CLIENT_ID]);
-  if (!result.rows[0]) throw new DemoError("Set up the PS.Cafe demo tenant first.", 503);
+  const result = await query<AgentConfig>("select * from agent_configs where client_id=$1", [demoBusinessScope().clientId]);
+  if (!result.rows[0]) throw new DemoError("Prepare the selected demo business first.", 503);
   const config = realDemoConfiguration(result.rows[0], profile);
   if (config.missing.length) throw new DemoError(`Real AI is unavailable. Configure ${config.missing.join(", ")} securely on the server.`, 503);
   if (requireKnowledge) {
     if (config.retrievalMode === "local_text") {
-      if (!await hasApprovedTextKnowledge(DEMO_CLIENT_ID))
+      if (!await hasApprovedTextKnowledge(demoBusinessScope().clientId))
         throw new DemoError("No approved published demo knowledge is available for local text retrieval. Review and publish knowledge through the existing approval workflow.", 503);
       return config;
     }
@@ -86,7 +87,7 @@ export async function requireRealDemoConfiguration(requireKnowledge = true, prof
         left join customer_demo_embeddings e on e.chunk_id=k.id and e.client_id=k.client_id
           and e.model=$2 and e.profile=$3 and e.content_hash=encode(sha256(convert_to(k.content,'UTF8')),'hex')
         where k.client_id=$1 and coalesce(s.metadata->>'archived','false')<>'true'`,
-        [DEMO_CLIENT_ID, config.embeddingModel, GEMINI_EMBEDDING_PROFILE]);
+        [demoBusinessScope().clientId, config.embeddingModel, GEMINI_EMBEDDING_PROFILE]);
       if (!prepared.rows[0]?.total || prepared.rows[0].total !== prepared.rows[0].prepared)
         throw new DemoError("Real AI knowledge is not prepared. Run demo:customer:embed --provider gemini for current published demo knowledge.", 503);
       return config;
@@ -95,7 +96,7 @@ export async function requireRealDemoConfiguration(requireKnowledge = true, prof
       join knowledge_sources s on s.id=k.source_id and s.client_id=k.client_id
       where k.client_id=$1 and k.metadata->>'embeddingProvider'=$2 and k.embedding_model=$3
       and coalesce(s.metadata->>'archived','false')<>'true'`,
-      [DEMO_CLIENT_ID, config.embeddingProvider, config.embeddingModel]);
+      [demoBusinessScope().clientId, config.embeddingProvider, config.embeddingModel]);
     if (Number(chunks.rows[0]?.count ?? 0) === 0)
       throw new DemoError("Real AI knowledge is not prepared. Run the guarded demo:customer:embed command; mock vectors are not real embeddings.", 503);
   }

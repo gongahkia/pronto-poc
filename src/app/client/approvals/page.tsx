@@ -16,7 +16,7 @@ export default async function ClientApprovalsPage() {
     hasStaffCapability(actor, clientId, "knowledge.approve"), hasStaffCapability(actor, clientId, "channel.activate"),
   ]);
   if (!client) throw new Error("Business not found.");
-  return <AppShell user={actor} active="client" clientActive="knowledge" workspaceName={client.name}>
+  return <AppShell user={actor} active="client" clientActive="knowledge" workspaceName={client.name} workspaceProfile={client.business_profile}>
     <h1 className="mb-2 text-xl font-semibold">Business approvals</h1>
     <p className="mb-5 text-sm text-muted">Review the current revision. Pronto publishes approved changes and activates approved channels.</p>
     <div className="space-y-4">{stages.filter((stage) => stage.state === "pending_review").map((stage) =>

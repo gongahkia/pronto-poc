@@ -1,3 +1,4 @@
+import psCafeBusiness from "../../config/demo-businesses/ps-cafe.json";
 import { getPool, vectorLiteral } from "../../src/lib/db";
 import { deterministicEmbedding } from "../../src/lib/llm/mock";
 import { chunkText } from "../../src/lib/knowledge/chunk";
@@ -21,31 +22,7 @@ export const PS_CAFE_CHOPE_URL = "https://www.chope.co/singapore-restaurants/res
 export const PS_CAFE_DEMO_SLUG = "ps-cafe-raffles-city-demo";
 const retrievedAt = "2026-10-11";
 
-export const psCafeDemoSources = [
-  {
-    id: "00000000-0000-4000-8000-00000000a201",
-    title: "PS.Cafe Raffles City: location and standard hours",
-    content: "PS.Cafe Raffles City is at 252 North Bridge Road, #03-37, Raffles City Shopping Centre, Singapore 179103. Standard close time is 10:00pm daily; opening time is 10:00am and last food orders are at 9:00pm. Public holiday exceptions should be confirmed with the concierge.",
-    url: "https://www.pscafe.com/pscafe-raffles-city/",
-    reviewStatus: "public_fact",
-  },
-  {
-    id: "00000000-0000-4000-8000-00000000a202",
-    title: "PS.Cafe Raffles City: menu and dietary overview",
-    content: "PS.Cafe Raffles City offers an all-day menu with starters, mains, junior dishes, desserts, and drinks. Weekend brunch is listed from 10:00am to 4:00pm. Chope lists the outlet as vegetarian friendly and features Red Pesto Rigatoni; ask staff to verify current ingredients and suitability for allergies or strict dietary needs. Prices and item availability are not verified for this demo.",
-    url: "https://www.pscafe.com/pscafe-raffles-city-qr-food-menu",
-    secondaryUrl: PS_CAFE_CHOPE_URL,
-    reviewStatus: "public_fact_with_dietary_caution",
-  },
-  {
-    id: "00000000-0000-4000-8000-00000000a203",
-    title: "PS.Cafe Raffles City: reservations and concierge",
-    content: "For PS.Cafe Raffles City reservations, check the outlet-specific Chope page and complete confirmation there. Pronto can only check live availability when the authorized demo reader is explicitly enabled; it cannot create a booking. For group or exceptional requests, contact the PS.Cafe concierge at +65 6708 9288 during its listed 10:00am to 10:00pm daily hours. Weekend and public-holiday booking cutoff is under restaurant review, so do not quote a specific cutoff.",
-    url: "https://www.pscafe.com/pscafe-raffles-city/",
-    secondaryUrl: PS_CAFE_CHOPE_URL,
-    reviewStatus: "policy_conflict_withheld",
-  },
-] as const;
+export const psCafeDemoSources = psCafeBusiness.knowledge;
 
 export async function setupPsCafeDemo(): Promise<void> {
   await verifyTestDatabase();

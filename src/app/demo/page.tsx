@@ -7,6 +7,7 @@ import {DemoError} from '@/lib/customer-demo-boundary';
 import {guestAccessEnabled,isGuestEmail} from '@/lib/guest-policy';
 import {ServiceStatusLink} from '@/components/service-status';
 import {enterTenantContext} from '@/lib/tenant-context';
+import {getDemoBusinessPresentation} from '@/lib/demo-business-branding';
 
 export const dynamic = 'force-dynamic';
 const views=[
@@ -24,11 +25,12 @@ export default async function DemoEntryPage({searchParams}:{searchParams:Promise
     catch (error) { if (error instanceof DemoError && error.status < 500) notFound(); throw error; }
   }
   const {error}=await searchParams;
+  const business=await getDemoBusinessPresentation();
   return <main className="flex min-h-screen items-center justify-center bg-surface-subtle px-4 py-10 text-foreground">
     <section className="w-full max-w-2xl" aria-labelledby="demo-heading">
       <p className="mb-2 text-sm font-semibold text-accent">Pronto prototype</p>
       <h1 id="demo-heading" className="text-2xl font-semibold tracking-tight sm:text-3xl">How would you like to try Pronto?</h1>
-      <p className="mb-6 mt-3 text-sm leading-6 text-muted">{user?`Welcome, ${user.name}. `:''}Explore PS.Cafe Raffles City from either side of the conversation.</p>
+      <p className="mb-6 mt-3 text-sm leading-6 text-muted">{user?`Welcome, ${user.name}. `:''}Explore {business.name} from either side of the conversation.</p>
       {error&&<p role="alert" className="mb-4 rounded-md border border-danger/25 bg-danger-bg px-3 py-2 text-sm text-danger">{error}</p>}
       <form action="/api/auth/guest" method="post">
         {!user&&<div className="mb-5 max-w-sm"><label className="block text-sm font-medium" htmlFor="reviewer-name">Your name <span className="font-normal text-muted">(optional)</span></label>

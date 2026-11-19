@@ -5,10 +5,12 @@ import { notFound } from "next/navigation";
 import { DemoError } from "@/lib/customer-demo-boundary";
 import {DemoQueuePump} from '@/components/demo-queue-pump';
 import {requestDrivenDemoProcessing} from '@/lib/deployment-profile';
+import {getDemoBusinessPresentation} from '@/lib/demo-business-branding';
 
 export default async function CustomerDemoPage() {
   const actor = await requireUser();
   try { await assertDemoActor(actor); }
   catch (error) { if (error instanceof DemoError && error.status < 500) notFound(); throw error; }
-  return <>{requestDrivenDemoProcessing()&&<DemoQueuePump/>}<CustomerSimulator/></>;
+  const business=await getDemoBusinessPresentation();
+  return <>{requestDrivenDemoProcessing()&&<DemoQueuePump/>}<CustomerSimulator business={business}/></>;
 }

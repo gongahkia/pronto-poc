@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Send, MessageCircle } from "lucide-react";
-import { PsCafeLogo } from "@/components/ps-cafe-logo";
+import { BusinessLogo } from "@/components/business-logo";
+import type {DemoBusinessPresentation} from '@/lib/demo-business';
 import { MessageText } from "@/components/message-text";
 import { DEFAULT_DEMO_MODEL, demoModelChoices, type DemoModelChoice, type DemoAiProfile } from "@/lib/llm/demo-models";
 import {DEMO_MESSAGE_QUEUED} from '@/components/demo-queue-pump';
@@ -19,9 +20,9 @@ function MessageTimestamp({value}:{value:string}) {
     className="tabular-nums whitespace-nowrap">{messageTime.format(new Date(value))} SGT</time>;
 }
 
-function ReplyIndicator({label}:{label:string}) {
+function ReplyIndicator({label,assistantLabel}:{label:string;assistantLabel:string}) {
   return <div role="status" aria-label={label} className="w-fit max-w-[86%] rounded-2xl border border-line bg-surface px-4 py-3 text-sm">
-    <p className="mb-2 text-xs text-muted">PS.Cafe assistant</p>
+    <p className="mb-2 text-xs text-muted">{assistantLabel}</p>
     <div className="flex items-center gap-3"><span aria-hidden="true" className="inline-flex gap-1">
       {[0,150,300].map(delay=><span key={delay} className="h-1.5 w-1.5 rounded-full bg-muted motion-safe:animate-pulse motion-reduce:animate-none"
         style={{animationDelay:`${delay}ms`,animationDuration:'1.2s'}}/>)}</span>
@@ -50,7 +51,7 @@ async function demoRequest(path: string, body?: unknown) {
   return data;
 }
 
-export function CustomerSimulator() {
+export function CustomerSimulator({business}:{business:DemoBusinessPresentation}) {
   const [state, setState] = useState<State | null>(null);
   const [sessions,setSessions]=useState<State['sessions']>([]);
   const [sessionId, setSessionId] = useState("");
@@ -122,7 +123,7 @@ export function CustomerSimulator() {
   const failure=replyFailure(state?.providerFailureCode??state?.job?.failure_code);
   const awaitingReply=!!state?.session && !humanOwned && !state.providerError &&
     (sending || ['pending','processing'].includes(state.job?.status??'') || ['pending','sending'].includes(state.job?.delivery_status??''));
-  const replyLabel=sending?'Sending your message…':deliveryPending?'Sending reply…':state?.job?.status==='pending'&&!state.job.busy?'Preparing a reply…':'PS.Cafe is replying…';
+  const replyLabel=sending?'Sending your message…':deliveryPending?'Sending reply…':state?.job?.status==='pending'&&!state.job.busy?'Preparing a reply…':`${business.name} is replying…`;
   useEffect(()=>{if(awaitingReply)scrollToLatest();},[awaitingReply,scrollToLatest]);
   const availability = state?.modelChoices?.find(option => option.id === choice);
   return <main className="min-h-screen bg-surface px-3 py-5 text-foreground sm:px-6">
@@ -167,20 +168,20 @@ export function CustomerSimulator() {
         </aside>
         <section aria-label="Customer chat" className="ui-panel flex min-h-[34rem] min-w-0 flex-col overflow-hidden">
           <div className="flex items-center gap-3 border-b border-line px-4 py-4">
-            <ArrowLeft size={19} aria-hidden="true"/><PsCafeLogo className="h-11 w-20"/>
-            <div className="min-w-0"><h2 className="font-semibold">PS.Cafe Raffles City</h2><p className="text-xs text-muted">Restaurant enquiries</p></div>
+            <ArrowLeft size={19} aria-hidden="true"/><BusinessLogo name={business.name} logoPath={business.logoPath} className="h-11 w-20"/>
+            <div className="min-w-0"><h2 className="font-semibold">{business.name}</h2><p className="text-xs text-muted">{business.description}</p></div>
           </div>
           <div className="max-h-[32rem] flex-1 space-y-4 overflow-y-auto p-4" aria-live="polite" aria-label="Message history">
             {!state?.session ? <div className="mx-auto mt-16 max-w-xs text-center text-sm text-muted"><MessageCircle className="mx-auto mb-3"/>
-              {sessionId?'Loading conversation…':'Start a conversation with PS.Cafe Raffles City, or continue a previous conversation.'}</div> : null}
+              {sessionId?'Loading conversation…':`Start a conversation with ${business.name}, or continue a previous conversation.`}</div> : null}
             {state?.messages.map(message => <div key={message.id} className={`flex ${message.sender === "customer" ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[86%] rounded-2xl px-4 py-3 text-sm ${message.sender === "customer" ? "bg-accent text-white" : "border border-line bg-surface"}`}>
                 <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-[11px] opacity-75">
-                  <span>{message.sender === "customer" ? "You" : message.sender === "human" ? "Our team" : "PS.Cafe assistant"}</span>
+                  <span>{message.sender === "customer" ? "You" : message.sender === "human" ? "Our team" : business.assistantLabel}</span>
                   <MessageTimestamp value={message.created_at}/></div>
                 <p className="whitespace-pre-wrap break-words leading-6"><MessageText text={message.body} fromCustomer={message.sender === "customer"}/></p>
               </div></div>)}
-            {awaitingReply && <ReplyIndicator label={replyLabel}/>}
+            {awaitingReply && <ReplyIndicator label={replyLabel} assistantLabel={business.assistantLabel}/>}
             {!humanOwned && state?.job?.status==='pending'&&!state.job.busy && <p className="text-xs text-muted">Your message is saved. You can add another message before we reply.</p>}
             {!humanOwned && delayed && <p role="status" className="text-sm text-muted">Our reply is taking longer than expected. Your message is saved; updates appear automatically.</p>}
             {["failed", "uncertain"].includes(state?.job?.delivery_status ?? "") &&
@@ -201,9 +202,9 @@ export function CustomerSimulator() {
           {error && <div role="alert" className="border-t border-line bg-danger-bg p-3 text-sm text-danger">{error}
             <button className="ml-2 underline" onClick={() => { setError(""); if (retry.current) void send(); else void load(); }}>Retry</button></div>}
           <form className="flex gap-2 border-t border-line p-3" onSubmit={event => { event.preventDefault(); void send(); }}>
-            <label className="sr-only" htmlFor="customer-message">Message PS.Cafe Raffles City</label>
+            <label className="sr-only" htmlFor="customer-message">Message {business.name}</label>
             <textarea id="customer-message" rows={2} maxLength={4000} value={text} onChange={event => setText(event.target.value)}
-              disabled={loading || sending || !state?.session || state.session.id !== sessionId || state.session.status === "closed"} placeholder="Message PS.Cafe Raffles City…" className="ui-input min-w-0 flex-1 resize-none rounded-xl px-3 py-2 text-sm"/>
+              disabled={loading || sending || !state?.session || state.session.id !== sessionId || state.session.status === "closed"} placeholder={`Message ${business.name}…`} className="ui-input min-w-0 flex-1 resize-none rounded-xl px-3 py-2 text-sm"/>
             <button aria-label="Send message" className="ui-primary-button self-end px-3 py-3" disabled={loading || !text.trim() || sending || !!state?.job?.busy || (!!processing && state?.job?.status !== "pending") || !state?.session || state.session.id !== sessionId || state.session.status === "closed"}><Send size={18}/></button>
           </form>
         </section>

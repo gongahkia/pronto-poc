@@ -30,6 +30,7 @@
     "demo:customer:embed": "tsx scripts/demo/customer-simulator.ts embed",
     "demo:customer:worker": "tsx scripts/demo/customer-worker.ts",
     "demo:protected": "tsx scripts/demo/protected-demo.ts",
+    "demo:business": "tsx scripts/demo-business.ts",
     "demo:protected:worker": "tsx scripts/demo/protected-worker.ts",
     "demo:remote": "tsx scripts/demo/remote-demo.ts",
     "test:local-mail": "tsx scripts/verify-test-db.ts && PRONTO_RUN_DB_TESTS=1 PRONTO_ENFORCE_TENANT_SQL=1 PRONTO_PREFLIGHT_IGNORE_DOTENV=1 PRONTO_SECRETS_KEY=local-test-secrets-key-with-more-than-32-characters AUTH_SECRET=local-test-auth-secret-with-more-than-32-characters APP_BASE_URL=http://127.0.0.1:3000 PRONTO_TEST_LOCAL_MAIL=1 PRONTO_LOCAL_EMAIL_ENABLED=1 vitest run tests/integration/local-mail-demo.test.ts",

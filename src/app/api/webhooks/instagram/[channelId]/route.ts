@@ -1,3 +1,4 @@
+import {demoBusinessScope} from "@/lib/demo-business";
 import { after, NextResponse } from "next/server";
 import {
   getInstagramChannel,
@@ -13,7 +14,7 @@ import { instagramTestAiProfile } from "@/lib/channels/instagram-test-ai";
 import { isDemoInstagramChannel } from "@/lib/channels/instagram-demo";
 import { protectedDemoDeployment } from "@/lib/deployment-profile";
 import { logWarn } from "@/lib/logger";
-import { DEMO_CLIENT_ID } from "@/lib/customer-demo-boundary";
+
 
 export const maxDuration = 180;
 
@@ -23,7 +24,7 @@ type Context = {
 
 export async function GET(request: Request, context: Context) {
   const { channelId } = await context.params;
-  const channel = await getInstagramChannel(channelId, protectedDemoDeployment() ? DEMO_CLIENT_ID : undefined);
+  const channel = await getInstagramChannel(channelId, protectedDemoDeployment() ? demoBusinessScope().clientId : undefined);
   if (!channel) {
     return new NextResponse("Not found", { status: 404 });
   }
@@ -49,7 +50,7 @@ export async function POST(request: Request, context: Context) {
   const receivedAt = Date.now();
   const requestId = requestIdFromRequest(request);
   const { channelId } = await context.params;
-  const channel = await getInstagramChannel(channelId, protectedDemoDeployment() ? DEMO_CLIENT_ID : undefined);
+  const channel = await getInstagramChannel(channelId, protectedDemoDeployment() ? demoBusinessScope().clientId : undefined);
   if (!channel) {
     return new NextResponse("Not found", {
       status: 404,

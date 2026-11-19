@@ -12,7 +12,7 @@ export default async function ChannelsPage({ searchParams }: { searchParams?: Pr
     getClient(user.clientId), getChannels(user.clientId), listChannelDrafts(user.clientId), searchParams ?? Promise.resolve({} as KnowledgeChannelParams),
   ]);
   if (!client) throw new Error("Business not found.");
-  return <AppShell user={user} active="client" clientActive="knowledge" workspaceName={client.name}>
+  return <AppShell user={user} active="client" clientActive="knowledge" workspaceName={client.name} workspaceProfile={client.business_profile}>
     <BusinessKnowledgeDetailHeader title="Channels" description="Where customers can reach your business."/>
     <BusinessChannelsDetail channels={channels} drafts={drafts} params={params}/>
   </AppShell>;

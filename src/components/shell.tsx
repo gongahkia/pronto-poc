@@ -1,10 +1,12 @@
+import {demoBusinessScope} from "@/lib/demo-business";
 import { Inbox, LogOut, BookOpenText, ChartNoAxesCombined } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AutoRefresh } from "@/components/auto-refresh";
 import type { SessionUser } from "@/lib/auth";
-import { DEMO_CLIENT_ID } from "@/lib/customer-demo-boundary";
-import { PsCafeLogo } from "@/components/ps-cafe-logo";
+
+import { BusinessLogo } from "@/components/business-logo";
+import {businessPresentation,LEGACY_DEMO_SCOPE,type DemoBusinessPresentation} from '@/lib/demo-business';
 import { WorkspaceMenu } from "@/components/workspace-menu";
 import { isGuestEmail, guestAccessEnabled } from "@/lib/guest-policy";
 import {DemoViewSwitch} from '@/components/demo-view-switch';
@@ -20,27 +22,28 @@ const clientSidebarItems: ClientSidebarItem[] = [
   { href: "/client/analytics", label: "Insights", section: "analytics", icon: ChartNoAxesCombined },
 ];
 
-export function AppShell({ user, children, clientActive = "inbox", workspaceName }: {
+export function AppShell({ user, children, clientActive = "inbox", workspaceName,workspaceProfile }: {
   user: SessionUser; children: ReactNode; active: "client";
-  clientActive?: ClientSection; workspaceName?: string;
+  clientActive?: ClientSection; workspaceName?: string;workspaceProfile?:Record<string,unknown>;
 }) {
   if (user.role !== "client") throw new Error("The business workspace requires a business account.");
-  const psCafe = user.clientId === DEMO_CLIENT_ID;
-  const displayName = psCafe ? (workspaceName ?? "PS.Cafe Raffles City").replace(/\s+\((?:unofficial )?demo\)$/, "")
-    : workspaceName ?? "Client workspace";
+  const isDemo = user.clientId === demoBusinessScope().clientId;
+  const business=businessPresentation({name:workspaceName??'Client workspace',business_profile:workspaceProfile});
+  const displayName=business.name;
+  const branded=isDemo||workspaceProfile?.demoSeed===LEGACY_DEMO_SCOPE.seed||workspaceProfile?.demoBusiness!==undefined;
   // Guests have a placeholder address; show their name instead.
   const shownEmail = isGuestEmail(user.email) ? `${user.name} (guest reviewer)` : user.email;
   return <>
     <AutoRefresh/>
-    {psCafe&&requestDrivenDemoProcessing()&&<DemoQueuePump/>}
+    {isDemo&&requestDrivenDemoProcessing()&&<DemoQueuePump/>}
     <a href="#main-content" className="skip-link">Skip to main content</a>
     <div className="min-h-screen bg-background text-foreground lg:flex">
-      <ClientSidebar active={clientActive} email={shownEmail} workspaceName={displayName} psCafe={psCafe}/>
+      <ClientSidebar active={clientActive} email={shownEmail} workspaceName={displayName} business={business} branded={branded}/>
       <div className="min-w-0 flex-1">
         <header className="border-b border-line bg-panel/95 backdrop-blur lg:hidden">
           <div className="flex items-center justify-between px-4 py-3">
             <WorkspaceMenu name={displayName} email={shownEmail} className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-semibold text-foreground">
-              {psCafe ? <PsCafeLogo/> : <><span className="flex h-7 w-7 items-center justify-center rounded-md bg-accent text-white">P</span>Pronto</>}
+              {branded ? <BusinessLogo name={displayName} logoPath={business.logoPath}/> : <><span className="flex h-7 w-7 items-center justify-center rounded-md bg-accent text-white">P</span>Pronto</>}
             <span className="min-w-0 flex-1 px-1">
               <span className="block truncate text-sm font-medium">{displayName}</span>
               <span className="block truncate text-xs text-muted">{shownEmail}</span>
@@ -55,7 +58,7 @@ export function AppShell({ user, children, clientActive = "inbox", workspaceName
           <ClientMobileNav active={clientActive}/>
         </header>
         <main id="main-content" className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
-          {psCafe && guestAccessEnabled() && <div className="mb-4 flex flex-wrap justify-end gap-2"><ServiceStatusLink/><DemoViewSwitch/></div>}
+          {isDemo && guestAccessEnabled() && <div className="mb-4 flex flex-wrap justify-end gap-2"><ServiceStatusLink/><DemoViewSwitch/></div>}
           {children}
         </main>
       </div>
@@ -67,12 +70,12 @@ function ClientSidebar({
   active,
   email,
   workspaceName,
-  psCafe,
+  business,branded,
 }: {
   active: ClientSection;
   email: string;
   workspaceName: string;
-  psCafe: boolean;
+  business:DemoBusinessPresentation;branded:boolean;
 }) {
   const initials = workspaceName
     .split(/\s+/)
@@ -86,7 +89,7 @@ function ClientSidebar({
       <div className="flex items-center gap-2 px-4 py-4">
         <WorkspaceMenu name={workspaceName} email={email}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left text-base font-medium hover:bg-sidebar-active">
-          {psCafe ? <PsCafeLogo/> : <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white text-xs font-bold text-sidebar">
+          {branded ? <BusinessLogo name={workspaceName} logoPath={business.logoPath}/> : <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white text-xs font-bold text-sidebar">
             {initials || "P"}
           </span>}
           <span className="truncate">{workspaceName}</span>
