@@ -89,7 +89,7 @@ try {
       (select count(*) from users where (role='client' and client_id is distinct from $1::uuid)
         or (role='operator' and client_id is not null) or email !~ '\\.(test|invalid)$')+
       (select count(*) from conversations where client_id<>$1 or
-        ${instagram ? "not ((channel_id=$2 and customer_handle like 'demo:%') or (channel_id=$3 and external_thread_id=any($4::text[])))" : "channel_id<>$2 or customer_handle is null or customer_handle not like 'demo:%'"})
+        ${instagram ? "customer_handle is null or not ((channel_id=$2 and customer_handle like 'demo:%') or (channel_id=$3 and external_thread_id=any($4::text[])))" : "channel_id<>$2 or customer_handle is null or customer_handle not like 'demo:%'"})
       )::int as count`,instagram?[DEMO_CLIENT_ID,DEMO_CHANNEL_ID,instagram.channelId,instagram.senderIds]:[DEMO_CLIENT_ID,DEMO_CHANNEL_ID]);
     if(unsafe.rows[0].count) throw new Error("Protected demo contains identities, conversations or knowledge outside its synthetic boundary.");
     if (!await hasOnlyProtectedDemoKnowledge())
