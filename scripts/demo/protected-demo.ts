@@ -10,6 +10,8 @@ import { hashPassword } from "../../src/lib/password";
 import { staffCapabilities } from "../../src/lib/staff-permissions";
 import { LOCAL_TEXT_RETRIEVAL_PROFILE } from "../../src/lib/llm/demo-models";
 import { hasOnlyProtectedDemoKnowledge } from "../../src/lib/knowledge/protected-demo";
+import { demoInstagramConfiguration, isDemoInstagramChannel } from "../../src/lib/channels/instagram-demo";
+import { isGuestEmail } from "../../src/lib/guest-policy";
 import { chunkText } from "../../src/lib/knowledge/chunk";
 import { recordAuditLog } from "../../src/lib/audit";
 import { psCafeDemoSources } from "../demo/ps-cafe-raffles-city";
@@ -78,6 +80,7 @@ try {
   else if(command!=="verify" && command!=="preflight") throw new Error("Use verify, bootstrap PRIVATE_JSON, embed-gemini, or preflight.");
   if(command==="preflight") {
     const db=getPool(); const settings=protectedDemoConfiguration();
+    const instagram=demoInstagramConfiguration();
     const tenant=await db.query<{safe:boolean}>(`select count(*)=1 and bool_and(id=$1 and slug=$2
       and business_profile->>'demoSeed'='ps-cafe-raffles-city-v1'
       and business_profile->>'approvedByRestaurant'='false') as safe from clients`,[DEMO_CLIENT_ID,DEMO_SLUG]);
@@ -85,18 +88,19 @@ try {
     const unsafe=await db.query<{count:number}>(`select (
       (select count(*) from users where (role='client' and client_id is distinct from $1::uuid)
         or (role='operator' and client_id is not null) or email !~ '\\.(test|invalid)$')+
-      (select count(*) from conversations where client_id<>$1 or channel_id<>$2
-        or customer_handle is null or customer_handle not like 'demo:%')
-      )::int as count`,[DEMO_CLIENT_ID,DEMO_CHANNEL_ID]);
+      (select count(*) from conversations where client_id<>$1 or
+        ${instagram ? "not ((channel_id=$2 and customer_handle like 'demo:%') or (channel_id=$3 and external_thread_id=any($4::text[])))" : "channel_id<>$2 or customer_handle is null or customer_handle not like 'demo:%'"})
+      )::int as count`,instagram?[DEMO_CLIENT_ID,DEMO_CHANNEL_ID,instagram.channelId,instagram.senderIds]:[DEMO_CLIENT_ID,DEMO_CHANNEL_ID]);
     if(unsafe.rows[0].count) throw new Error("Protected demo contains identities, conversations or knowledge outside its synthetic boundary.");
     if (!await hasOnlyProtectedDemoKnowledge())
       throw new Error("Protected demo knowledge must be curated fixtures or reviewed, published synthetic sources.");
-    const users=await db.query<{id:string}>("select id from users");
-    if(users.rows.some(user=>!settings.allowedUserIds.includes(user.id)) ||
+    const users=await db.query<{id:string;email:string;role:string;client_id:string|null}>("select id,email,role,client_id from users");
+    if(users.rows.some(user=>!(user.role==='client'&&user.client_id===DEMO_CLIENT_ID&&isGuestEmail(user.email))&&!settings.allowedUserIds.includes(user.id)) ||
       settings.allowedUserIds.some(id=>!users.rows.some(user=>user.id===id))) throw new Error("Demo account allowlist does not match persisted accounts.");
-    const channels=await db.query<{id:string;client_id:string;kind:string;settings:Record<string,unknown>}>("select id,client_id,kind,settings from channels where status='active'");
-    if(channels.rows.length!==1 || channels.rows[0].id!==DEMO_CHANNEL_ID || channels.rows[0].client_id!==DEMO_CLIENT_ID ||
-      channels.rows[0].kind!=="console" || channels.rows[0].settings.transport!=="customer_simulator") throw new Error("Only the exact synthetic console channel may be active.");
+    const channels=await db.query<import('../../src/lib/types').Channel>("select id,client_id,kind,settings,external_id from channels where status='active'");
+    if(channels.rows.length!==(instagram?2:1) || channels.rows.some(channel=>!(channel.id===DEMO_CHANNEL_ID&&channel.client_id===DEMO_CLIENT_ID&&
+      channel.kind==='console'&&channel.settings.transport==='customer_simulator')&&!isDemoInstagramChannel(channel)))
+      throw new Error("Only the console and explicitly approved Instagram test channel may be active.");
     const integrations=await db.query<{count:number}>("select count(*)::int as count from integration_credentials");
     if(integrations.rows[0].count) throw new Error("Protected POC must not contain external integration credentials.");
     await requireRealDemoConfiguration(true,profileForDemoChoice("groq-oss"));

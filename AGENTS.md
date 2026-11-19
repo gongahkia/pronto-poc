@@ -49,6 +49,12 @@ below were moved from that README so they remain available to coding agents.
   from `main` is enabled; the older docs/Blueprint example say off. A push
   triggers deployment, but verify completion and revision before claiming success.
   Do not provision new paid hosting to update this existing demo.
+- On 19 November the user authorized the optional Instagram tester bridge in
+  the shared public demo inbox, with genuine Groq inference and ordinary triage.
+  See `docs/channels/instagram-public-demo.md`. Keep the protected profile,
+  verified database, exact channel/tester scope and all existing history/feedback.
+  Link visitors can view these test conversations. The earlier separate hosted
+  workspace and its receive-only probe are historical setup, not the new target.
 - The real demonstration outlet is PS.Cafe Raffles City, not Raffles Place.
   Chope is read-only: never claim to create/confirm/cancel a booking or process
   a payment/refund. Live reads require the documented approval flags, exact

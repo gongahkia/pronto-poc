@@ -4,6 +4,7 @@ import {assertCustomerDemoEnabled,DEMO_CLIENT_ID,DEMO_CHANNEL_ID} from '@/lib/cu
 import {requireRealDemoConfiguration,profileForDemoChoice} from '@/lib/customer-demo-ai';
 import {DEFAULT_DEMO_MODEL} from '@/lib/llm/demo-models';
 import {replyFailure} from '@/lib/reply-failure';
+import {demoInstagramConfiguration,assertDemoInstagramReady} from '@/lib/channels/instagram-demo';
 
 export type StatusCheck={id:string;name:string;state:'ok'|'warning'|'error'|'unknown';detail:string;observedAt?:string|null;code?:string};
 export type ServiceStatus={status:'operational'|'degraded'|'unavailable';checkedAt:string;revision:string|null;checks:StatusCheck[];providerProbe:false};
@@ -25,18 +26,22 @@ export async function getServiceStatus():Promise<ServiceStatus>{
    checks.push({id:'configuration',name:'AI setup & knowledge',state:'ok',detail:'The configured model and approved knowledge are present. Credentials have not been tested against the provider.'});}
   catch{checks.push({id:'configuration',name:'AI setup & knowledge',state:'error',detail:'The demo configuration or approved knowledge needs attention.'});}
   try{
+   const instagram=demoInstagramConfiguration();
+   const channelMatch=instagram?'=any($2::uuid[])':'=$2';
+   if(instagram){try{await assertDemoInstagramReady();checks.push({id:'instagram',name:'Instagram test',state:'ok',detail:'The approved Instagram test channel is configured.'});}
+    catch{checks.push({id:'instagram',name:'Instagram test',state:'error',detail:'The Instagram test channel needs attention.'});}}
    const result=await getPool().query<Telemetry>(`select
-    (select count(*)::int from inbound_jobs where client_id=$1 and channel_id=$2 and status in ('pending','failed')) pending,
-    (select count(*)::int from inbound_jobs where client_id=$1 and channel_id=$2 and status='processing') processing,
-    ((select count(*) from inbound_jobs where client_id=$1 and channel_id=$2 and status='dead')+
-     (select count(*) from outbound_messages where client_id=$1 and channel_id=$2 and status in ('dead','uncertain')))::int stopped,
-    (select failure_code from inbound_jobs where client_id=$1 and channel_id=$2 and status='dead' order by updated_at desc limit 1) stopped_code,
-    (select max(updated_at) from inbound_jobs where client_id=$1 and channel_id=$2 and status='dead') stopped_at,
+    (select count(*)::int from inbound_jobs where client_id=$1 and channel_id${channelMatch} and status in ('pending','failed')) pending,
+    (select count(*)::int from inbound_jobs where client_id=$1 and channel_id${channelMatch} and status='processing') processing,
+    ((select count(*) from inbound_jobs where client_id=$1 and channel_id${channelMatch} and status='dead')+
+     (select count(*) from outbound_messages where client_id=$1 and channel_id${channelMatch} and status in ('dead','uncertain')))::int stopped,
+    (select failure_code from inbound_jobs where client_id=$1 and channel_id${channelMatch} and status='dead' order by updated_at desc limit 1) stopped_code,
+    (select max(updated_at) from inbound_jobs where client_id=$1 and channel_id${channelMatch} and status='dead') stopped_at,
     (select max(created_at) from agent_traces where client_id=$1 and response_provider=$3 and status='answered') last_success,
     (select max(created_at) from agent_traces where client_id=$1 and response_provider=$3 and status='failed') last_failure,
     (select reason_code from agent_traces where client_id=$1 and response_provider=$3 and status='failed' order by created_at desc limit 1) failure_code,
     (select failure_code from provider_cooldowns where client_id=$1 and provider=$3 and retry_after>now()) cooldown_code,
-    (select retry_after from provider_cooldowns where client_id=$1 and provider=$3 and retry_after>now()) retry_after`,[DEMO_CLIENT_ID,DEMO_CHANNEL_ID,provider]);
+    (select retry_after from provider_cooldowns where client_id=$1 and provider=$3 and retry_after>now()) retry_after`,[DEMO_CLIENT_ID,instagram?[DEMO_CHANNEL_ID,instagram.channelId]:DEMO_CHANNEL_ID,provider]);
    const t=result.rows[0];if(!t)throw Error('Status observation unavailable');
    const recentFailure=t.cooldown_code||t.last_failure&&(!t.last_success||new Date(t.last_failure)>new Date(t.last_success));
    if(recentFailure){const failure=replyFailure(t.cooldown_code??t.failure_code);
@@ -45,7 +50,7 @@ export async function getServiceStatus():Promise<ServiceStatus>{
    checks.push({id:'queue',name:'Reply processing',state:t.stopped?'warning':t.pending||t.processing?'unknown':'ok',
     ...(t.stopped?{code:replyFailure(t.stopped_code).code,observedAt:iso(t.stopped_at)}:{}),
     detail:t.stopped?`${t.stopped} saved request(s) or deliveries need a retry. New conversations may still work. Retry stopped messages from their customer chat.`:
-     `${t.pending} waiting, ${t.processing} processing. Work runs while an authenticated demo page is open.`});
+     `${t.pending} waiting, ${t.processing} processing. Work runs ${instagram?'after Instagram webhooks or ':''}while an authenticated demo page is open.`});
   }catch{checks.push({id:'queue',name:'Reply processing',state:'error',detail:'Processing observations could not be loaded.'});}
  }else checks.push({id:'provider',name:'AI replies',state:'unknown',detail:'Detailed AI observations are available on the enabled synthetic demo only.'});
  return {status:checks.some(c=>c.state==='error'||c.state==='warning')?'degraded':'operational',checkedAt,revision,checks,providerProbe:false};

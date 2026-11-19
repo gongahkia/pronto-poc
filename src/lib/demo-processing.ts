@@ -33,11 +33,15 @@ export async function processDemoInstagramQueue(channelId:string):Promise<DemoPr
  if(!channel)throw new DemoError('Demo Instagram channel is unavailable.',503);
  await assertDemoInstagramScope(channel);
  const total:DemoProcessingResult={busy:false,processed:0,delivered:0,failed:false};
+ const deadline=Date.now()+90000;
  // A bounded slice, not a persistent inference loop. More saved work resumes on
  // the next webhook or ordinary inbox processing request.
  for(let round=0;round<3;round++){
-  if(running)await running.catch(()=>{});
-  if(running){total.busy=true;continue;}
+  if(Date.now()>=deadline){total.busy=true;break;}
+  if(running){let timer:ReturnType<typeof setTimeout>|undefined;
+   try{await Promise.race([running.catch(()=>{}),new Promise<void>(done=>{timer=setTimeout(done,15000);})]);}
+   finally{clearTimeout(timer);}}
+  if(running){total.busy=true;break;}
   const part=await startDrain([channelId]);total.processed+=part.processed;total.delivered+=part.delivered;total.failed ||=part.failed;
   if(!part.processed&&!part.delivered)break;
  }

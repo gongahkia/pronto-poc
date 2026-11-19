@@ -39,7 +39,8 @@ export async function GET(request: Request, context: Context) {
   const expected = channel.settings.verifyToken as string | undefined;
 
   if (mode === "subscribe" && typeof expected === "string" && expected.length > 0 && token === expected && challenge) {
-    return new NextResponse(challenge, { headers: { "Cache-Control": "no-store" } });
+    return new NextResponse(challenge, { headers: { "Cache-Control": "no-store",
+      ...(isDemoInstagramChannel(channel) ? { "X-Pronto-Instagram-Workspace": "public-demo" } : {}) } });
   }
   return new NextResponse("Forbidden", { status: 403 });
 }

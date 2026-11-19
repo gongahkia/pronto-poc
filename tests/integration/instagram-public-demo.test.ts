@@ -9,6 +9,8 @@ import { POST } from "@/app/api/webhooks/instagram/[channelId]/route";
 import { processDemoQueue } from "@/lib/demo-processing";
 import { updateConversationAction } from "@/lib/conversation-actions";
 import { getFilteredConversations } from "@/lib/reporting";
+import { getServiceStatus } from "@/lib/service-status";
+import { getDemoProcessingStatus } from "@/lib/demo-processing-status";
 import { removePsCafeDemo, setupPsCafeDemo, PS_CAFE_DEMO_RESPONDER_ID } from "../../scripts/demo/ps-cafe-raffles-city";
 import { setupCustomerSimulator } from "@/lib/customer-demo-setup";
 import type { SessionUser } from "@/lib/auth";
@@ -69,6 +71,10 @@ dbDescribe("public demo Instagram transport with real isolated PostgreSQL and fa
     expect(fetch).toHaveBeenCalledTimes(2);
     expect((await getPool().query("select status from outbound_messages where client_id=$1 and channel_id=$2", [DEMO_CLIENT_ID, channelId])).rows).toEqual([{ status: "sent" }]);
     expect((await getFilteredConversations({ clientId: DEMO_CLIENT_ID })).some(c => c.channel_kind === "instagram")).toBe(true);
+    expect(await getDemoProcessingStatus()).toMatchObject({ pending: 0, processing: 0, stopped: 0 });
+    const status = await getServiceStatus();expect(status.providerProbe).toBe(false);
+    expect(status.checks).toContainEqual(expect.objectContaining({ id: "instagram", state: "ok" }));
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
   it("resumes saved Instagram jobs through the same browser processing request", async () => {
     expect((await POST(request(), context())).status).toBe(200);callbacks.length = 0;
