@@ -123,6 +123,8 @@ jobs:
           docker stop pronto-runner-ci
           exit 1
       - run: docker build --target worker -t pronto-worker:ci .
+      - name: Validate packaged demo business tooling without database access
+        run: docker run --rm --entrypoint pnpm pronto-worker:ci demo:business plan --profile config/demo-businesses/example-business.json
       - name: Smoke worker image
         run: |
           docker rm -f pronto-worker-ci >/dev/null 2>&1 || true

@@ -52,6 +52,7 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json .npmrc ./
 COPY scripts ./scripts
 COPY src ./src
+COPY config ./config
 CMD ["pnpm", "worker"]
 
 # Explicit targets for the protected synthetic POC. No automatic cloud deployment.
