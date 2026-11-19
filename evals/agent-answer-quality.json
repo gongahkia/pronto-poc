@@ -770,13 +770,13 @@
           "customer": "Hi",
           "response": {
             "action": "answer",
-            "answer": "Hello, I am the PS.Cafe assistant. How can I help?",
+            "answer": "Hey, what's up? Looking for a table, or got a quick question?",
             "citations": "all"
           },
           "expect": {
             "outcome": "answered",
             "contains": [
-              "PS.Cafe"
+              "Looking for a table"
             ],
             "minCitations": 0
           }

@@ -125,7 +125,10 @@ function isPlainSocialReply(answer: string): boolean {
     .replace(/[^\p{L}\p{M}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
   const greeting = '(?:hello|hi|hey|good morning|good afternoon|good evening)(?: there)?';
   const help = 'how (?:can|may) (?:i|we) (?:help|assist)(?: you)?(?: today)?';
-  return new RegExp(`^(?:${greeting}(?: ${help})?|${help}|thank you|thanks|you(?: re| are) welcome)$`).test(text)
+  const checkIn = 'what(?: s| is) up';
+  const question = '(?:(?:have|got|do you have) (?:a )?(?:quick )?question)';
+  const invitation = `(?:${help}|what can (?:i|we) help (?:you )?with(?: today)?|looking for a table(?: or ${question})?|${question})`;
+  return new RegExp(`^(?:${greeting}(?: ${checkIn})?(?: ${invitation})?|${checkIn}(?: ${invitation})?|${invitation}|thank you|thanks|you(?: re| are) welcome|(?:anytime|no worries)(?: (?:happy|glad) to help)?)$`).test(text)
     || /^(?:你好|您好|嗨|哈囉|哈喽|謝謝|谢谢|不客气|不客氣|hai|helo|selamat pagi|selamat petang|selamat malam|terima kasih|sama sama|வணக்கம்|நன்றி)$/.test(text);
 }
 
