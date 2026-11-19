@@ -109,6 +109,6 @@ resuming DMs. No conversations need to be moved, deleted or reseeded.
 
 `tests/integration/demo-business.test.ts` exercises preparation, identity
 collisions, preservation, A → B → A history isolation, tenant-specific retrieval,
-durable console delivery with a canned model, activation checks and Instagram
+SQL-guard rejection of cross-business reads, durable console delivery with a canned model, activation checks and Instagram
 detachment on a newly marked disposable database. This is separate from genuine
 Groq acceptance and Meta delivery testing.
