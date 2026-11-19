@@ -35,10 +35,17 @@ export async function manageInstagramSubscription(env: Record<string, string | u
   const inspect = async () => {
     const response = await request();
     if (!response.ok) return { ok: false as const, detail: response.detail };
-    if (!Array.isArray(response.body.data) || response.body.data.some(item => !isGraphObject(item) || typeof item.id !== "string"))
+    if (!Array.isArray(response.body.data) || response.body.data.some(item => !isGraphObject(item) ||
+        Object.prototype.hasOwnProperty.call(item, "id") && typeof item.id !== "string"))
       return { ok: false as const, detail: "Meta returned an invalid subscription list." };
-    const own = response.body.data.filter(item => item.id === appId);
-    if (own.length > 1 || !own.length && isGraphObject(response.body.paging) && response.body.paging.next)
+    const anonymous = response.body.data.filter(item => !Object.prototype.hasOwnProperty.call(item, "id"));
+    const hasNext = isGraphObject(response.body.paging) && Boolean(response.body.paging.next);
+    // Unified Login can return only subscribed_fields for the token's app.
+    // The token/app identity was checked above; an unlabelled list is ambiguous.
+    if (anonymous.length && (response.body.data.length !== 1 || hasNext))
+      return { ok: false as const, detail: "Subscription results are ambiguous or incomplete; no changes made." };
+    const own = anonymous.length ? anonymous : response.body.data.filter(item => item.id === appId);
+    if (own.length > 1 || !own.length && hasNext)
       return { ok: false as const, detail: "Subscription results are ambiguous or incomplete; no changes made." };
     const fields: unknown = own[0]?.subscribed_fields ?? (own.length ? null : []);
     if (!Array.isArray(fields) || !fields.every(field => typeof field === "string" && /^[a-z_]{1,80}$/.test(field)))

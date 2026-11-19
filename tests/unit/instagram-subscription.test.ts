@@ -83,6 +83,39 @@ describe("Instagram account subscription setup", () => {
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 
+  it("accepts a token-scoped field-only singleton after validating the token's app", async () => {
+    const fetchFn = transport([], url => url.pathname.endsWith("/subscribed_apps")
+      ? json({ data: [{ subscribed_fields: ["messages"] }] }) : undefined);
+    expect(await manageInstagramSubscription(env, await connection(), { fetchFn, subscribe: true }))
+      .toMatchObject({ status: "inspected", messagesSubscribed: true, mutationAttempted: false });
+    expect(fetchFn.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+  });
+
+  it("confirms a write when read-back uses the field-only singleton format", async () => {
+    let written = false;
+    const fetchFn = transport([], (url, init) => {
+      if (!url.pathname.endsWith("/subscribed_apps")) return undefined;
+      if (init?.method === "POST") { written = true; return json({ success: true }); }
+      return json({ data: written ? [{ subscribed_fields: ["messages"] }] : [] });
+    });
+    expect(await manageInstagramSubscription(env, await connection(), { fetchFn, subscribe: true }))
+      .toMatchObject({ status: "subscribed", messagesSubscribed: true, mutationAttempted: true });
+    expect(fetchFn.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+  });
+
+  it.each([
+    { data: [{ subscribed_fields: ["messages"] }, { subscribed_fields: ["comments"] }] },
+    { data: [{ id: "99999", subscribed_fields: ["messages"] }, { subscribed_fields: ["comments"] }] },
+    { data: [{ subscribed_fields: ["messages"] }], paging: { next: "https://untrusted.example" } },
+    { data: [{ id: null, subscribed_fields: ["messages"] }] },
+  ])("rejects ambiguous or malformed field-only responses without writing", async body => {
+    const fetchFn = transport([], url => url.pathname.endsWith("/subscribed_apps") ? json(body) : undefined);
+    expect(await manageInstagramSubscription(env, await connection(), { fetchFn, subscribe: true }))
+      .toMatchObject({ status: "failed", mutationAttempted: false });
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(fetchFn.mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+  });
+
   it("does not mutate after a failed callback challenge", async () => {
     const fetchFn = transport(["comments"], url => url.host === "test-callback.example" ? new Response("wrong") : undefined);
     expect(await manageInstagramSubscription(env, await connection(), { fetchFn, subscribe: true }))
