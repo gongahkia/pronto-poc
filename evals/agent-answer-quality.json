@@ -763,7 +763,7 @@
       "reusePrimary": true
     },
     {
-      "id": "greeting-identity-fallback",
+      "id": "greeting-without-business-facts",
       "category": "context",
       "turns": [
         {
@@ -782,7 +782,7 @@
           }
         }
       ],
-      "identityFallback": true
+      "socialWithoutKnowledge": true
     },
     {
       "id": "multilingual-hours-error",

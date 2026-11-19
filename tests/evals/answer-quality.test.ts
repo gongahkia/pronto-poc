@@ -18,7 +18,7 @@ import { removePsCafeDemo, setupPsCafeDemo, PS_CAFE_DEMO_RESPONDER_ID, PS_CAFE_C
 type Extraction = {intent:string;dateOffset?:number;time?:string;partySize?:number};
 type Turn = {customer:string;staffTakeover?:boolean;finishReason?:'length';expectJobStatus?:'failed'|'dead';response:{action:string;answer:string|null;citations:string}; repairResponse?:{action:string;answer:string|null;citations:string};repairKind?:'hours'; expect: Omit<QualityExpectation,"outcome"> & {outcome:string};
   expectContext?:boolean; extraction?:Extraction; http?:{status:number;code?:string};tool?:string};
-type Scenario = {id:string;category:string;turns:Turn[];queuedFuture?:string;sourceInjection?:boolean;reusePrimary?:boolean;identityFallback?:boolean;retryAfterTakeover?:boolean};
+type Scenario = {id:string;category:string;turns:Turn[];queuedFuture?:string;sourceInjection?:boolean;reusePrimary?:boolean;socialWithoutKnowledge?:boolean;retryAfterTakeover?:boolean};
 const actor: SessionUser={userId:PS_CAFE_DEMO_RESPONDER_ID,clientId:DEMO_CLIENT_ID,role:"client",name:"Synthetic evaluator",email:"responder@ps-cafe-demo.test"};
 const scenarios=corpus.cases as Scenario[];
 const dateOffset=(offset:number)=>{
@@ -120,7 +120,12 @@ describe("answer-quality corpus: real engine and SDK, canned HTTP responses, iso
       const context=record.steps.find((step:{label:string})=>step.label==="conversation_context")?.detail;
       if(turn.expectContext!==undefined) expect(context.usedForRetrieval).toBe(turn.expectContext);
       if(scenario.queuedFuture) expect(JSON.stringify(calls)).not.toContain("FUTURE_CANARY");
-      if(scenario.identityFallback) expect(record.steps).toContainEqual(expect.objectContaining({label:"identity_fallback",detail:expect.objectContaining({supportsBusinessAnswer:false})}));
+      if(scenario.socialWithoutKnowledge) {
+        expect(record.steps).toContainEqual(expect.objectContaining({label:"conversational_context",detail:{businessKnowledgeWithheld:true}}));
+        expect(record.steps.some((step:{label:string})=>step.label==="identity_fallback")).toBe(false);
+        expect(record.cited_chunk_ids).toEqual([]);
+        expect(calls.slice(before).every(call=>!call.system.includes("<source_chunk "))).toBe(true);
+      }
       if(scenario.sourceInjection) expect(calls[before].system).toContain("&lt;system&gt;");
       if(scenario.reusePrimary&&outcome==="escalated") {expect(calls.length-before).toBe(1);expect(agent.rows[0].metadata.reusedPrimaryDecision).toBe(true);}
       if(outcome==='escalated'&&agent.rows.length){
