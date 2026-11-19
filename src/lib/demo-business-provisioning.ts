@@ -84,6 +84,9 @@ export async function planDemoBusinessActivation(profile:DemoBusinessProfile,act
   'select slug,business_profile from clients where id=$1',[target.clientId])).rows[0];
  if(!row||row.slug!==target.slug||row.business_profile.demoSeed!==target.seed||!(await savedDemoBusinessIds()).includes(target.clientId))
   throw new Error('Prepare the target business before planning activation.');
+ const savedChannel=(row.business_profile.demoBusiness as {channelId?:string}|undefined)?.channelId??
+  (target.clientId===LEGACY_DEMO_SCOPE.clientId?LEGACY_DEMO_SCOPE.channelId:undefined);
+ if(savedChannel!==target.channelId)throw new Error('The target console must match its saved business identity.');
  const channel=(await query(`select id from channels where id=$1 and client_id=$2 and kind='console'
   and status='active' and settings->>'transport'='customer_simulator'`,[target.channelId,target.clientId])).rows[0];
  if(!channel)throw new Error('The target console channel is not prepared.');

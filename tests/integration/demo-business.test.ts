@@ -96,6 +96,8 @@ dbDescribe('separate saved demo businesses',()=>{
 
  it('plans without changing the active business and requires explicit Instagram detachment',async()=>{
   await prepare(first);await prepare(second);
+  const changedIdentity=structuredClone(second);changedIdentity.identity.channelId=randomUUID();
+  await expect(planDemoBusinessActivation(changedIdentity,operator)).rejects.toThrow(/saved business identity/);
   await expect(planDemoBusinessActivation(second,operator)).resolves.toMatchObject({historyRetained:true,restartRequired:true,credentialsCopied:false,environment:demoBusinessEnvironment(second.identity)});
   vi.stubEnv('PRONTO_DEMO_INSTAGRAM_ENABLED','1');
   await expect(planDemoBusinessActivation(second,operator)).rejects.toThrow(/Instagram remains bound/);
