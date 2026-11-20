@@ -1,4 +1,6 @@
-import Image from "next/image";
+import { CustomerAvatar } from "@/components/customer-avatar";
+import { InstagramProfileRefresh } from "@/components/instagram-profile-refresh";
+import { customerDisplayName, customerDisplayHandle } from "@/lib/channels/instagram-profile-data";
 import type { ReactNode } from "react";
 import { channelDefinition } from "@/lib/channels/catalog";
 import { formatDateTime } from "@/lib/date-format";
@@ -17,16 +19,27 @@ export function ChannelConversationThread({
   messages: Message[];
   footer?: ReactNode;
 }) {
-  const contact = conversation.customer_name ?? conversation.customer_handle ?? "Customer";
+  const contact = customerDisplayName(conversation);
+  const handle = customerDisplayHandle(conversation);
+  const profile = conversation.channel_kind === "instagram" ? conversation.instagram_profile : undefined;
   const channel = channelDefinition(conversation.channel_kind);
 
   return (
     <section aria-label="Conversation messages" className="overflow-hidden rounded-lg border border-line bg-panel">
+      {conversation.channel_kind === "instagram" && <InstagramProfileRefresh conversationId={conversation.id}
+        refreshAfter={conversation.instagram_profile_refresh_after ? new Date(conversation.instagram_profile_refresh_after).toISOString() : undefined} />}
       <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
-        <Image src={channel.iconPath} alt="" width={22} height={22} />
+        <CustomerAvatar photoUrl={profile?.photoUrl} fallback={channel.iconPath} />
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">{contact}</p>
+          <p className="break-words font-semibold">{contact}{profile?.verified && <span className="ml-2 text-xs font-normal text-muted">Verified on Instagram</span>}</p>
+          {handle && handle !== contact && <p className="text-sm text-muted">{handle}</p>}
           <p className="text-xs text-muted">{channel.label} conversation</p>
+          {profile && <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
+            {profile.followerCount !== undefined && <span className="tabular-nums">{profile.followerCount.toLocaleString("en-SG")} followers</span>}
+            {profile.followsBusiness === true && <span>Follows you</span>}
+            {profile.businessFollowsCustomer === true && <span>You follow this customer</span>}
+            {profile.username && <a href={`https://www.instagram.com/${encodeURIComponent(profile.username)}/`} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="text-accent underline">View Instagram profile<span className="sr-only"> (opens in a new tab)</span></a>}
+          </div>}
         </div>
         <Badge tone={conversation.active_escalation_id ? "amber" : "neutral"}>
           {conversation.active_escalation_id ? "Needs attention" : conversation.status}

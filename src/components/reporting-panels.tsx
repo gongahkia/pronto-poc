@@ -1,3 +1,4 @@
+import { customerDisplayName, customerDisplayHandle } from "@/lib/channels/instagram-profile-data";
 import { ArrowRight, CheckCircle2, ChevronDown, Filter, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -124,8 +125,9 @@ export function ConversationList({
               <div className="flex flex-wrap items-center gap-2">
                 <p className={`flex items-center gap-2 ${needsReply ? "font-semibold" : "font-medium"}`}>
                   {needsReply && <span aria-label={conversation.active_escalation_id ? "Needs team reply" : "Needs review"} className="h-2 w-2 shrink-0 rounded-full bg-amber-600"/>}
-                  {conversation.customer_name ?? conversation.customer_handle}
+                  {customerDisplayName(conversation)}
                 </p>
+                {customerDisplayHandle(conversation) && customerDisplayHandle(conversation) !== customerDisplayName(conversation) && <span className="text-xs text-muted">{customerDisplayHandle(conversation)}</span>}
                 {showClient ? <Badge>{conversation.client_name}</Badge> : null}
                 <span className="text-xs text-muted">{conversation.channel_kind === "console" ? "Instagram" : channelDefinition(conversation.channel_kind).label}</span>
                 {conversation.urgency === "short_term" && <Badge tone="amber">Priority</Badge>}

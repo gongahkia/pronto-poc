@@ -1,4 +1,5 @@
-import Image from "next/image";
+import { CustomerAvatar } from "@/components/customer-avatar";
+import { customerDisplayName, customerDisplayHandle } from "@/lib/channels/instagram-profile-data";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
@@ -58,6 +59,8 @@ export default async function ConversationsPage({
           <ol className="ss-conversation-list" aria-label="Saved conversations">
             {conversations.slice(0, limit).map((conversation) => {
               const channel = channelDefinition(conversation.channel_kind);
+              const contact = customerDisplayName(conversation);
+              const handle = customerDisplayHandle(conversation);
               const attention = Boolean(
                 conversation.active_escalation_id ||
                 conversation.owner_action_required,
@@ -70,18 +73,11 @@ export default async function ConversationsPage({
               return (
                 <li key={conversation.id}>
                   <Link href={`/client/conversations/${conversation.id}`}>
-                    <Image
-                      src={channel.iconPath}
-                      alt=""
-                      width={24}
-                      height={24}
-                    />
+                    <CustomerAvatar photoUrl={conversation.channel_kind === "instagram" ? conversation.instagram_profile?.photoUrl : undefined} fallback={channel.iconPath} />
                     <div className="ss-conversation-summary">
                       <div className="ss-conversation-heading">
                         <strong>
-                          {conversation.customer_name ??
-                            conversation.customer_handle ??
-                            "Customer"}
+                          {contact}
                         </strong>
                         <Badge
                           tone={
@@ -95,7 +91,7 @@ export default async function ConversationsPage({
                           {status}
                         </Badge>
                       </div>
-                      <p className="ss-muted">{channel.label}</p>
+                      <p className="ss-muted">{handle && handle !== contact ? `${handle} · ` : ""}{channel.label}</p>
                       <p className="ss-conversation-preview">
                         {conversation.last_message
                           ? conversation.last_sender_role === "customer"

@@ -1,3 +1,4 @@
+import { customerDisplayName } from "@/lib/channels/instagram-profile-data";
 import { selfServeUIEnabled } from "@/lib/self-serve/settings";
 import { SelfServeFrame } from "@/components/self-serve/frame";
 import { ChannelConversationThread } from "@/components/channel-conversation-thread";
@@ -50,7 +51,7 @@ export default async function ClientConversationPage({
   if (selfServeUIEnabled()) return <SelfServeFrame allowReadOnly>
     <AutoRefresh intervalMs={5000} />
     <Link href="/client/conversations" className="ss-back"><ArrowLeft size={17} aria-hidden="true" /> All conversations</Link>
-    <Header title={conversation.customer_name ?? conversation.customer_handle ?? "Customer conversation"}
+    <Header title={customerDisplayName(conversation)}
       description="Review the saved conversation and the decisions behind Pronto’s replies." />
     <p className="ss-feedback ss-info">Reply directly in the customer’s messaging app. This view shows the saved conversation; it does not send messages.</p>
     <ConversationTabs decisions={decisions}>
@@ -75,7 +76,7 @@ export default async function ClientConversationPage({
         </Link>
         <div className="min-w-0">
           <h1 className="text-xl font-semibold">
-            {conversation.customer_name ?? conversation.customer_handle ?? "Customer conversation"}
+            {customerDisplayName(conversation)}
           </h1>
           <p className="text-sm text-muted">
             Review this thread and reply when Pronto needs help.

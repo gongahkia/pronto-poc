@@ -92,6 +92,8 @@ export type BrandVoiceExample = {
 };
 
 export type Conversation = {
+  instagram_profile?: import("@/lib/channels/instagram-profile-data").InstagramCustomerProfile;
+  instagram_profile_refresh_after?: Date;
   ai_should_respond?: boolean | null;
   owner_action_required?: boolean;
   urgency?: "short_term" | "long_term" | null;
