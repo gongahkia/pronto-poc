@@ -221,7 +221,7 @@ export async function snapshot(clientId: string) {
       [clientId],
     ),
     query<{ id: string; name: string; status: string }>(
-      "select id,name,status from channels where client_id=$1 and kind='instagram' order by created_at,id",
+      "select id,name,status from channels where client_id=$1 and kind='instagram' and status='active' order by created_at,id",
       [clientId],
     ),
   ]);

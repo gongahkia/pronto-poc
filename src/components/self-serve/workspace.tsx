@@ -91,10 +91,12 @@ export function SelfServeWorkspace({
   name,
   initial,
   children,
+  canManageKnowledge = true,
 }: {
   name: string;
   initial: State;
   children: React.ReactNode;
+  canManageKnowledge?: boolean;
 }) {
   const [state, setState] = useState(initial),
     [busy, setBusy] = useState(false),
@@ -138,6 +140,7 @@ export function SelfServeWorkspace({
     (j) => j.status === "pending" || j.status === "processing",
   );
   useEffect(() => {
+    if (!canManageKnowledge) return;
     alive.current = true;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -159,7 +162,7 @@ export function SelfServeWorkspace({
       alive.current = false;
       clearTimeout(timer);
     };
-  }, [refresh, hasPending]);
+  }, [refresh, hasPending, canManageKnowledge]);
   const nav = [
     { href: "/client/home", label: "Home", Icon: House },
     { href: "/client/handovers", label: "Handovers", Icon: Inbox },
@@ -185,16 +188,22 @@ export function SelfServeWorkspace({
             <span>P</span>Pronto
           </Link>
           <nav aria-label="Workspace">
-            {nav.map(({ href, label, Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                aria-current={path.startsWith(href) ? "page" : undefined}
-              >
-                <Icon size={17} />
-                {label}
-              </Link>
-            ))}
+            {nav
+              .filter(
+                (item) =>
+                  canManageKnowledge ||
+                  ["Conversations", "Settings"].includes(item.label),
+              )
+              .map(({ href, label, Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={path.startsWith(href) ? "page" : undefined}
+                >
+                  <Icon size={17} />
+                  {label}
+                </Link>
+              ))}
           </nav>
           <div className="ss-help">
             <strong>Need a hand?</strong>
@@ -203,9 +212,7 @@ export function SelfServeWorkspace({
               className="ss-disabled-consult"
               title="Booking link coming soon"
             >
-              <button disabled>
-                Book a consult
-              </button>
+              <button disabled>Book a consult</button>
             </span>
           </div>
           <Link className="ss-switch" href="/demo">
@@ -226,7 +233,7 @@ export function SelfServeWorkspace({
               {notice}
             </div>
           )}
-          {!state.settings ? (
+          {!state.settings && canManageKnowledge ? (
             <section className="ss-panel">
               <h1>Welcome to Pronto</h1>
               <p>
@@ -248,7 +255,7 @@ export function SelfServeWorkspace({
             </section>
           ) : (
             <>
-              {!state.settings.enabled && (
+              {state.settings && !state.settings.enabled && (
                 <p className="ss-feedback ss-info" role="status">
                   <LoaderCircle className="ss-spin" size={16} />
                   Your existing sources are being checked. Customer replies keep

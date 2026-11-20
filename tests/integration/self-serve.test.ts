@@ -183,6 +183,38 @@ dbDescribe("self-serve configuration on owned PostgreSQL", () => {
     await pump();
     return id;
   }
+  it("shows only this business’s active Instagram inbox without exposing channel secrets", async () => {
+    const draft = randomUUID(),
+      disabled = randomUUID(),
+      otherClient = randomUUID();
+    await getPool().query(
+      "insert into channels(id,client_id,kind,name,status,settings,credentials,external_id) values($1,$3,'instagram','Demo draft','draft','{}','{}','draft-account'),($2,$3,'instagram','Old account','disabled','{}','{}','disabled-account')",
+      [draft, disabled, client],
+    );
+    await getPool().query(
+      'update channels set settings=\'{"verifyToken":"private-verifier"}\',credentials=\'{"accessToken":"private-token"}\' where id=$1 and client_id=$2',
+      [channel, client],
+    );
+    await getPool().query(
+      "insert into clients(id,name,slug,vertical,brand_voice) values($1::uuid,'Other business',$1::text,'fnb','Helpful')",
+      [otherClient],
+    );
+    try {
+      await getPool().query(
+        "insert into channels(client_id,kind,name,status) values($1,'instagram','Other inbox','active')",
+        [otherClient],
+      );
+      const state = await current();
+      expect(state.instagram).toEqual([
+        { id: channel, name: "Fixture", status: "active" },
+      ]);
+      expect(JSON.stringify(state.instagram)).not.toMatch(
+        /private-token|private-verifier|Other inbox|Demo draft/,
+      );
+    } finally {
+      await getPool().query("delete from clients where id=$1", [otherClient]);
+    }
+  });
   it("requires authentication, CSRF and business permission without accepting a browser-selected tenant", async () => {
     const path = { params: Promise.resolve({ path: ["sources"] }) };
     const id = randomUUID();

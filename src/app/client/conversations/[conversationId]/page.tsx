@@ -47,7 +47,7 @@ export default async function ClientConversationPage({
     getConversationMessages(conversation.id, user.clientId),
     getConversationDecisionTraces(user.clientId, conversation.id),
   ]);
-  if (selfServeUIEnabled()) return <SelfServeFrame>
+  if (selfServeUIEnabled()) return <SelfServeFrame allowReadOnly>
     <AutoRefresh intervalMs={5000} />
     <Link href="/client/conversations" className="ss-back"><ArrowLeft size={17} aria-hidden="true" /> All conversations</Link>
     <Header title={conversation.customer_name ?? conversation.customer_handle ?? "Customer conversation"}

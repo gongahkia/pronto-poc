@@ -10,13 +10,20 @@ import { snapshot } from "@/lib/self-serve/store";
 import { SelfServeWorkspace } from "@/components/self-serve/workspace";
 export async function SelfServeFrame({
   children,
+  allowReadOnly = false,
 }: {
   children: React.ReactNode;
+  allowReadOnly?: boolean;
 }) {
   if (!selfServeUIEnabled()) notFound();
   const user = await requireUser("client");
   if (!user.clientId) notFound();
-  if (!(await hasStaffCapability(user, user.clientId, "knowledge.approve")))
+  const canManageKnowledge = await hasStaffCapability(
+    user,
+    user.clientId,
+    "knowledge.approve",
+  );
+  if (!canManageKnowledge && !allowReadOnly)
     return (
       <main className="p-8">
         <h1>Workspace access required</h1>
@@ -36,7 +43,18 @@ export async function SelfServeFrame({
         requestDrivenDemoProcessing() && <DemoQueuePump />}
       <SelfServeWorkspace
         name={business?.name ?? "Your business"}
-        initial={JSON.parse(JSON.stringify(await snapshot(user.clientId)))}
+        canManageKnowledge={canManageKnowledge}
+        initial={
+          canManageKnowledge
+            ? JSON.parse(JSON.stringify(await snapshot(user.clientId)))
+            : {
+                settings: null,
+                sources: [],
+                rules: [],
+                conflicts: [],
+                jobs: [],
+              }
+        }
       >
         {children}
       </SelfServeWorkspace>

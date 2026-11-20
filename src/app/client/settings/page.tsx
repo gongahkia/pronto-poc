@@ -1,7 +1,10 @@
+import { SelfServeFrame } from "@/components/self-serve/frame";
+import "@/components/self-serve/self-serve.css";
 import { requireUser } from "@/lib/auth";
 import { getWorkspaceUsage, usageMonth } from "@/lib/analytics/usage";
 import { Header } from "@/components/self-serve/workspace";
 import { getClient } from "@/lib/dashboard";
+import { selfServeUIEnabled } from "@/lib/self-serve/settings";
 import { notFound } from "next/navigation";
 
 export default async function SettingsPage({
@@ -9,6 +12,7 @@ export default async function SettingsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  if (!selfServeUIEnabled()) notFound();
   const user = await requireUser("client");
   if (!user.clientId) notFound();
   const params = await searchParams;
@@ -29,7 +33,7 @@ export default async function SettingsPage({
   ]);
   const n = (value: number) => value.toLocaleString("en-SG");
   return (
-    <>
+    <SelfServeFrame allowReadOnly>
       <Header
         title="Settings"
         description="Your workspace, account and recorded usage."
@@ -160,6 +164,6 @@ export default async function SettingsPage({
           configured.
         </p>
       </section>
-    </>
+    </SelfServeFrame>
   );
 }

@@ -1329,6 +1329,12 @@
 .ss-connection-status p {
   margin-top: 8px;
 }
+.ss-conversations input[type="search"] {
+  padding-left: 36px;
+}
+.ss-conversations .ui-primary-button {
+  background: var(--ss-blue);
+}
 .ss-conversations {
   padding: 0;
   overflow: hidden;

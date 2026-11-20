@@ -41,7 +41,7 @@ export default async function ConversationsPage({
     offset: (page - 1) * limit,
   });
   return (
-    <SelfServeFrame>
+    <SelfServeFrame allowReadOnly>
       <AutoRefresh intervalMs={10000} />
       <Header
         title="Conversations"
