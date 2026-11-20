@@ -16,6 +16,8 @@ import {
   MessageCircle,
   ArrowRight,
   LoaderCircle,
+  MessagesSquare,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import type { Settings } from "@/lib/self-serve/store";
 export type SourceView = {
@@ -39,6 +41,7 @@ export type RuleView = {
 };
 export type State = {
   settings: Settings | null;
+  instagram?: { id: string; name: string; status: string }[];
   sources: SourceView[];
   rules: RuleView[];
   conflicts: {
@@ -162,6 +165,12 @@ export function SelfServeWorkspace({
     { href: "/client/handovers", label: "Handovers", Icon: Inbox },
     { href: "/client/rules", label: "Business rules", Icon: Layers },
     { href: "/client/voice", label: "Brand voice", Icon: MessageCircle },
+    {
+      href: "/client/conversations",
+      label: "Conversations",
+      Icon: MessagesSquare,
+    },
+    { href: "/client/settings", label: "Settings", Icon: SettingsIcon },
   ];
   return (
     <Context.Provider
@@ -186,18 +195,17 @@ export function SelfServeWorkspace({
                 {label}
               </Link>
             ))}
-            <p className="ss-later">Later</p>
-            {["Conversations", "Channels", "Settings"].map((label) => (
-              <button key={label} disabled>
-                {label}
-              </button>
-            ))}
           </nav>
           <div className="ss-help">
             <strong>Need a hand?</strong>
             <p>Talk through your setup with the Pronto team.</p>
-            <span className="ss-disabled-consult" title="Booking link coming soon">
-              <button disabled aria-description="Booking link coming soon">Book a consult</button>
+            <span
+              className="ss-disabled-consult"
+              title="Booking link coming soon"
+            >
+              <button disabled>
+                Book a consult
+              </button>
             </span>
           </div>
           <Link className="ss-switch" href="/demo">

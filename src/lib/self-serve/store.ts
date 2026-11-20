@@ -199,7 +199,7 @@ export async function initializeSelfServe(clientId: string, actorId: string) {
   });
 }
 export async function snapshot(clientId: string) {
-  const [settings, sources, rules, conflicts, jobs] = await Promise.all([
+  const [settings, sources, rules, conflicts, jobs, instagram] = await Promise.all([
     getSettings(clientId),
     query(
       `select id,type,label,status,revision,file_meta,error,created_at from selfserve_sources where client_id=$1 and deleted_at is null order by created_at desc,id`,
@@ -220,6 +220,10 @@ export async function snapshot(clientId: string) {
       `select id,kind,status,error,created_at from selfserve_jobs where client_id=$1 and created_at>now()-interval '1 day' order by created_at desc limit 30`,
       [clientId],
     ),
+    query<{ id: string; name: string; status: string }>(
+      "select id,name,status from channels where client_id=$1 and kind='instagram' order by created_at,id",
+      [clientId],
+    ),
   ]);
   return {
     settings,
@@ -227,6 +231,7 @@ export async function snapshot(clientId: string) {
     rules: rules.rows,
     conflicts: conflicts.rows,
     jobs: jobs.rows,
+    instagram: instagram.rows,
   };
 }
 const notes = z.array(z.string().trim().min(1).max(1600)).min(1).max(20);

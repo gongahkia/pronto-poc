@@ -26,7 +26,7 @@ export function ChannelConversationThread({
         <Image src={channel.iconPath} alt="" width={22} height={22} />
         <div className="min-w-0 flex-1">
           <p className="font-semibold">{contact}</p>
-          <p className="text-xs text-muted">{conversation.channel_kind === "console" ? "Instagram" : channel.label} conversation</p>
+          <p className="text-xs text-muted">{channel.label} conversation</p>
         </div>
         <Badge tone={conversation.active_escalation_id ? "amber" : "neutral"}>
           {conversation.active_escalation_id ? "Needs attention" : conversation.status}

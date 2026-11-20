@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { useState } from "react";
 import {
   LockKeyhole,
@@ -159,6 +160,32 @@ export function HandoversPage() {
             </span>
           </div>
         )}
+        <div className="ss-connection-status">
+          <Image src="/channel-icons/instagram.png" alt="" width={22} height={22} />
+          <div>
+            <h3>Instagram customer messages</h3>
+            {(state.instagram ?? []).length ? (
+              state.instagram!.map((channel) => (
+                <p key={channel.id}>
+                  {channel.name}{" "}
+                  <Badge tone={channel.status === "active" ? "green" : "amber"}>
+                    {channel.status === "active"
+                      ? "Connected"
+                      : channel.status === "disabled"
+                        ? "Disabled"
+                        : "Setup pending"}
+                  </Badge>
+                </p>
+              ))
+            ) : (
+              <p className="ss-muted">No Instagram connection configured.</p>
+            )}
+            <p className="ss-muted">
+              This connection receives customer DMs. Owner alerts are configured
+              separately above.
+            </p>
+          </div>
+        </div>
         {!settings.alerts.whatsapp_enabled &&
           !settings.alerts.email_enabled && (
             <p className="ss-feedback ss-warning">
