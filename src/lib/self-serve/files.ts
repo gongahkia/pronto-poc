@@ -197,6 +197,24 @@ export async function extractFile(file: PrivateFile): Promise<Segment[]> {
         { ref: "document", text: await command("antiword", [input]) },
       ]);
     if (["jpg", "jpeg", "png", "webp", "heic"].includes(ext)) {
+      const valid =
+        ext === "png"
+          ? bytes
+              .subarray(0, 8)
+              .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+          : ext === "jpg" || ext === "jpeg"
+            ? bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]))
+            : ext === "webp"
+              ? bytes.subarray(0, 4).toString() === "RIFF" &&
+                bytes.subarray(8, 12).toString() === "WEBP"
+              : bytes.subarray(4, 8).toString() === "ftyp" &&
+                /^(heic|heix|hevc|hevx|mif1|msf1)$/.test(
+                  bytes.subarray(8, 12).toString(),
+                );
+      if (!valid)
+        throw new DocumentError(
+          "The image contents do not match a supported image format.",
+        );
       const dimensions = (
         await command("identify", [
           "-limit",

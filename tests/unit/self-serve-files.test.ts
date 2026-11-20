@@ -45,6 +45,17 @@ describe("self-serve files and review preparation", () => {
       extractFile({ name: "empty.txt", type: "text/plain", data: "" }),
     ).rejects.toThrow(/nonempty/);
   });
+  it("rejects image disguises before invoking a document converter", async () => {
+    await expect(
+      extractFile({
+        name: "photo.png",
+        type: "image/png",
+        data: Buffer.from(
+          '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
+        ).toString("base64"),
+      }),
+    ).rejects.toThrow(/image contents/);
+  });
   it("encrypts temporary uploads and separates business samples before redaction", () => {
     vi.stubEnv(
       "PRONTO_SECRETS_KEY",
