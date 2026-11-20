@@ -1,3 +1,7 @@
+import * as email from "@/lib/channels/email";
+import * as dispatch from "@/lib/channels/dispatch";
+import { selfServeAlert } from "@/lib/self-serve/alerts";
+import { encryptedChannelCredentialValues } from "@/lib/channels/credentials";
 // @vitest-environment node
 import { randomUUID } from "node:crypto";
 import {
@@ -550,6 +554,89 @@ dbDescribe("self-serve configuration on owned PostgreSQL", () => {
         )
       ).rows[0].status,
     ).toBe("suppressed");
+  });
+  it("sends staff email directly and retries only the failed alert destination", async () => {
+    const emailSend = vi
+      .spyOn(email, "sendEmail")
+      .mockResolvedValue({ messageId: "fixture-email-alert" });
+    const whatsappSend = vi
+      .spyOn(dispatch, "sendChannelText")
+      .mockRejectedValueOnce(new Error("Fixture failure before acceptance"))
+      .mockResolvedValue({ providerMessageId: "fixture-wa-alert" });
+    const conv = randomUUID(),
+      message = randomUUID();
+    await getPool().query(
+      "insert into conversations(id,client_id,channel_id,external_thread_id) values($1,$2,$3,'customer')",
+      [conv, client, channel],
+    );
+    await getPool().query(
+      "insert into messages(id,client_id,channel_id,conversation_id,external_message_id,sender_role,body) values($1,$2,$3,$4,'alert-incoming','customer','Need help')",
+      [message, client, channel, conv],
+    );
+    await getPool().query(
+      "insert into staff_permission_grants(client_id,user_id,permission,granted_by) values($1,$2,'conversation.respond',$2)",
+      [client, actor],
+    );
+    for (const [kind, destination] of [
+      ["email", "owner@fixture.invalid"],
+      ["whatsapp", "+6599999999"],
+    ]) {
+      const e = encryptedChannelCredentialValues({
+        provider: kind === "email" ? "postmark" : "cloud",
+        apiKey: "fixture-not-live",
+        fromAddress: "business@fixture.invalid",
+      });
+      await getPool().query(
+        "insert into channels(id,client_id,kind,name,status,encrypted_credentials,credentials_encryption_nonce,credentials_encryption_tag) values($1,$2,$3,'Alert fixture','active',$4,$5,$6)",
+        [randomUUID(), client, kind, e.encryptedCredentials, e.nonce, e.tag],
+      );
+      await getPool().query(
+        "insert into staff_notification_destinations(client_id,kind,destination,recipient_user_id,verified_at,enabled) values($1,$2,$3,$4,now(),true)",
+        [client, kind, destination, actor],
+      );
+    }
+    const settings = (await current()).settings!;
+    await updateSettings(client, actor, {
+      version: settings.version,
+      alerts: {
+        email_enabled: true,
+        email_address: "owner@fixture.invalid",
+        whatsapp_enabled: true,
+        whatsapp_number: "+6599999999",
+      },
+    });
+    const escalation = await createEscalation({
+      clientId: client,
+      channelId: channel,
+      conversationId: conv,
+      customerMessageId: message,
+      customerMessage: "Need help",
+      reasonCode: "unknown",
+      reasonDetail: "Fixture",
+      confidence: 1,
+    });
+    expect(
+      await selfServeAlert(escalation.escalationId!, client),
+    ).toMatchObject({ status: "failed" });
+    expect(
+      await selfServeAlert(escalation.escalationId!, client),
+    ).toMatchObject({ status: "sent" });
+    expect(emailSend).toHaveBeenCalledTimes(1);
+    expect(emailSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "owner@fixture.invalid",
+        subject: "Pronto handover",
+      }),
+    );
+    expect(whatsappSend).toHaveBeenCalledTimes(2);
+    expect(
+      await selfServeAlert(escalation.escalationId!, client, "reminder"),
+    ).toMatchObject({ status: "skipped" });
+    vi.stubEnv("PRONTO_DEPLOYMENT_PROFILE", "protected-demo");
+    expect(
+      await selfServeAlert(escalation.escalationId!, client),
+    ).toMatchObject({ status: "skipped" });
+    expect(emailSend).toHaveBeenCalledTimes(1);
   });
   it("creates silent paused handovers, resumes only a fresh native reply, and keeps old work skipped", async () => {
     const conv = randomUUID(),

@@ -27,6 +27,10 @@ jobs:
           docker exec pronto-render-ci pdftoppm -v
           docker exec pronto-render-ci convert -version > /dev/null
           docker exec pronto-render-ci sh -c 'command -v antiword' > /dev/null
+          docker cp tests/fixtures/selfserve-policy.pdf pronto-render-ci:/tmp/pronto-policy.pdf
+          docker exec pronto-render-ci pdftotext /tmp/pronto-policy.pdf - | grep -q 'Open daily'
+          docker exec pronto-render-ci pdftoppm -scale-to 1800 -png -singlefile /tmp/pronto-policy.pdf /tmp/pronto-policy
+          docker exec pronto-render-ci tesseract /tmp/pronto-policy.png stdout -l eng | grep -q 'Open daily'
 
   verify:
     # Playwright 1.60.0 supports Noble; ubuntu-latest now selects unsupported 26.04.

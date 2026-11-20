@@ -7,12 +7,12 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import ExcelJS from "exceljs";
 import yauzl from "yauzl";
-import { PDFParse } from "pdf-parse";
 import { parseKnowledgeUpload, parseCsv } from "@/lib/knowledge/parse-upload";
 import {
   encryptedChannelCredentialValues,
   decryptChannelCredentials,
 } from "@/lib/channels/credentials";
+export class DocumentError extends Error {}
 export const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 export type Segment = { ref: string; text: string };
 export type PrivateFile = { name: string; type: string; data: string };
@@ -34,14 +34,16 @@ export function openFile(value: unknown): PrivateFile {
     typeof file.type !== "string" ||
     typeof file.data !== "string"
   )
-    throw new Error("The temporary upload is unavailable. Upload it again.");
+    throw new DocumentError(
+      "The temporary upload is unavailable. Upload it again.",
+    );
   return { name: file.name, type: file.type, data: file.data };
 }
 export async function validateArchive(buffer: Buffer) {
   await new Promise<void>((done, fail) =>
     yauzl.fromBuffer(buffer, { lazyEntries: true }, (error, zip) => {
       if (error || !zip) {
-        fail(new Error("This archive could not be read."));
+        fail(new DocumentError("This archive could not be read."));
         return;
       }
       let count = 0,
@@ -51,7 +53,7 @@ export async function validateArchive(buffer: Buffer) {
         if (!closed) {
           closed = true;
           zip.close();
-          fail(new Error(message));
+          fail(new DocumentError(message));
         }
       };
       zip.on("error", () => stop("This archive could not be read."));
@@ -114,7 +116,7 @@ async function run(
       })
     ).stdout;
   } catch {
-    throw new Error(
+    throw new DocumentError(
       "This file could not be converted within the processing limit. Try a text version.",
     );
   }
@@ -122,11 +124,13 @@ async function run(
 export async function extractFile(file: PrivateFile): Promise<Segment[]> {
   const bytes = Buffer.from(file.data, "base64");
   if (!bytes.length || bytes.length > MAX_SOURCE_BYTES)
-    throw new Error("Choose a nonempty file of up to 25 MB.");
+    throw new DocumentError("Choose a nonempty file of up to 25 MB.");
   const deadline = Date.now() + 110000;
   const command = (binary: string, args: string[]) => {
     if (Date.now() >= deadline)
-      throw new Error("File processing timed out. Try a smaller source.");
+      throw new DocumentError(
+        "File processing timed out. Try a smaller source.",
+      );
     return run(binary, args, deadline);
   };
   const ext = file.name.toLowerCase().split(".").pop() ?? "";
@@ -145,7 +149,7 @@ export async function extractFile(file: PrivateFile): Promise<Segment[]> {
     "heic",
   ];
   if (!allowed.includes(ext))
-    throw new Error("Unsupported document or image format.");
+    throw new DocumentError("Unsupported document or image format.");
   if (["docx", "xlsx"].includes(ext)) await validateArchive(bytes);
   if (ext === "xlsx") {
     const workbook = new ExcelJS.Workbook();
@@ -154,7 +158,7 @@ export async function extractFile(file: PrivateFile): Promise<Segment[]> {
     workbook.eachSheet((sheet) =>
       sheet.eachRow((row, index) => {
         if (segments.length >= 10000)
-          throw new Error("This spreadsheet contains too many rows.");
+          throw new DocumentError("This spreadsheet contains too many rows.");
         segments.push({
           ref: `${sheet.name}, row ${index}`,
           text:
@@ -215,7 +219,9 @@ export async function extractFile(file: PrivateFile): Promise<Segment[]> {
         dimensions.some((n) => !Number.isFinite(n) || n < 1) ||
         dimensions[0] * dimensions[1] > 40_000_000
       )
-        throw new Error("Image resolution exceeds the processing limit.");
+        throw new DocumentError(
+          "Image resolution exceeds the processing limit.",
+        );
       const image = join(dir, "image.png");
       await command("convert", [
         "-limit",
@@ -243,21 +249,17 @@ export async function extractFile(file: PrivateFile): Promise<Segment[]> {
     }
     if (ext === "pdf") {
       if (bytes.subarray(0, 5).toString() !== "%PDF-")
-        throw new Error("Malformed PDF.");
-      const parser = new PDFParse({ data: bytes });
-      let segments: Segment[] = [];
-      try {
-        const info = await bounded(parser.getInfo());
-        if (info.total > 50)
-          throw new Error("PDFs may contain at most 50 pages.");
-        const result = await bounded(parser.getText());
-        segments = result.pages.map((page, index) => ({
-          ref: `p. ${index + 1}`,
-          text: page.text,
-        }));
-      } finally {
-        await parser.destroy();
-      }
+        throw new DocumentError("Malformed PDF.");
+      const info = await command("pdfinfo", [input]);
+      const count = Number(info.match(/^Pages:\s+(\d+)/m)?.[1]);
+      if (!Number.isInteger(count) || count < 1 || count > 50)
+        throw new DocumentError("PDFs must contain 1–50 readable pages.");
+      const text = await command("pdftotext", ["-layout", input, "-"]);
+      const pagesText = text.split("\f");
+      const segments: Segment[] = Array.from({ length: count }, (_, index) => ({
+        ref: `p. ${index + 1}`,
+        text: pagesText[index] ?? "",
+      }));
       if (segments.some((segment) => segment.text.trim().length < 20)) {
         await command("pdftoppm", [
           "-scale-to",
@@ -306,7 +308,7 @@ export function boundSegments(segments: Segment[]) {
     .map((s) => ({ ...s, text: s.text.trim() }))
     .filter((s) => s.text);
   if (clean.reduce((n, s) => n + s.text.length, 0) > 200000)
-    throw new Error(
+    throw new DocumentError(
       "This source contains more than 200,000 characters. Split it into smaller sources.",
     );
   return clean;
@@ -317,7 +319,7 @@ export async function extractChatArchive(file: PrivateFile) {
   return new Promise<PrivateFile[]>((done, fail) =>
     yauzl.fromBuffer(buffer, { lazyEntries: true }, (error, zip) => {
       if (error || !zip) {
-        fail(new Error("Could not read chat export."));
+        fail(new DocumentError("Could not read chat export."));
         return;
       }
       const files: PrivateFile[] = [];
@@ -330,7 +332,7 @@ export async function extractChatArchive(file: PrivateFile) {
         zip.openReadStream(entry, (err, stream) => {
           if (err || !stream) {
             zip.close();
-            fail(new Error("Could not read chat export."));
+            fail(new DocumentError("Could not read chat export."));
             return;
           }
           const chunks: Buffer[] = [];
@@ -350,21 +352,4 @@ export async function extractChatArchive(file: PrivateFile) {
       zip.readEntry();
     }),
   );
-}
-
-async function bounded<T>(work: Promise<T>): Promise<T> {
-  let timer: ReturnType<typeof setTimeout>;
-  try {
-    return await Promise.race([
-      work,
-      new Promise<never>((_, fail) => {
-        timer = setTimeout(
-          () => fail(new Error("Document parsing timed out.")),
-          15000,
-        );
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer!);
-  }
 }

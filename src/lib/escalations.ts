@@ -74,10 +74,8 @@ async function notifyEscalationStaff(escalationId: string, clientId: string | un
     };
   }
 
-  if(kind==='initial'){
-    const selfserve=await selfServeAlert(escalation.id,escalation.client_id);
-    if(selfserve)return recordOwnerNotificationResult(escalation.id,escalation.client_id,selfserve);
-  }
+  const selfserve=await selfServeAlert(escalation.id,escalation.client_id,kind);
+  if(selfserve)return kind==='initial'?recordOwnerNotificationResult(escalation.id,escalation.client_id,selfserve):selfserve;
   const channelResult = await query<Channel>(
     `
       select * from channels

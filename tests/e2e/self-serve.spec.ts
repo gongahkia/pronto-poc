@@ -178,5 +178,20 @@ test("shared persisted state, editable voice, locked handovers, source errors an
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+  // Exceeds Next's default 10 MB proxy buffer without making a provider call.
+  const large = await page.request.post("/api/self-serve/sources", {
+    headers: { Origin: "http://localhost:3000" },
+    multipart: {
+      id: randomUUID(),
+      type: "file",
+      label: "Large transport fixture",
+      file: {
+        name: "large.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.alloc(11 * 1024 * 1024, 65),
+      },
+    },
+  });
+  expect(large.status()).toBe(200);
   expect(browserErrors).toEqual([]);
 });

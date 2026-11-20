@@ -1,3 +1,6 @@
+import { sendEmail } from "@/lib/channels/email";
+import { usesLegacyPlaintextCredentials } from "@/lib/channels/credentials";
+import { protectedDemoDeployment } from "@/lib/deployment-profile";
 import { query } from "@/lib/db";
 import { sendChannelText } from "@/lib/channels/dispatch";
 import { decryptChannelCredentials } from "@/lib/channels/credentials";
@@ -9,10 +12,21 @@ import { getSettings } from "./store";
 export async function selfServeAlert(
   escalationId: string,
   clientId: string,
+  notificationKind = "initial",
 ): Promise<OwnerNotificationResult | null> {
   if (!selfServeUIEnabled()) return null;
+  if (protectedDemoDeployment())
+    return {
+      status: "skipped",
+      detail: "External staff alerts remain disabled in the protected demo.",
+    };
   const config = await getSettings(clientId);
   if (!config?.enabled) return null;
+  if (notificationKind !== "initial")
+    return {
+      status: "skipped",
+      detail: "Self-serve alerts do not use the legacy reminder schedule.",
+    };
   const targets = [
     ...(config.alerts.whatsapp_enabled
       ? [{ kind: "whatsapp", destination: config.alerts.whatsapp_number }]
@@ -91,12 +105,35 @@ export async function selfServeAlert(
             ? `https://wa.me/${customer.replace("+", "")}`
             : null;
       const text = `Pronto needs your help with ${customer} on ${escalation.channel_name.replace(/[\r\n]/g, " ").slice(0, 100)}. Reply directly in the original ${escalation.channel_kind} conversation.${native ? ` Open: ${native}` : ""}`;
-      const delivered = await sendChannelText({
-        channelId: decryptChannelCredentials(channel).id,
-        clientId,
-        externalThreadId: target.destination,
-        text,
-      });
+      let delivered: { providerMessageId?: string };
+      if (channel.kind === "email") {
+        if (usesLegacyPlaintextCredentials(channel))
+          throw new Error(
+            "Encrypt email channel credentials before sending alerts.",
+          );
+        const selected = decryptChannelCredentials(channel);
+        if (
+          (process.env.PRONTO_CUSTOMER_DEMO_ENABLED === "1" ||
+            process.env.PRONTO_DEMO_ONLY_DELIVERY === "1") &&
+          selected.credentials.provider !== "local_smtp"
+        )
+          throw new Error(
+            "External staff email is disabled in the local customer sandbox.",
+          );
+        const sent = await sendEmail({
+          channel: selected,
+          to: target.destination,
+          subject: "Pronto handover",
+          text,
+        });
+        delivered = { providerMessageId: sent.messageId };
+      } else
+        delivered = await sendChannelText({
+          channelId: channel.id,
+          clientId,
+          externalThreadId: target.destination,
+          text,
+        });
       await query(
         "update selfserve_alert_deliveries set status='sent',provider_message_id=$4,updated_at=now() where client_id=$1 and escalation_id=$2 and kind=$3",
         [

@@ -1,5 +1,4 @@
 import "server-only";
-import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 import { readableHtmlText } from "@/lib/knowledge/html-text";
 
@@ -67,6 +66,7 @@ export async function parseKnowledgeUpload(file: File, options: {maxBytes?:numbe
   }
 
   if (extension === "pdf") {
+    const { PDFParse }=await import("pdf-parse");
     const parser = new PDFParse({ data: buffer });
     try {
       const info = await boundedPdfOperation(parser.getInfo());

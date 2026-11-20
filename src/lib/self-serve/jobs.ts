@@ -15,7 +15,7 @@ import {
   conflictSchema,
   SELF_SERVE_PROMPT_VERSION,
 } from "./model";
-import { openFile, extractFile, type Segment } from "./files";
+import { DocumentError, openFile, extractFile, type Segment } from "./files";
 import {
   lockSettings,
   touch,
@@ -154,7 +154,7 @@ async function processOne(clientId: string) {
     const message =
       error instanceof ProviderRequestError
         ? `AI processing is temporarily unavailable (${error.code}). ${retry ? "We will retry." : "Retry after checking the model configuration."}`
-        : error instanceof SelfServeError
+        : error instanceof SelfServeError || error instanceof DocumentError
           ? error.message
           : "We could not finish processing this item. Try again or provide a readable text version.";
     const changed = await query(

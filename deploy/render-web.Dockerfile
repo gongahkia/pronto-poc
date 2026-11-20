@@ -28,7 +28,7 @@ ENV PORT=10000
 ENV NODE_OPTIONS=--max-old-space-size=256
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim tesseract-ocr-tam \
-    poppler-utils imagemagick libheif1 antiword \
+    poppler-utils imagemagick libheif1 antiword fonts-dejavu-core \
  && rm -rf /var/lib/apt/lists/*
 RUN groupadd --system --gid 1001 nodejs \
  && useradd --system --uid 1001 --gid nodejs nextjs
