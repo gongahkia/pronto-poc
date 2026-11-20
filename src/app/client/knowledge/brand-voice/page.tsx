@@ -1,3 +1,5 @@
+import {redirect} from 'next/navigation';
+import {selfServeUIEnabled} from '@/lib/self-serve/settings';
 import { requireUser } from "@/lib/auth";
 import { getBusinessReplySettings } from "@/lib/knowledge/reply-settings";
 import { AppShell } from "@/components/shell";
@@ -7,6 +9,7 @@ import { ClientVoiceEditor } from "@/components/client-voice-editor";
 
 export default async function BrandVoicePage() {
   const user = await requireUser("client");
+  if(selfServeUIEnabled())redirect("/client/voice");
   if (!user.clientId) throw new Error("Business assignment required.");
   const settings = await getBusinessReplySettings(user.clientId);
   return <AppShell user={user} active="client" clientActive="knowledge" workspaceName={settings.client.name} workspaceProfile={settings.client.business_profile}>

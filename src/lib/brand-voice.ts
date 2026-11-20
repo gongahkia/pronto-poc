@@ -1,3 +1,4 @@
+import {runtimeConfig,runtimeVoice} from '@/lib/self-serve/runtime';
 import { query, transaction } from "@/lib/db";
 import type { BrandVoiceDocument, BrandVoiceExample, Client } from "@/lib/types";
 import { compileVoiceStyle, VOICE_EXAMPLE_LIMIT, type VoiceStyle } from "@/lib/voice-style";
@@ -36,6 +37,7 @@ export async function getPromptBrandVoiceProfile(
   clientId: string,
   limit = VOICE_EXAMPLE_LIMIT,
 ): Promise<BrandVoiceProfile> {
+  const config=await runtimeConfig(clientId);if(config)return runtimeVoice(config);
   const [documentResult, examplesResult] = await Promise.all([
     query<BrandVoiceDocument>(
       "select * from brand_voice_documents where client_id = $1",

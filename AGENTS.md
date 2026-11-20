@@ -22,7 +22,7 @@ below were moved from that README so they remain available to coding agents.
   See `docs/ops/prototype-feedback.md` for the triage and demo quiet-window scope.
   Earlier 200-case evidence predates this policy and is not acceptance of it.
 
-- Runtime: Node 24.21.0, pnpm 10.33.0, Next.js 16.4.1, PostgreSQL with pgvector.
+- Runtime: Node 24.21.0, pnpm 10.33.0, Next.js 16.4.5, PostgreSQL with pgvector.
 - Local OpenAI evaluation: GPT-6 Luna, low reasoning, private `.env.local`.
   Hosted customer-demo model remains Groq `openai/gpt-oss-20b`.
 - Read `docs/testing/evaluation-handoff.md` and
@@ -63,6 +63,18 @@ below were moved from that README so they remain available to coding agents.
 - `.env.local`, provider keys, bootstrap secrets and generated reports stay out
   of Git. Public local fixture passwords are intentionally documented separately.
   `output/` is ignored; evidence links there require the local handoff archive.
+
+## Self-serve workspace
+
+The optional `PRONTO_SELF_SERVE_ENABLED=1` workspace replaces the owner entry with
+Home, Business rules, Brand voice and Handovers. Migration 063 is required.
+Checked atomic rules publish automatically; conflicts are withheld. Voice has one
+active preset or custom mode. This mode uses silent paused handovers, overriding
+the older issue-scoped continuation policy for enabled self-serve businesses only.
+Verified native Instagram replies and WhatsApp Business App coexistence echoes
+can resume future customer messages; old backlog is not replayed. Public-demo
+external staff alerts remain blocked. Read `docs/product/self-serve.md` for
+rollout, temporary uploads, real-model evidence and operational limitations.
 
 ## Product behaviour and reference guides
 

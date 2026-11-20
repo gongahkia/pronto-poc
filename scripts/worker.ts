@@ -27,6 +27,7 @@ async function main() {
   while (!shuttingDown) {
     const startedAt = Date.now();
     try {
+      if(process.env.PRONTO_SELF_SERVE_ENABLED==='1'){const {processNextSelfServeWorkspace}=await import('../src/lib/self-serve/jobs');await processNextSelfServeWorkspace();}
       await expireExhaustedInboundLeases();
       for (let index = 0; index < inboundLimit && !shuttingDown; index += 1) {
         try {

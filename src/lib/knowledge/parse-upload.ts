@@ -1,5 +1,4 @@
 import "server-only";
-import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 import { readableHtmlText } from "@/lib/knowledge/html-text";
 
@@ -12,12 +11,12 @@ export type ParsedKnowledgeUpload = {
   metadata: Record<string, unknown>;
 };
 
-export async function parseKnowledgeUpload(file: File): Promise<ParsedKnowledgeUpload> {
+export async function parseKnowledgeUpload(file: File, options: {maxBytes?:number} = {}): Promise<ParsedKnowledgeUpload> {
   if (!file.name || file.size === 0) {
     throw new Error("Uploaded file is empty.");
   }
-  if (file.size > MAX_KNOWLEDGE_UPLOAD_BYTES) {
-    throw new Error("Uploaded file exceeds the 8 MB limit.");
+  if (file.size > (options.maxBytes ?? MAX_KNOWLEDGE_UPLOAD_BYTES)) {
+    throw new Error(`Uploaded file exceeds the ${(options.maxBytes ?? MAX_KNOWLEDGE_UPLOAD_BYTES)/1024/1024} MB limit.`);
   }
 
   const extension = extensionOf(file.name);
@@ -67,6 +66,7 @@ export async function parseKnowledgeUpload(file: File): Promise<ParsedKnowledgeU
   }
 
   if (extension === "pdf") {
+    const { PDFParse }=await import("pdf-parse");
     const parser = new PDFParse({ data: buffer });
     try {
       const info = await boundedPdfOperation(parser.getInfo());

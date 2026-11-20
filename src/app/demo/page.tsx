@@ -1,3 +1,4 @@
+import {selfServeUIEnabled} from '@/lib/self-serve/settings';
 import Link from 'next/link';
 import {ArrowRight, MessagesSquare, Store} from 'lucide-react';
 import {notFound,redirect} from 'next/navigation';
@@ -37,7 +38,8 @@ export default async function DemoEntryPage({searchParams}:{searchParams:Promise
           <input id="reviewer-name" name="name" maxLength={40} autoComplete="name" placeholder="e.g. Keith" className="ui-input mt-2 w-full px-3 py-2 text-sm"/>
           <p className="mt-2 text-xs leading-5 text-muted">Used for your demo session. No account or password needed.</p></div>}
         <div className="grid gap-4 sm:grid-cols-2">
-          {views.map(({href,title,description,action,Icon})=>{
+          {views.map(view=>{
+            const {title,Icon}=view;const modern=selfServeUIEnabled()&&view.href==='/client/inbox';const href=modern?'/client/home':view.href;const description=modern?'Manage business rules, brand voice and handovers.':view.description;const action=modern?'Open business workspace':view.action;
             const content=<><Icon size={24} aria-hidden="true" className="mb-4 text-accent"/><h2 className="text-lg font-semibold">{title}</h2>
               <p className="mb-6 mt-2 flex-1 text-sm leading-6 text-muted">{description}</p><span className="flex items-center gap-2 text-sm font-semibold text-accent">{action} <ArrowRight size={16} aria-hidden="true"/></span></>;
             const className='ui-panel group flex w-full flex-col p-6 text-left transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent';
@@ -46,7 +48,7 @@ export default async function DemoEntryPage({searchParams}:{searchParams:Promise
           })}
         </div>
       </form>
-      <p className="mt-5 text-sm leading-6 text-muted">You can switch demo views at any time. Both views share the same synthetic workspace; nothing is sent to real customers.</p>
+      <p className="mt-5 text-sm leading-6 text-muted">{selfServeUIEnabled()?'You can switch demo views at any time. Changes affect this shared test workspace and its connected test Instagram account.':'You can switch demo views at any time. Both views share the same synthetic workspace; nothing is sent to real customers.'}</p>
       {user&&<form action="/api/auth/logout" method="post" className="mt-4"><button className="text-sm text-accent underline underline-offset-4">{isGuestEmail(user.email) ? 'Reset demo session' : 'Sign out'}</button></form>}
       <div className="mt-4"><ServiceStatusLink/></div>
     </section>

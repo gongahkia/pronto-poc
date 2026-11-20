@@ -1,3 +1,4 @@
+import {whatsAppOwnerEchoes,recordNativeOwnerReply} from '@/lib/self-serve/owner-replies';
 import { NextResponse } from "next/server";
 import {
   getWhatsAppChannel,
@@ -83,6 +84,7 @@ export async function POST(request: Request, context: Context) {
   if (!phoneNumberId || !whatsAppPayloadMatchesChannel(payload, phoneNumberId)) {
     return new NextResponse("Business number mismatch", { status: 403, headers: requestIdHeaders(requestId) });
   }
+  for(const echo of whatsAppOwnerEchoes(payload,phoneNumberId))await recordNativeOwnerReply(channel,echo);
   await recordWhatsAppStatusEvents(channel, payload);
   const messages = normalizeWhatsAppPayload(channelId, payload);
   return NextResponse.json(await processInboundMessages(messages, { requestId }), {

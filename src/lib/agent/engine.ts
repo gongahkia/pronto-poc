@@ -1,3 +1,4 @@
+import {withSelfServeConfig,runtimeConfig,selfServeTriage} from '@/lib/self-serve/runtime';
 import { allowsSupportedFollowups } from './handoff-policy';
 import { processingFailure } from "@/lib/agent/processing-error";
 import { businessClock } from "@/lib/agent/business-clock";
@@ -75,7 +76,7 @@ export type AgentRunInput = {
   reservationConnector?: ReservationConnector;
 };
 export async function runAgentForMessage(input: AgentRunInput): Promise<AgentRunResult> {
-  return withAgentTurn(() => runAgentTurn(input), { clientId: input.clientId });
+  return withSelfServeConfig(input.clientId,()=>withAgentTurn(() => runAgentTurn(input), { clientId: input.clientId }));
 }
 async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
   logInfo("agent.run_started", {
@@ -114,6 +115,12 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
   trace.addStep("conversation_context", { currentMessageId: input.customerMessageId,
     historyMessageIds: recentMessagesResult.map(message => message.id), usedForRetrieval: normalizedKnowledgeQuery.usedConversationContext });
   const requireModelReply = !shouldUseMockAi();
+  const selfserve=await runtimeConfig(input.clientId);
+  if(selfserve){
+    trace.addStep('selfserve_configuration',{version:selfserve.settings.version,liveRules:selfserve.rules.length});
+    const route=await selfServeTriage(input.clientId,input.customerMessage,recentMessages);
+    if(route){const result=await createEscalation({...input,...route,confidence:1});await trace.finalize({status:'escalated',...route,confidence:1,escalationId:result.escalationId});return result;}
+  }
   // A tenant-declared policy conflict is a review signal, not customer-facing evidence.
   // Check before the restaurant booking path, which otherwise interprets a timing
   // policy question as an incomplete reservation request.
@@ -243,7 +250,8 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
 
   const precheck = evaluatePreGenerationGuardrails(
     input.customerMessage,
-    requireModelReply ? { ...config.escalation_rules, disabledReasonCodes: [
+    selfserve ? {disabledReasonCodes:["complaint_or_refund","transactional_action","urgent_or_negative_sentiment",
+      ...(!selfserve.settings.handovers.presets.asks_for_person.enabled?["human_handoff_requested"]:[])]} : requireModelReply ? { ...config.escalation_rules, disabledReasonCodes: [
       ...(Array.isArray(config.escalation_rules.disabledReasonCodes) ? config.escalation_rules.disabledReasonCodes : []),
       "complaint_or_refund", "transactional_action", "urgent_or_negative_sentiment",
     ] } : config.escalation_rules,
@@ -546,7 +554,7 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
     timeoutMs: agentTimeoutMs(),
     maxPromptTokens: agentMaxPromptTokens(),
     conversationalTurn,
-    escalationRules: config.escalation_rules,
+    escalationRules: selfserve?{selfServe:true,...selfserve.settings.handovers}:config.escalation_rules,
     channelKind: input.channelKind,
     reservationContext: !!reservationContext,
   };
@@ -826,6 +834,7 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
       `agent-${input.customerMessageId}`,
       decision.answer,
       {
+        selfServeVersion:selfserve?.settings.version??null,
         confidence: decision.confidence,
         reasonCode: decision.reasonCode,
         citedChunkIds: decision.citedChunkIds,
@@ -916,7 +925,8 @@ export async function createEscalation(input: {
   handoffReply?: HandoffIntakeReply;
 }): Promise<AgentRunResult> {
   assertTurnActive();
-  const followups = allowsSupportedFollowups(input.reasonCode, input.customerMessage);
+  const silent=Boolean(await runtimeConfig(input.clientId));
+  const followups = !silent&&allowsSupportedFollowups(input.reasonCode, input.customerMessage);
   return transaction(async (client) => {
     const customerMessage = await client.query<{ id: string }>(
       "select id from messages where id = $1 and client_id = $2 and conversation_id = $3 for update",
@@ -955,7 +965,7 @@ export async function createEscalation(input: {
       ],
     );
 
-    if (input.handoffReply) {
+    if (input.handoffReply&&!silent) {
       assertTurnActive();
       await client.query(`insert into messages(conversation_id,client_id,channel_id,external_message_id,sender_role,body,metadata)
         values($1,$2,$3,$4,'agent',$5,$6::jsonb) on conflict(channel_id,external_message_id) do nothing`,

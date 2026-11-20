@@ -1,3 +1,4 @@
+import {selfServeUIEnabled} from '@/lib/self-serve/settings';
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { canViewBusinessConversation } from "@/lib/staff-permissions";
@@ -24,6 +25,7 @@ export default async function ClientInboxPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requireUser("client");
+  if(selfServeUIEnabled())redirect("/client/home");
   if (!user.clientId) {
     redirect("/access?reason=membership");
   }

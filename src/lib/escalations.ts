@@ -1,3 +1,4 @@
+import {selfServeAlert} from '@/lib/self-serve/alerts';
 import { appBaseUrl } from "@/lib/env";
 import { query } from "@/lib/db";
 import { sendChannelText } from "@/lib/channels/dispatch";
@@ -73,6 +74,8 @@ async function notifyEscalationStaff(escalationId: string, clientId: string | un
     };
   }
 
+  const selfserve=await selfServeAlert(escalation.id,escalation.client_id,kind);
+  if(selfserve)return kind==='initial'?recordOwnerNotificationResult(escalation.id,escalation.client_id,selfserve):selfserve;
   const channelResult = await query<Channel>(
     `
       select * from channels

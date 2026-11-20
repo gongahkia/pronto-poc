@@ -17,10 +17,20 @@ jobs:
       - name: Smoke the Render image
         run: |
           trap 'docker logs pronto-render-ci; docker rm -f pronto-render-ci' EXIT
-          docker run -d --name pronto-render-ci -p 127.0.0.1:10000:10000 pronto-render:ci
+          docker run -d --name pronto-render-ci -p 127.0.0.1:10000:10000 -e PRONTO_SELF_SERVE_ENABLED=1 pronto-render:ci
           # Docker can reset the first connection before Node starts listening.
           curl --fail --retry 20 --retry-all-errors --retry-delay 1 --connect-timeout 2 --max-time 10 http://127.0.0.1:10000/api/health
           curl --fail http://127.0.0.1:10000/login > /dev/null
+          # Runtime opt-in must expose the protected API even when built with the flag off.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:10000/api/self-serve)" = 401
+          docker exec pronto-render-ci tesseract --version > /dev/null
+          docker exec pronto-render-ci pdftoppm -v
+          docker exec pronto-render-ci convert -version > /dev/null
+          docker exec pronto-render-ci sh -c 'command -v antiword' > /dev/null
+          docker cp tests/fixtures/selfserve-policy.pdf pronto-render-ci:/tmp/pronto-policy.pdf
+          docker exec pronto-render-ci pdftotext /tmp/pronto-policy.pdf - | grep -q 'Open daily'
+          docker exec pronto-render-ci pdftoppm -scale-to 1800 -png -singlefile /tmp/pronto-policy.pdf /tmp/pronto-policy
+          docker exec pronto-render-ci tesseract /tmp/pronto-policy.png stdout -l eng | grep -q 'Open daily'
 
   verify:
     # Playwright 1.60.0 supports Noble; ubuntu-latest now selects unsupported 26.04.

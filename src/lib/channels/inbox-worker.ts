@@ -1,3 +1,4 @@
+import {runtimeConfig} from '@/lib/self-serve/runtime';
 import { query, transaction } from "@/lib/db";
 import { createEscalation, runAgentForMessage } from "@/lib/agent/engine";
 import { decryptChannelCredentials, usesLegacyPlaintextCredentials } from "@/lib/channels/credentials";
@@ -96,6 +97,11 @@ async function executeMessage(job: InboundJob, channel: Channel, message: Messag
     return "escalated";
   }
 
+  if(await runtimeConfig(job.client_id)){
+    const old=await query(`select id from selfserve_owner_replies where client_id=$1 and channel_id=$2 and external_thread_id=$3
+      and occurred_at>=coalesce($4::timestamptz,$5::timestamptz) limit 1`,[job.client_id,channel.id,conversation.external_thread_id,message.metadata.providerOccurredAt??null,message.created_at]);
+    if(old.rowCount)return 'skipped';
+  }
   // A later release applies to future enquiries, not a human-owned backlog.
   if (message.metadata.aiPausedAtIngestion === true) return "skipped";
   const active = await query<{ id: string }>(
@@ -184,7 +190,7 @@ async function queueAnswer(job: InboundJob, conversation: Conversation, answer: 
         ? `${answer.body}\n\nRate this reply: ${csatUrl}` : answer.body,
       idempotencyKey: `agent-answer:${job.message_id}`,
       metadata: { purpose: "agent_answer", customerMessageId: job.message_id,
-        agentMessageId: answer.id, reasonCode: answer.metadata.reasonCode },
+        agentMessageId: answer.id, selfServeVersion:answer.metadata.selfServeVersion??null, reasonCode: answer.metadata.reasonCode },
     });
   }, { isolationLevel: "serializable", retries: 2 });
 }
@@ -193,6 +199,11 @@ async function queueHandoff(
   job: InboundJob, channel: Channel, conversation: Conversation, escalation: Escalation,
 ): Promise<void> {
   assertTurnActive();
+  if(await runtimeConfig(job.client_id)){
+    await transaction(async db=>{await enqueueStaffNotification(db,job.client_id,escalation.id);
+      await enqueueKnowledgeReviewItem(db,{clientId:job.client_id,conversationId:conversation.id,messageId:job.message_id,escalationId:escalation.id,reasonCode:escalation.reason_code});});
+    return;
+  }
   const policy = await query<{ policy: { timezone: string; staffedHours: Record<string, { start: string; end: string }>;
     outOfHoursAcknowledgement: string | null } }>(
     "select policy from escalation_policy_versions where client_id = $1 order by version desc limit 1", [job.client_id]);

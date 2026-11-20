@@ -1,3 +1,4 @@
+import {selfServeUIEnabled} from '@/lib/self-serve/settings';
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
@@ -12,6 +13,7 @@ type PageSearch = KnowledgeChannelParams & { updated?: string; staged?: string; 
 
 export default async function ClientKnowledgePage({ searchParams }: { searchParams?: Promise<PageSearch> }) {
   const user = await requireUser("client");
+  if(selfServeUIEnabled())redirect("/client/rules");
   if (!user.clientId) throw new Error("Business assignment required.");
   const params = await searchParams ?? {};
   if (params.section === "voice") redirect("/client/knowledge/brand-voice");
