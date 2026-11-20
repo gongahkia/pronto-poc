@@ -250,7 +250,8 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
 
   const precheck = evaluatePreGenerationGuardrails(
     input.customerMessage,
-    requireModelReply ? { ...config.escalation_rules, disabledReasonCodes: [
+    selfserve ? {disabledReasonCodes:["complaint_or_refund","transactional_action","urgent_or_negative_sentiment",
+      ...(!selfserve.settings.handovers.presets.asks_for_person.enabled?["human_handoff_requested"]:[])]} : requireModelReply ? { ...config.escalation_rules, disabledReasonCodes: [
       ...(Array.isArray(config.escalation_rules.disabledReasonCodes) ? config.escalation_rules.disabledReasonCodes : []),
       "complaint_or_refund", "transactional_action", "urgent_or_negative_sentiment",
     ] } : config.escalation_rules,

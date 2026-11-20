@@ -353,7 +353,7 @@ export async function POST(request: Request, context: Context) {
   const release = trySelfServeWork();
   if (!release)
     return json(
-      { error: "Another upload is being saved. Try again in a moment." },
+      { error: "Pronto is processing another item. Try uploading again in a moment." },
       429,
     );
   try {
