@@ -36,6 +36,7 @@ export default async function ConversationsPage({
     limit = 30;
   const conversations = await getFilteredConversations({
     ...filters,
+    externalOnly: true,
     sort: "recent",
     limit: limit + 1,
     offset: (page - 1) * limit,
@@ -45,12 +46,13 @@ export default async function ConversationsPage({
       <AutoRefresh intervalMs={10000} />
       <Header
         title="Conversations"
-        description="Your customer conversations, saved across Instagram and the demo. Open a thread to review its messages and Pronto’s decisions."
+        description="Your customer conversations from connected messaging accounts. Open a thread to review its messages and Pronto’s decisions."
       />
       <section className="ss-panel ss-conversations">
         <ConversationFilterForm
           action="/client/conversations"
           filters={filters}
+          includeSimulator={false}
         />
         {conversations.length ? (
           <ol className="ss-conversation-list" aria-label="Saved conversations">

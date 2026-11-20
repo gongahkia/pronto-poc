@@ -42,9 +42,11 @@ export function ClientAnalyticsCards({
 export function ConversationFilterForm({
   action,
   filters,
+  includeSimulator = true,
 }: {
   action: string;
   filters: ConversationFilterInput;
+  includeSimulator?: boolean;
 }) {
   return (
     <form action={action} className="space-y-3 border-b border-line p-4">
@@ -57,7 +59,7 @@ export function ConversationFilterForm({
         </div>
         <select name="channel" aria-label="Channel" defaultValue={filters.channelKind ?? ""} className="ui-input px-3 py-2 text-sm">
           <option value="">All channels</option>
-          <option value="console">Customer chat</option>
+          {includeSimulator && <option value="console">Customer chat</option>}
           {channelDefinitions.map(channel => <option key={channel.kind} value={channel.kind}>
             {channel.label}
           </option>)}

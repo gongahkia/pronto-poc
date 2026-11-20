@@ -5,6 +5,7 @@ import type { Channel, ConversationStatus, EscalationStatus } from "@/lib/types"
 export type ConversationFilterInput = {
   clientId?: string;
   businessSearch?: string;
+  externalOnly?: boolean;
   query?: string;
   channelKind?: string;
   status?: string;
@@ -376,6 +377,7 @@ function buildConversationFilters(input: ConversationFilterInput): SqlFilter {
   if (input.clientId) {
     where.push(`c.client_id = $${pushParam(values, input.clientId)}`);
   }
+  if (input.externalOnly) where.push("ch.kind <> 'console'");
   if (input.businessSearch?.trim()) {
     where.push(`cl.name ilike $${pushParam(values, `%${input.businessSearch.trim()}%`)}`);
   }

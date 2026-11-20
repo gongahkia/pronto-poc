@@ -92,11 +92,13 @@ export function SelfServeWorkspace({
   initial,
   children,
   canManageKnowledge = true,
+  simulatorEnabled = true,
 }: {
   name: string;
   initial: State;
   children: React.ReactNode;
   canManageKnowledge?: boolean;
+  simulatorEnabled?: boolean;
 }) {
   const [state, setState] = useState(initial),
     [busy, setBusy] = useState(false),
@@ -216,7 +218,7 @@ export function SelfServeWorkspace({
             </span>
           </div>
           <Link className="ss-switch" href="/demo">
-            Switch demo view <ArrowRight size={14} />
+            {simulatorEnabled ? "Switch demo view" : "Workspace access"} <ArrowRight size={14} />
           </Link>
         </aside>
         <main id="workspace-content" className="ss-main">

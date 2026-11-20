@@ -39,7 +39,7 @@ export default async function ClientConversationPage({
     getClient(user.clientId),
     getConversationTriageDetail({ clientId: user.clientId, conversationId }),
   ]);
-  if (!client || !conversation) {
+  if (!client || !conversation || (selfServeUIEnabled() && conversation.channel_kind === "console")) {
     notFound();
   }
   const [activeEscalation, messages, decisions] = await Promise.all([

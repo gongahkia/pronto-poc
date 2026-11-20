@@ -1,3 +1,4 @@
+import { customerSimulatorEnabled } from "@/lib/customer-simulator-policy";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 
@@ -9,7 +10,7 @@ export default async function AccountPage() {
       <p className="text-sm">Signed in as {user.email} ({user.role}).</p>
       <Link href="/client/inbox" className="block text-sm text-accent">Open business inbox</Link>
       {user.role === "operator" ? <p className="text-sm text-muted">Business conversations require a separate authorized business staff account. Administrative services remain protected by operator authentication.</p> : null}
-      {process.env.PRONTO_CUSTOMER_DEMO_ENABLED === "1" && process.env.NODE_ENV !== "production"
+      {customerSimulatorEnabled() && process.env.PRONTO_CUSTOMER_DEMO_ENABLED === "1" && process.env.NODE_ENV !== "production"
         ? <Link href="/demo/customer" className="block text-sm text-accent">Open customer simulator</Link> : null}
       <form action="/api/auth/logout" method="post"><button className="ui-button px-4 py-2">Log out</button></form>
     </section>

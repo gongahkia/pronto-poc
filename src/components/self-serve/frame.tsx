@@ -1,3 +1,4 @@
+import { customerSimulatorEnabled } from "@/lib/customer-simulator-policy";
 import { DemoQueuePump } from "@/components/demo-queue-pump";
 import { demoBusinessScope } from "@/lib/demo-business";
 import { requestDrivenDemoProcessing } from "@/lib/deployment-profile";
@@ -44,6 +45,7 @@ export async function SelfServeFrame({
       <SelfServeWorkspace
         name={business?.name ?? "Your business"}
         canManageKnowledge={canManageKnowledge}
+        simulatorEnabled={customerSimulatorEnabled()}
         initial={
           canManageKnowledge
             ? JSON.parse(JSON.stringify(await snapshot(user.clientId)))
