@@ -7,6 +7,8 @@ import { getClient } from "@/lib/dashboard";
 import { selfServeUIEnabled } from "@/lib/self-serve/settings";
 import { notFound } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 export default async function SettingsPage({
   searchParams,
 }: {
