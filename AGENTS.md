@@ -67,7 +67,7 @@ below were moved from that README so they remain available to coding agents.
 ## Self-serve workspace
 
 The optional `PRONTO_SELF_SERVE_ENABLED=1` workspace replaces the owner entry with
-Home, Business rules, Brand voice and Handovers. Migration 063 is required.
+Home, Business rules, Brand voice, Handovers, Conversations and Settings. Migration 063 is required. Conversations displays external-channel history and decision traces; replies stay in the native messaging app. Channels navigation is omitted.
 Checked atomic rules publish automatically; conflicts are withheld. Voice has one
 active preset or custom mode. This mode uses silent paused handovers, overriding
 the older issue-scoped continuation policy for enabled self-serve businesses only.
@@ -75,6 +75,8 @@ Verified native Instagram replies and WhatsApp Business App coexistence echoes
 can resume future customer messages; old backlog is not replayed. Public-demo
 external staff alerts remain blocked. Read `docs/product/self-serve.md` for
 rollout, temporary uploads, real-model evidence and operational limitations.
+
+On 20 November the user retired simulated DMs in the shared deployment. `PRONTO_CUSTOMER_SIMULATOR_ENABLED=0` disables the customer simulator independently of business access, knowledge authoring and Instagram processing. The 28 console conversations and 101 messages were removed with a private backup and audit record; the real Instagram thread and four messages were retained, and 51 usage entries were detached rather than erased. Do not seed or recreate hosted simulator data. Disposable offline regression fixtures remain separate. See `docs/ops/simulated-dm-retirement.md`.
 
 ## Product behaviour and reference guides
 

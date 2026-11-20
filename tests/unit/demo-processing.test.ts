@@ -1,4 +1,4 @@
-import {beforeEach,describe,expect,it,vi} from 'vitest';
+import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 const mock=vi.hoisted(()=>({enabled:vi.fn(),config:vi.fn(),actor:vi.fn(),query:vi.fn(),process:vi.fn(),flush:vi.fn()}));
 vi.mock('@/lib/deployment-profile',()=>({requestDrivenDemoProcessing:mock.enabled,protectedDemoConfiguration:mock.config,protectedDemoDeployment:()=>true}));
 vi.mock('@/lib/customer-demo',()=>({assertDemoActor:mock.actor}));
@@ -10,7 +10,15 @@ import {processDemoQueue} from '@/lib/demo-processing';
 import {DEMO_CLIENT_ID,DEMO_CHANNEL_ID,DemoError} from '@/lib/customer-demo-boundary';
 import type {SessionUser} from '@/lib/auth';
 const actor:SessionUser={userId:'actor',clientId:DEMO_CLIENT_ID,role:'client',email:'qa@demo.test',name:'QA'};
+afterEach(()=>vi.unstubAllEnvs());
 describe('bounded protected request processing',()=>{
+ it('keeps live Instagram processing when customer simulation is retired',async()=>{
+  vi.stubEnv('PRONTO_CUSTOMER_SIMULATOR_ENABLED','0');vi.stubEnv('PRONTO_DEMO_INSTAGRAM_ENABLED','1');
+  const instagram='4c1917a4-4bea-4fda-8671-58b6979ac10a';
+  vi.stubEnv('PRONTO_DEMO_INSTAGRAM_CHANNEL_ID',instagram);vi.stubEnv('PRONTO_DEMO_INSTAGRAM_ACCOUNT_ID','123');vi.stubEnv('PRONTO_DEMO_INSTAGRAM_SENDER_IDS','456');
+  await processDemoQueue(actor);
+  expect(mock.process).toHaveBeenCalledExactlyOnceWith({clientId:DEMO_CLIENT_ID,channelId:instagram,requestId:'demo-request'});
+ });
  beforeEach(()=>{vi.clearAllMocks();mock.enabled.mockReturnValue(true);mock.actor.mockResolvedValue(undefined);mock.process.mockResolvedValue(null);mock.query.mockResolvedValue({rows:[],rowCount:0});});
  it('fails closed outside the explicit profile and for uninvited actors',async()=>{
   mock.enabled.mockReturnValue(false);await expect(processDemoQueue(actor)).rejects.toMatchObject({status:404});expect(mock.query).not.toHaveBeenCalled();
