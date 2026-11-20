@@ -196,8 +196,9 @@ export function SelfServeWorkspace({
           <div className="ss-help">
             <strong>Need a hand?</strong>
             <p>Talk through your setup with the Pronto team.</p>
-            <button disabled>Book a consult</button>
-            <small>Booking link coming soon</small>
+            <span className="ss-disabled-consult" title="Booking link coming soon">
+              <button disabled aria-description="Booking link coming soon">Book a consult</button>
+            </span>
           </div>
           <Link className="ss-switch" href="/demo">
             Switch demo view <ArrowRight size={14} />

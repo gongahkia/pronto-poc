@@ -183,9 +183,7 @@
   font-weight: 600;
   padding: 0;
 }
-.ss-help small {
-  color: var(--ss-muted);
-}
+
 .ss-switch {
   display: flex;
   align-items: center;
@@ -1299,3 +1297,6 @@
   }
 }
 .ss-voice-excerpt {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;line-height:1.6;color:var(--ss-muted)}
+
+.ss-disabled-consult { align-self: flex-start; display: inline-flex; cursor: not-allowed; }
+.ss-disabled-consult button { pointer-events: none; }
