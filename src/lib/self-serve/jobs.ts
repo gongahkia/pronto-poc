@@ -1,3 +1,4 @@
+import {logWarn} from '@/lib/logger';
 import {unsupportedGroundedValue} from '@/lib/agent/grounded-values';
 import {randomUUID} from 'node:crypto';
 import {query,transaction,type Queryable} from '@/lib/db';
@@ -43,6 +44,7 @@ async function processOne(clientId:string){
   if(job.kind==='source'||job.kind==='rule')await processRules(job);
   else{const {processVoiceJob}=await import('./voice');await processVoiceJob(job);}
  }catch(error){
+  logWarn('selfserve.processing_failed',{clientId,jobId:job.id,kind:job.kind,error});
   const retry=error instanceof ProviderRequestError&&error.retryable&&job.attempts<5;
   const message=error instanceof ProviderRequestError?`AI processing is temporarily unavailable (${error.code}). ${retry?'We will retry.':'Retry after checking the model configuration.'}`:
    error instanceof SelfServeError?error.message:'We could not finish processing this item. Try again or provide a readable text version.';
@@ -83,7 +85,7 @@ async function processRules(job:Job){
    else segments=[{ref:'your text',text:source.raw_text??''}];
    const packed=segments.flatMap(segment=>chunkText(segment.text,{maxCharacters:6000,overlap:200}).map(chunk=>({ref:segment.ref,text:chunk.content})));
    await transaction(async db=>{await lockSettings(db,job.client_id);await assertJobLease(db,job);
-   await db.query(`update selfserve_sources set extracted_text=$4,segments=$5,transient_file=null,updated_at=now() where client_id=$1 and id=$2 and revision=$3 and deleted_at is null`,[job.client_id,source.id,job.revision,segments.map(s=>s.text).join('\n\n'),packed]);
+   await db.query(`update selfserve_sources set extracted_text=$4,segments=$5,transient_file=null,updated_at=now() where client_id=$1 and id=$2 and revision=$3 and deleted_at is null`,[job.client_id,source.id,job.revision,segments.map(s=>s.text).join('\n\n'),JSON.stringify(packed)]);
    await updateJob(job,{phase:'extract',segments:packed,cursor:0,rules:[]},'pending',db);});return;
   }
   state={phase:'extract',segments:[{ref:edited!.ref,text:edited!.text}],cursor:0,rules:[]};

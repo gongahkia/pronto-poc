@@ -27,7 +27,7 @@ export async function addVoiceReply(clientId:string,actorId:string,id:string,rou
   const old=session.replies.find(r=>r.round===round);if(old){if(old.owner_reply===text)return;throw new SelfServeError('That round has already been answered.',409);}
   if(session.status!=='collecting'||session.replies.length!==round-1||round<1||round>3)throw new SelfServeError('Reload this conversation before replying.',409);
   const replies=[...session.replies,{round,customer_message:scenarios[session.industry].messages[round-1],owner_reply:text}];
-  await db.query(`update selfserve_voice_sessions set replies=$4,status=$5,revision=revision+1,updated_at=now() where client_id=$1 and id=$2 and actor_id=$3`,[clientId,id,actorId,replies,round===3?'analysing':'collecting']);
+  await db.query(`update selfserve_voice_sessions set replies=$4,status=$5,revision=revision+1,updated_at=now() where client_id=$1 and id=$2 and actor_id=$3`,[clientId,id,actorId,JSON.stringify(replies),round===3?'analysing':'collecting']);
   if(round===3)await queueJob(db,clientId,actorId,'voice_analyse',id,session.revision+1);
  });return voiceSession(clientId,actorId,id);
 }
@@ -94,7 +94,7 @@ export async function processVoiceJob(job:Job){
   if(!review.trim()||review.length>100000)throw new Error('Choose smaller readable chat samples.');
   await transaction(async db=>{
    await lockSettings(db,job.client_id);await assertJobLease(db,job);
-   await db.query(`update selfserve_voice_sessions set status='review',transient_file=null,review_text=$5,speaker_options=$6,updated_at=now() where client_id=$1 and id=$2 and revision=$3 and actor_id=$4 and status='extracting' and expires_at>now()`,[job.client_id,session.id,job.revision,job.actor_id,review,speakers]);
+   await db.query(`update selfserve_voice_sessions set status='review',transient_file=null,review_text=$5,speaker_options=$6,updated_at=now() where client_id=$1 and id=$2 and revision=$3 and actor_id=$4 and status='extracting' and expires_at>now()`,[job.client_id,session.id,job.revision,job.actor_id,review,JSON.stringify(speakers)]);
    await updateJob(job,{reviewReady:true},'ready',db);
   });return;
  }
@@ -103,7 +103,7 @@ export async function processVoiceJob(job:Job){
  const cleaned=output.value.notes.map(note=>redactSamples(note));
  await transaction(async db=>{
   await lockSettings(db,job.client_id);await assertJobLease(db,job);
-  await db.query(`update selfserve_voice_sessions set status='ready',draft_notes=$5,review_text=null,replies=case when method='upload' then '[]'::jsonb else replies end,model=$6,prompt_version=$7,updated_at=now() where client_id=$1 and id=$2 and revision=$3 and actor_id=$4 and status='analysing'`,[job.client_id,session.id,job.revision,job.actor_id,cleaned,output.model,'selfserve-v1']);
+  await db.query(`update selfserve_voice_sessions set status='ready',draft_notes=$5,review_text=null,replies=case when method='upload' then '[]'::jsonb else replies end,model=$6,prompt_version=$7,updated_at=now() where client_id=$1 and id=$2 and revision=$3 and actor_id=$4 and status='analysing'`,[job.client_id,session.id,job.revision,job.actor_id,JSON.stringify(cleaned),output.model,'selfserve-v1']);
   await updateJob(job,{notesReady:true},'ready',db,output.model);
  });
 }

@@ -120,7 +120,8 @@
       "vite@8.0.13": "8.0.16",
       "dompurify": "3.4.17",
       "zod@4.1.11": "4.6.6",
-      "nodemailer@10.1.0": "10.1.4"
+      "nodemailer@10.1.0": "10.1.4",
+      "uuid@8.3.2": "11.1.1"
     },
     "auditConfig": {
       "ignoreCves": [
