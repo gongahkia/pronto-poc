@@ -108,14 +108,14 @@ export async function POST(request: Request, context: Context) {
         { headers: { ...requestIdHeaders(requestId), "Cache-Control": "no-store" } })
       : new NextResponse("Channel inactive", { status: 403, headers: requestIdHeaders(requestId) });
   }
+  const echoes=instagramOwnerEchoes(payload,igUserId,typeof channel.credentials.appId==='string'?channel.credentials.appId:undefined);
   try {
-    for (const sender of new Set(messages.map(message => message.externalThreadId)))
+    for (const sender of new Set([...messages.map(message => message.externalThreadId),...echoes.map(echo=>echo.threadId)]))
       await instagramTestAiProfile(channel, sender);
   } catch {
     return new NextResponse("Instagram test scope unavailable", { status: 403, headers: requestIdHeaders(requestId) });
   }
-  const echoes=instagramOwnerEchoes(payload,igUserId,typeof channel.credentials.appId==='string'?channel.credentials.appId:undefined);
-  for(const echo of echoes){await instagramTestAiProfile(channel,echo.threadId);await recordNativeOwnerReply(channel,echo);}
+  for(const echo of echoes)await recordNativeOwnerReply(channel,echo);
   const result = await processInboundMessages(messages, { requestId });
   const ages = messages.flatMap(message => {
     const timestamp = Date.parse(message.occurredAt ?? "");

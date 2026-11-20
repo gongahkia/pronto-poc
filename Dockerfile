@@ -25,7 +25,13 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 RUN pnpm install --prod --frozen-lockfile
 
-FROM node:24.21.0-bookworm-slim AS runner
+FROM node:24.21.0-bookworm-slim AS document-runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim tesseract-ocr-tam \
+    poppler-utils imagemagick libheif1 antiword \
+ && rm -rf /var/lib/apt/lists/*
+
+FROM document-runtime AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
@@ -42,7 +48,7 @@ USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]
 
-FROM node:24.21.0-bookworm-slim AS worker
+FROM document-runtime AS worker
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV NODE_ENV=production

@@ -174,7 +174,7 @@ async function deliverClaimedOutbound(outbound: OutboundMessage, options: Outbou
   });
 
   let sendAccepted = false;
-  const ownershipTransaction = (outbound.metadata.purpose === "agent_answer"||outbound.metadata.purpose === 'escalation_holding_reply') && Boolean(outbound.conversation_id);
+  const ownershipTransaction = (outbound.metadata.purpose === "agent_answer"||(selfServeUIEnabled()&&outbound.metadata.purpose === 'escalation_holding_reply')) && Boolean(outbound.conversation_id);
   try {
     const policy = policyFromOutboundMetadata(outbound.metadata);
     const send = async (db?: Queryable) => {

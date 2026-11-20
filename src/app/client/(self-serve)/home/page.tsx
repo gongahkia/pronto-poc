@@ -1,2 +1,4 @@
-import {SelfServeHome} from '@/components/self-serve/home';
-export default function Page(){return <SelfServeHome/>;}
+import { SelfServeHome } from "@/components/self-serve/home";
+export default function Page() {
+  return <SelfServeHome />;
+}
