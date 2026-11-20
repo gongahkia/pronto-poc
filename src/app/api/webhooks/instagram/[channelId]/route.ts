@@ -1,3 +1,4 @@
+import {instagramOwnerEchoes,recordNativeOwnerReply} from '@/lib/self-serve/owner-replies';
 import {demoBusinessScope} from "@/lib/demo-business";
 import { after, NextResponse } from "next/server";
 import {
@@ -113,6 +114,8 @@ export async function POST(request: Request, context: Context) {
   } catch {
     return new NextResponse("Instagram test scope unavailable", { status: 403, headers: requestIdHeaders(requestId) });
   }
+  const echoes=instagramOwnerEchoes(payload,igUserId,typeof channel.credentials.appId==='string'?channel.credentials.appId:undefined);
+  for(const echo of echoes){await instagramTestAiProfile(channel,echo.threadId);await recordNativeOwnerReply(channel,echo);}
   const result = await processInboundMessages(messages, { requestId });
   const ages = messages.flatMap(message => {
     const timestamp = Date.parse(message.occurredAt ?? "");

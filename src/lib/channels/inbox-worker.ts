@@ -1,3 +1,4 @@
+import {runtimeConfig} from '@/lib/self-serve/runtime';
 import { query, transaction } from "@/lib/db";
 import { createEscalation, runAgentForMessage } from "@/lib/agent/engine";
 import { decryptChannelCredentials, usesLegacyPlaintextCredentials } from "@/lib/channels/credentials";
@@ -193,6 +194,11 @@ async function queueHandoff(
   job: InboundJob, channel: Channel, conversation: Conversation, escalation: Escalation,
 ): Promise<void> {
   assertTurnActive();
+  if(await runtimeConfig(job.client_id)){
+    await transaction(async db=>{await enqueueStaffNotification(db,job.client_id,escalation.id);
+      await enqueueKnowledgeReviewItem(db,{clientId:job.client_id,conversationId:conversation.id,messageId:job.message_id,escalationId:escalation.id,reasonCode:escalation.reason_code});});
+    return;
+  }
   const policy = await query<{ policy: { timezone: string; staffedHours: Record<string, { start: string; end: string }>;
     outOfHoursAcknowledgement: string | null } }>(
     "select policy from escalation_policy_versions where client_id = $1 order by version desc limit 1", [job.client_id]);

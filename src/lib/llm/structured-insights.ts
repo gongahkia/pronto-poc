@@ -5,7 +5,7 @@ import { demoModelChoices } from './demo-models';
 import { LlmConfigurationError, normalizeProviderError } from './errors';
 import type { LlmTokenUsage } from './types';
 
-type Input = { clientId: string; provider: string; model: string; instructions: string; data: string; schema: Record<string,unknown> };
+type Input = { signal?: AbortSignal; clientId: string; provider: string; model: string; instructions: string; data: string; schema: Record<string,unknown> };
 export async function generateStructuredInsights(input: Input): Promise<{ value: unknown; usage?: LlmTokenUsage; responseId: string; actualModel: string }> {
   const free = input.provider==='groq' || input.provider==='gemini';
   if(!['openai','azure','anthropic','groq','gemini'].includes(input.provider))throw new LlmConfigurationError(input.provider,'Analytics requires a real model.');
@@ -15,7 +15,7 @@ export async function generateStructuredInsights(input: Input): Promise<{ value:
   try {
     if(input.provider==='anthropic'){
       const response=await fetch(`${process.env.ANTHROPIC_BASE_URL??'https://api.anthropic.com'}/v1/messages`,{method:'POST',
-        headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},signal:AbortSignal.timeout(45000),
+        headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},signal:input.signal?AbortSignal.any([input.signal,AbortSignal.timeout(45000)]):AbortSignal.timeout(45000),
         body:JSON.stringify({model:input.model,max_tokens:4000,system:input.instructions,messages:[{role:'user',content:input.data}],
           tools:[{name:'conversation_insights',description:'Return evidence-based conversation analytics.',input_schema:input.schema}],tool_choice:{type:'tool',name:'conversation_insights'}})});
       if(!response.ok)throw {status:response.status};
@@ -31,7 +31,7 @@ export async function generateStructuredInsights(input: Input): Promise<{ value:
     if(free){
       const response=await client.chat.completions.create({model:input.model,messages:[{role:'system',content:input.instructions},{role:'user',content:input.data}],
         ...(input.provider==='gemini'?{max_tokens:4000}:{max_completion_tokens:4000}),reasoning_effort:'low',
-        response_format:{type:'json_schema',json_schema:{name:'conversation_insights',strict:true,schema:input.schema}}});
+        response_format:{type:'json_schema',json_schema:{name:'conversation_insights',strict:true,schema:input.schema}}},{signal:input.signal});
       const choice=response.choices[0];
       // Preserve usage even if output is truncated: validation happens after recording the call.
       let value:unknown;try{value=JSON.parse(choice?.message.content??'');}catch{value=null;}
@@ -40,7 +40,7 @@ export async function generateStructuredInsights(input: Input): Promise<{ value:
           ...(response.usage.completion_tokens_details?.reasoning_tokens!==undefined?{reasoningTokens:response.usage.completion_tokens_details.reasoning_tokens}:{})}}:{})};
     }
     const response=await client.responses.create({model:input.model,instructions:input.instructions,input:input.data,store:false,max_output_tokens:4000,
-      text:{format:{type:'json_schema',name:'conversation_insights',strict:true,schema:input.schema}}});
+      text:{format:{type:'json_schema',name:'conversation_insights',strict:true,schema:input.schema}}},{signal:input.signal});
     let value:unknown;try{value=JSON.parse(response.output_text);}catch{value=null;}
     return {value:response.status==='completed'?value:null,responseId:response.id,actualModel:response.model,
       ...(response.usage?{usage:{inputTokens:response.usage.input_tokens,outputTokens:response.usage.output_tokens,

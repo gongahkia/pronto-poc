@@ -1,3 +1,4 @@
+import {runtimeConfig,selfServeKnowledge} from '@/lib/self-serve/runtime';
 import { query, vectorLiteral } from "@/lib/db";
 import { logInfo } from "@/lib/logger";
 import type { KnowledgeChunk } from "@/lib/types";
@@ -17,6 +18,7 @@ const approvedTextSource = (demoScopeParameter:string) => `coalesce(s.metadata->
       and s.metadata->>'reviewStatus' in ('public_fact','public_fact_with_dietary_caution')))`;
 
 export async function hasApprovedTextKnowledge(clientId: string): Promise<boolean> {
+  const selfserve=await runtimeConfig(clientId);if(selfserve)return selfserve.rules.length>0;
   const result = await query<{ ready: boolean }>(`select exists(select 1 from knowledge_chunks k
     join knowledge_sources s on s.id=k.source_id and s.client_id=k.client_id
     where k.client_id=$1 and ${approvedTextSource('$2')}) as ready`, [clientId,demoBusinessScope().clientId]);
@@ -25,6 +27,7 @@ export async function hasApprovedTextKnowledge(clientId: string): Promise<boolea
 
 export async function retrieveKnowledgeText(clientId: string, searchQuery: string, limit = 5,
   options: { requestId?: string; conversationId?: string } = {}): Promise<KnowledgeChunk[]> {
+  const atomic=await selfServeKnowledge(clientId,searchQuery,limit);if(atomic!==null)return atomic;
   if (!searchQuery.trim()) return [];
   const boundedLimit = Math.max(1, Math.min(20, limit));
   const result = await query<KnowledgeChunk & { keyword_rank: number }>(`with search as (
@@ -63,6 +66,7 @@ export async function retrieveKnowledge(
     excludeSourceIds?: string[];
   } = {},
 ): Promise<KnowledgeChunk[]> {
+  const atomic=await selfServeKnowledge(clientId,options.queryText??'',limit);if(atomic!==null)return atomic;
   const searchQuery = options.queryText?.trim();
   const candidateLimit = Math.max(limit * 4, 20);
   const embeddingDimensions = embedding.length;
