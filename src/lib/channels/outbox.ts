@@ -1,3 +1,5 @@
+import {selfServeUIEnabled} from '@/lib/self-serve/settings';
+import {getSettings} from '@/lib/self-serve/store';
 import { sendChannelText } from "@/lib/channels/dispatch";
 import { recordOutboundHealth } from "@/lib/channels/health";
 import { policyFromOutboundMetadata } from "@/lib/channels/policy";
@@ -172,7 +174,7 @@ async function deliverClaimedOutbound(outbound: OutboundMessage, options: Outbou
   });
 
   let sendAccepted = false;
-  const ownershipTransaction = outbound.metadata.purpose === "agent_answer" && Boolean(outbound.conversation_id);
+  const ownershipTransaction = (outbound.metadata.purpose === "agent_answer"||outbound.metadata.purpose === 'escalation_holding_reply') && Boolean(outbound.conversation_id);
   try {
     const policy = policyFromOutboundMetadata(outbound.metadata);
     const send = async (db?: Queryable) => {
@@ -191,6 +193,17 @@ async function deliverClaimedOutbound(outbound: OutboundMessage, options: Outbou
     };
     if (ownershipTransaction) {
       const allowed = await transaction(async (db) => {
+        if(selfServeUIEnabled()){
+          const settings=await getSettings(outbound.client_id,db);
+          if(settings?.enabled){
+            await db.query('select client_id from selfserve_settings where client_id=$1 for share',[outbound.client_id]);
+            const current=await getSettings(outbound.client_id,db);
+            if(outbound.metadata.purpose==='escalation_holding_reply'||String(outbound.metadata.selfServeVersion??'')!==String(current?.version)){
+              await db.query("update outbound_messages set status='suppressed',last_error='Self-serve configuration changed before delivery',updated_at=now() where client_id=$1 and id=$2",[outbound.client_id,outbound.id]);
+              outcomeRowWritten=true;finalState='suppressed';acceptanceState='not_attempted';return false;
+            }
+          }
+        }
         const conversation = await db.query<{ status: string }>(
           "select status from conversations where id = $1 and client_id = $2 for share",
           [outbound.conversation_id, outbound.client_id],
@@ -201,7 +214,7 @@ async function deliverClaimedOutbound(outbound: OutboundMessage, options: Outbou
         );
         logDeliveryDebug("delivery.ownership_checked", { conversationState: conversation.rows[0]?.status ?? "missing",
           staffReviewBlocks: Boolean(open.rows[0]), elapsedMs: Math.round(performance.now() - startedAt) });
-        if (conversation.rows[0]?.status !== "active" || open.rows[0]) {
+        if (outbound.metadata.purpose === "agent_answer" && (conversation.rows[0]?.status !== "active" || open.rows[0])) {
           const saved = await db.query(
             "update outbound_messages set status = 'suppressed', last_error = 'Human-owned conversation', updated_at = now() where id = $1 and client_id = $2",
             [outbound.id, outbound.client_id],

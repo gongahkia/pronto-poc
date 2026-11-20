@@ -71,6 +71,7 @@ export async function removeSource(clientId:string,actorId:string,id:string,vers
  const row=await db.query(`update selfserve_sources set deleted_at=now(),transient_file=null,revision=revision+1,updated_at=now() where client_id=$1 and id=$2 and deleted_at is null returning id`,[clientId,id]);if(!row.rowCount)throw new SelfServeError('Source not found.',404);
  const ids=(await db.query<{id:string}>('update selfserve_rules set deleted_at=now(),revision=revision+1 where client_id=$1 and source_id=$2 and deleted_at is null returning id',[clientId,id])).rows.map(r=>r.id);
  await db.query(`update selfserve_conflicts set status='resolved',resolved_by='source_removed',resolved_at=now(),updated_at=now() where client_id=$1 and status='open' and (rule_a=any($2::uuid[]) or rule_b=any($2::uuid[]))`,[clientId,ids]);
+ await db.query("update selfserve_settings set enabled=true where client_id=$1 and not exists(select 1 from selfserve_sources where client_id=$1 and legacy_source_id is not null and deleted_at is null and status<>'ready')",[clientId]);
  await touch(db,clientId,true);await recordAuditLog({clientId,actorUserId:actorId,action:'selfserve.source_removed',targetType:'source',targetId:id},db);
  });
 }

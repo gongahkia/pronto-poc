@@ -833,6 +833,7 @@ async function runAgentTurn(input: AgentRunInput): Promise<AgentRunResult> {
       `agent-${input.customerMessageId}`,
       decision.answer,
       {
+        selfServeVersion:selfserve?.settings.version??null,
         confidence: decision.confidence,
         reasonCode: decision.reasonCode,
         citedChunkIds: decision.citedChunkIds,

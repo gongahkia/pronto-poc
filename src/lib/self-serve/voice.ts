@@ -57,11 +57,12 @@ export async function analyseUpload(clientId:string,actorId:string,id:string,spe
  });
 }
 export async function selectSpeaker(clientId:string,actorId:string,id:string,speaker:string){
- const session=(await query<VoiceSession>('select * from selfserve_voice_sessions where client_id=$1 and id=$2 and actor_id=$3',[clientId,id,actorId])).rows[0];
- if(!session||session.status!=='review'||session.expires_at.getTime()<Date.now()||!session.speaker_options.includes(speaker))throw new SelfServeError('Choose a participant from this export.');
- const messages=parseWhatsApp(session.review_text??'');const selected=messages.filter(m=>m.speaker===speaker).map(m=>m.body).join('\n\n');
- await query('update selfserve_voice_sessions set review_text=$4,selected_speaker=$5,speaker_options=\'[]\',revision=revision+1 where client_id=$1 and id=$2 and actor_id=$3',[clientId,id,actorId,redactSamples(selected,messages.map(m=>m.speaker)),speaker]);
- return voiceSession(clientId,actorId,id);
+ await transaction(async db=>{
+  const session=(await db.query<VoiceSession>('select * from selfserve_voice_sessions where client_id=$1 and id=$2 and actor_id=$3 for update',[clientId,id,actorId])).rows[0];
+  if(!session||session.status!=='review'||session.expires_at.getTime()<Date.now()||!session.speaker_options.includes(speaker))throw new SelfServeError('Choose a participant from this export.');
+  const messages=parseWhatsApp(session.review_text??'');const selected=messages.filter(m=>m.speaker===speaker).map(m=>m.body).join('\n\n');
+  await db.query("update selfserve_voice_sessions set review_text=$4,selected_speaker=$5,speaker_options='[]',revision=revision+1 where client_id=$1 and id=$2 and actor_id=$3",[clientId,id,actorId,redactSamples(selected,messages.map(m=>m.speaker)),speaker]);
+ });return voiceSession(clientId,actorId,id);
 }
 export async function discardVoice(clientId:string,actorId:string,id:string){await query(`update selfserve_voice_sessions set status='discarded',revision=revision+1,replies='[]',review_text=null,transient_file=null,upload_meta='[]',speaker_options='[]',selected_speaker=null where client_id=$1 and id=$2 and actor_id=$3`,[clientId,id,actorId]);}
 export async function processVoiceJob(job:Job){

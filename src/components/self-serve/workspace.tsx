@@ -15,9 +15,9 @@ type Workspace={state:State;name:string;busy:boolean;error:string;notice:string;
 const Context=createContext<Workspace|null>(null);
 export function useWorkspace(){const value=useContext(Context);if(!value)throw new Error('Workspace context missing.');return value;}
 export function SelfServeWorkspace({name,initial,children}:{name:string;initial:State;children:React.ReactNode}){
- const [state,setState]=useState(initial),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');const path=usePathname();const alive=useRef(true);
+ const [state,setState]=useState(initial),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[noticeRoute,setNoticeRoute]=useState('');const path=usePathname();const alive=useRef(true);
  const refresh=useCallback(async()=>{const next=await api();if(alive.current)setState(next);},[]);
- const run=useCallback(async<T,>(work:()=>Promise<T>,message='Saved.')=>{setBusy(true);setError('');setNotice('');try{const result=await work();await refresh();setNotice(message);return result;}catch(e){setError(e instanceof Error?e.message:'Unable to save. Try again.');await refresh().catch(()=>{});}finally{setBusy(false);}},[refresh]);
+ const run=useCallback(async<T,>(work:()=>Promise<T>,message='Saved.')=>{setBusy(true);setError('');setNotice('');try{const result=await work();await refresh();setNoticeRoute(path);setNotice(message);return result;}catch(e){setError(e instanceof Error?e.message:'Unable to save. Try again.');await refresh().catch(()=>{});}finally{setBusy(false);}},[refresh,path]);
  const hasPending=state.jobs.some(j=>j.status==='pending'||j.status==='processing');
  useEffect(()=>{alive.current=true;let stopped=false;let timer:ReturnType<typeof setTimeout>;const tick=async()=>{
   try{if(hasPending)await api('/process','POST');await refresh();}catch{if(!stopped)setError('Processing is temporarily unavailable. Your work is saved; keep this page open to retry.');}
@@ -33,7 +33,7 @@ export function SelfServeWorkspace({name,initial,children}:{name:string;initial:
   </aside>
   <main id="workspace-content" className="ss-main">
    {error&&<div className="ss-feedback ss-error" role="alert">{error}<button onClick={()=>setError('')} aria-label="Dismiss error">×</button></div>}
-   {notice&&<div className="ss-feedback ss-success" role="status">{notice}</div>}
+   {notice&&noticeRoute===path&&<div className="ss-feedback ss-success" role="status">{notice}</div>}
    {!state.settings?<section className="ss-panel"><h1>Welcome to Pronto</h1><p>Bring your existing knowledge and voice into the self-serve workspace. Your conversation history stays with this business.</p><button className="ss-primary" disabled={busy} onClick={()=>run(()=>api('/initialize','POST'),'Workspace prepared. Sources are being checked.')}>Prepare workspace</button></section>:<>
     {!state.settings.enabled&&<p className="ss-feedback ss-info" role="status"><LoaderCircle className="ss-spin" size={16}/>Your existing sources are being checked. Customer replies keep using the previous configuration until the import is ready.</p>}{children}
    </>}

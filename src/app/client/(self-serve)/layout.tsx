@@ -6,6 +6,7 @@ import {selfServeUIEnabled} from '@/lib/self-serve/settings';
 import {snapshot} from '@/lib/self-serve/store';
 import {SelfServeWorkspace} from '@/components/self-serve/workspace';
 import '@/components/self-serve/self-serve.css';
+export const dynamic='force-dynamic';
 export default async function SelfServeLayout({children}:{children:React.ReactNode}){
  if(!selfServeUIEnabled())notFound();const user=await requireUser('client');if(!user.clientId)notFound();
  if(!await hasStaffCapability(user,user.clientId,'knowledge.approve'))return <main className="p-8"><h1>Workspace access required</h1><p>Ask your business owner for permission to manage business knowledge.</p></main>;
