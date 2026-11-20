@@ -18,6 +18,7 @@ import {
   LoaderCircle,
   MessagesSquare,
   Settings as SettingsIcon,
+  X,
 } from "lucide-react";
 import type { Settings } from "@/lib/self-serve/store";
 export type SourceView = {
@@ -218,7 +219,8 @@ export function SelfServeWorkspace({
             </span>
           </div>
           <Link className="ss-switch" href="/demo">
-            {simulatorEnabled ? "Switch demo view" : "Workspace access"} <ArrowRight size={14} />
+            {simulatorEnabled ? "Switch demo view" : "Workspace access"}{" "}
+            <ArrowRight size={14} />
           </Link>
         </aside>
         <main id="workspace-content" className="ss-main">
@@ -226,7 +228,7 @@ export function SelfServeWorkspace({
             <div className="ss-feedback ss-error" role="alert">
               {error}
               <button onClick={() => setError("")} aria-label="Dismiss error">
-                ×
+                <X size={18} aria-hidden="true" />
               </button>
             </div>
           )}

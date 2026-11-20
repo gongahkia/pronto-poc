@@ -80,7 +80,7 @@
 }
 .selfserve svg {
   flex-shrink: 0;
-  stroke-width: 1.8;
+  stroke-width: 2;
 }
 .selfserve small {
   font-size: 12px;
@@ -310,6 +310,7 @@
   min-height: 32px;
 }
 .ss-badge {
+  font-variant-numeric: tabular-nums;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -409,18 +410,6 @@
   color: #fff;
   align-self: flex-end;
 }
-.ss-consult {
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 20px 24px;
-}
-.ss-consult p {
-  margin-top: 4px;
-  color: var(--ss-muted);
-}
 .ss-feedback {
   padding: 12px 14px;
   border-radius: 10px;
@@ -430,6 +419,9 @@
   font-size: 13px;
 }
 .ss-feedback button {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
   margin-left: auto;
   background: none;
   color: inherit;
@@ -651,9 +643,9 @@
   place-items: center;
   background: none;
   color: var(--ss-muted);
-  width: 32px;
-  height: 32px;
-  border-radius: 7px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   flex-shrink: 0;
 }
 .ss-icon-button:hover {
@@ -1052,12 +1044,18 @@
   color: var(--ss-muted);
 }
 .selfserve .ss-toggle {
+  position: relative;
   width: 42px;
   height: 24px;
   border-radius: 999px;
   background: #ccd5e2;
   padding: 3px;
   flex-shrink: 0;
+}
+.selfserve .ss-toggle::after {
+  content: "";
+  position: absolute;
+  inset: -8px -1px;
 }
 .selfserve .ss-toggle[aria-checked="true"] {
   background: var(--ss-blue);
@@ -1068,7 +1066,7 @@
   height: 18px;
   border-radius: 50%;
   background: #fff;
-  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 140ms ease-out;
 }
 .ss-toggle[aria-checked="true"] span {
   transform: translateX(18px);
@@ -1265,9 +1263,6 @@
   }
   .ss-rule .ss-inline {
     gap: 0;
-  }
-  .ss-consult .ss-primary {
-    width: 100%;
   }
   .ss-rule .ss-row > .ss-inline {
     flex-wrap: nowrap;
@@ -1467,5 +1462,59 @@
   }
   .ss-usage-period {
     flex-wrap: wrap;
+  }
+}
+
+.ss-link,
+.ss-text-button,
+.ss-switch {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+}
+.ss-conversations .ui-input:focus-visible {
+  outline-color: var(--ss-blue);
+}
+@media (max-width: 700px), (pointer: coarse) {
+  .selfserve
+    :is(
+      .ss-primary,
+      .ss-secondary,
+      .ss-icon-button,
+      .ss-segment button,
+      .ss-text-button,
+      .ss-link,
+      .ss-switch
+    ),
+  .ss-sidebar nav a,
+  .ss-checkbox {
+    min-height: 44px;
+  }
+  .selfserve .ss-icon-button {
+    width: 44px;
+    height: 44px;
+  }
+  .selfserve .ss-toggle::after {
+    inset-block: -10px;
+  }
+  .selfserve
+    input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+  .selfserve textarea,
+  .selfserve select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+}
+
+.ss-segment button,
+.ss-logo,
+.ss-checkbox {
+  min-height: 40px;
+}
+@media (max-width: 700px), (pointer: coarse) {
+  .ss-segment button,
+  .ss-logo,
+  .ss-checkbox {
+    min-height: 44px;
   }
 }

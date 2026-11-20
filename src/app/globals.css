@@ -188,6 +188,10 @@
     BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -214,13 +218,24 @@ select {
   color: var(--foreground);
 }
 
+button:not([role="switch"]) {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+time, output, input[type="number"] {
+  font-variant-numeric: tabular-nums;
+}
+
 button,
 a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   transition:
-    background-color 140ms ease,
-    border-color 140ms ease,
-    color 140ms ease,
-    opacity 140ms ease;
+    background-color 140ms ease-out,
+    border-color 140ms ease-out,
+    color 140ms ease-out,
+    opacity 140ms ease-out;
 }
 
 input:not([type="checkbox"]):not([type="radio"]),
@@ -230,12 +245,13 @@ select {
   color: var(--foreground);
   border-color: var(--line);
   border-radius: 8px;
+  min-height: 40px;
 }
 
 input::placeholder,
 textarea::placeholder {
   color: var(--muted);
-  opacity: 0.72;
+  opacity: 1;
 }
 
 input:focus-visible,
@@ -296,7 +312,7 @@ a:focus-visible {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 38px;
+    min-height: 40px;
     border-radius: 8px;
     border: 1px solid var(--line);
     background: var(--panel);
@@ -315,7 +331,7 @@ a:focus-visible {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 38px;
+    min-height: 40px;
     border-radius: 8px;
     background: var(--accent);
     color: white;
@@ -332,7 +348,7 @@ a:focus-visible {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 38px;
+    min-height: 40px;
     border-radius: 8px;
     background: var(--danger);
     color: white;
@@ -407,4 +423,41 @@ a:focus-visible {
 
 .pronto-workflow .react-flow__handle {
   box-shadow: 0 0 0 3px var(--flow-handle-ring);
+}
+
+/* shared interaction polish; movement stays opt-in for action controls */
+:is(.ui-button, .ui-primary-button, .ui-danger-button, .ss-primary, .ss-secondary) {
+  transition-property: scale, background-color, border-color, color, opacity;
+  transition-duration: 140ms;
+  transition-timing-function: ease-out;
+}
+:is(.ui-button, .ui-primary-button, .ui-danger-button, .ss-primary, .ss-secondary):not(:disabled):not([aria-disabled="true"]):not([data-static]):active {
+  scale: 0.96;
+}
+:is(.ui-panel-header p, .ss-header p, .ss-muted, .ss-feedback, figcaption) {
+  text-wrap: pretty;
+}
+input, textarea {
+  caret-color: var(--accent);
+}
+@media (max-width: 700px), (pointer: coarse) {
+  button:not([role="switch"]), :is(.ui-button, .ui-primary-button, .ui-danger-button) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), textarea, select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+  }
+  :is(.ui-button, .ui-primary-button, .ui-danger-button, .ss-primary, .ss-secondary):active {
+    scale: none !important;
+  }
 }
