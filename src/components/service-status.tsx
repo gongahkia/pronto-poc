@@ -15,7 +15,7 @@ export function ServiceStatus(){
   const timer=setInterval(wake,30000);window.addEventListener('focus',wake);document.addEventListener('visibilitychange',wake);
   return()=>{clearTimeout(start);clearInterval(timer);window.removeEventListener('focus',wake);document.removeEventListener('visibilitychange',wake);};},[refresh]);
  return <main className="min-h-screen bg-surface-subtle px-4 py-8 text-foreground"><section className="mx-auto max-w-2xl space-y-5">
-  <Link href="/" className="inline-flex items-center gap-2 text-sm text-accent"><ArrowLeft size={16}/>Back to Pronto</Link>
+  <Link href="/" className="inline-flex items-center gap-2 text-sm text-accent"><ArrowLeft size={16} aria-hidden="true"/>Back to Pronto</Link>
   <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-accent">Pronto</p><h1 className="mt-1 text-2xl font-semibold">Service status</h1></div>
    <button onClick={()=>void refresh()} disabled={checking} className="ui-button px-3 py-2 text-sm">{checking?'Checking…':'Check now'}</button></div>
   <p className="text-sm leading-6 text-muted">Automatic updates every 30 seconds. These checks read configuration and saved processing results; they do not send an AI request or spend provider credits.</p>

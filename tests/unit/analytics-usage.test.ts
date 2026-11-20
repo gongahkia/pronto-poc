@@ -6,6 +6,10 @@ describe('business usage accounting',()=>{
   const result=summarizeUsage([event(),event({metadata:{usageSource:'provider',purpose:'reservation_query'}}),event({metadata:{usageSource:'provider',purpose:'handoff_intake'}}),event({metadata:{usageSource:'provider',purpose:'analytics_synthesis'}})],usageMonth('2026-10'),1);
   expect(result.deliveredReplies).toBe(1);expect(result.generationCalls).toBe(4);expect(result.internalCalls).toBe(3);expect(result.breakdown).toHaveLength(4);
  });
+ it('counts self-serve extraction, voice and rule checks as internal setup work',()=>{
+  const result=summarizeUsage(['extract','voice','faithfulness'].map(purpose=>event({metadata:{usageSource:'provider',purpose:'selfserve_'+purpose}})),usageMonth('2026-10'),0);
+  expect(result.generationCalls).toBe(3);expect(result.internalCalls).toBe(3);expect(result.deliveredReplies).toBe(0);expect(result.breakdown.map(row=>row.purpose)).toEqual(['Business setup']);
+ });
  it('keeps reasoning inside output totals and missing usage unknown',()=>{
   const result=summarizeUsage([event(),event({input_tokens:9,output_tokens:3,metadata:{usageSource:'estimate'}})],usageMonth('2026-10'),1);
   expect(result.providerInputTokens).toBe(100);expect(result.providerOutputTokens).toBe(80);expect(result.reasoningTokens).toBe(40);expect(result.reasoningReportedCalls).toBe(1);

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ getSessionUser: vi.fn(), assertDemoActor: vi.fn(), createDemoSession: vi.fn(),
   getDemoState: vi.fn(), sendDemoMessage: vi.fn(), retryDemoProcessing: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ getSessionUser: mocks.getSessionUser }));
@@ -9,7 +9,15 @@ const request = (body: unknown, origin = "http://localhost:3000") => new Request
   method: "POST", headers: { origin, host: "localhost:3000", "content-type": "application/json" }, body: JSON.stringify(body) });
 beforeEach(() => { vi.resetAllMocks(); mocks.getSessionUser.mockResolvedValue({ userId: "actor" });
   mocks.sendDemoMessage.mockResolvedValue({ jobId: "job" }); });
+afterEach(() => vi.unstubAllEnvs());
 describe("authenticated customer demo API", () => {
+  it("rejects reads and writes before authentication when the simulator is retired", async () => {
+    vi.stubEnv("PRONTO_CUSTOMER_SIMULATOR_ENABLED", "0");
+    expect((await GET(new Request("http://localhost:3000/api/demo/customer"))).status).toBe(404);
+    expect((await POST(request({action:"create",mode:"real",choice:"groq-oss"}))).status).toBe(404);
+    expect(mocks.getSessionUser).not.toHaveBeenCalled();
+    expect(mocks.createDemoSession).not.toHaveBeenCalled();
+  });
   it("rejects anonymous reads and writes", async () => {
     mocks.getSessionUser.mockResolvedValue(null);
     expect((await GET(new Request("http://localhost:3000/api/demo/customer"))).status).toBe(401);

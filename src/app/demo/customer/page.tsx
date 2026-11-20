@@ -1,3 +1,4 @@
+import { customerSimulatorEnabled } from "@/lib/customer-simulator-policy";
 import { requireUser } from "@/lib/auth";
 import { assertDemoActor } from "@/lib/customer-demo";
 import { CustomerSimulator } from "@/components/customer-simulator";
@@ -7,7 +8,9 @@ import {DemoQueuePump} from '@/components/demo-queue-pump';
 import {requestDrivenDemoProcessing} from '@/lib/deployment-profile';
 import {getDemoBusinessPresentation} from '@/lib/demo-business-branding';
 
+export const dynamic = "force-dynamic";
 export default async function CustomerDemoPage() {
+  if (!customerSimulatorEnabled()) notFound();
   const actor = await requireUser();
   try { await assertDemoActor(actor); }
   catch (error) { if (error instanceof DemoError && error.status < 500) notFound(); throw error; }

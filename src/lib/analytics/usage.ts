@@ -28,6 +28,7 @@ export function summarizeUsage(events: MeteredEvent[], period: ReturnType<typeof
   const purposes = new Map<string,UsageSummary['breakdown'][number]>(); const models = new Map<string,UsageSummary['models'][number]>();
   for (const event of events) {
     const purpose = event.operation==='embedding' ? 'Knowledge retrieval' : event.metadata.purpose==='reservation_query' ? 'Reservation planning'
+      : typeof event.metadata.purpose==='string' && event.metadata.purpose.startsWith('selfserve_') ? 'Business setup'
       : event.metadata.purpose==='handoff_intake' ? 'Handoff intake' : event.metadata.purpose==='analytics_synthesis' ? 'Analytics synthesis' : 'Reply decisions';
     if(event.operation==='generation') summary.generationCalls++; else if(event.operation==='embedding') summary.embeddingCalls++;
     if(event.operation==='generation' && purpose!=='Reply decisions') summary.internalCalls++;

@@ -1,0 +1,65 @@
+import { customerSimulatorEnabled } from "@/lib/customer-simulator-policy";
+import { DemoQueuePump } from "@/components/demo-queue-pump";
+import { demoBusinessScope } from "@/lib/demo-business";
+import { requestDrivenDemoProcessing } from "@/lib/deployment-profile";
+import { notFound } from "next/navigation";
+import { requireUser } from "@/lib/auth";
+import { query } from "@/lib/db";
+import { hasStaffCapability } from "@/lib/staff-permissions";
+import { selfServeUIEnabled } from "@/lib/self-serve/settings";
+import { snapshot } from "@/lib/self-serve/store";
+import { SelfServeWorkspace } from "@/components/self-serve/workspace";
+export async function SelfServeFrame({
+  children,
+  allowReadOnly = false,
+}: {
+  children: React.ReactNode;
+  allowReadOnly?: boolean;
+}) {
+  if (!selfServeUIEnabled()) notFound();
+  const user = await requireUser("client");
+  if (!user.clientId) notFound();
+  const canManageKnowledge = await hasStaffCapability(
+    user,
+    user.clientId,
+    "knowledge.approve",
+  );
+  if (!canManageKnowledge && !allowReadOnly)
+    return (
+      <main className="p-8">
+        <h1>Workspace access required</h1>
+        <p>
+          Ask your business owner for permission to manage business knowledge.
+        </p>
+      </main>
+    );
+  const business = (
+    await query<{ name: string }>("select name from clients where id=$1", [
+      user.clientId,
+    ])
+  ).rows[0];
+  return (
+    <>
+      {user.clientId === demoBusinessScope().clientId &&
+        requestDrivenDemoProcessing() && <DemoQueuePump />}
+      <SelfServeWorkspace
+        name={business?.name ?? "Your business"}
+        canManageKnowledge={canManageKnowledge}
+        simulatorEnabled={customerSimulatorEnabled()}
+        initial={
+          canManageKnowledge
+            ? JSON.parse(JSON.stringify(await snapshot(user.clientId)))
+            : {
+                settings: null,
+                sources: [],
+                rules: [],
+                conflicts: [],
+                jobs: [],
+              }
+        }
+      >
+        {children}
+      </SelfServeWorkspace>
+    </>
+  );
+}

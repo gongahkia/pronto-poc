@@ -7,7 +7,7 @@ Non-technical restaurant owners and dental clinic managers configuring customer 
 ## Product Purpose
 Owners turn business sources into usable rules, resolve conflicts, select or teach a voice, and configure silent handovers. The existing reply engine consumes a versioned configuration.
 ## Operating Context
-Home, Business rules, Brand voice and Handovers are always available. Owners answer handed-over customers in native WhatsApp or Instagram. The user selected automatic resumption following a verified native owner reply, for future messages only.
+Home, Business rules, Brand voice and Handovers configure the assistant. Conversations shows real messaging-channel threads and decision traces; simulated DMs and their entry points are retired in the shared deployment; Settings restores account details, usage and CSV export. Channels is omitted from navigation. Handovers shows only active Instagram customer inbox connections; WhatsApp/email alert setup is currently hidden. Owners answer handed-over customers in native WhatsApp or Instagram. The user selected automatic resumption following a verified native owner reply, for future messages only.
 ## Capabilities and Constraints
 Owner changes publish without operator approval after automated validation and conflict processing. Conflicted rules remain unavailable. Preserve existing history, business isolation, staff permissions, encrypted credentials and channel scope. Real chat uploads are authorized for implementation with accurate privacy copy, transient raw-file handling and review of extracted messages before AI analysis. No consult booking destination has been supplied; do not invent one.
 ## Brand Commitments
@@ -17,5 +17,5 @@ User-provided wireframe and brief in Downloads; extracted review assets under ig
 ## Product Principles
 - Configuration is business-scoped, versioned and auditable.
 - Style cannot confer authority or establish business facts.
-- Silence on handover requires durable, observable owner alerts.
+- Silence on handover requires durable owner flags visible in Conversations.
 - Saved states reflect actual persisted revisions.

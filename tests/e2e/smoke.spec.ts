@@ -171,10 +171,13 @@ test("business destinations remain usable by keyboard on mobile", async ({ page 
 test("removed business pages and their navigation links are unavailable", async ({ page }) => {
   await login(page, clientLogin.email, clientLogin.password);
   await expect(page.locator('a[href="/client/channels"],a[href="/client/contact-pronto"],a[href="/client/settings"]')).toHaveCount(0);
-  for (const path of ["/client/channels", "/client/contact-pronto", "/client/settings"]) {
+  for (const path of ["/client/channels", "/client/contact-pronto"]) {
     const response = await page.goto(path);
     expect(response?.status()).toBe(404);
   }
+  // the restored self-serve route has a streamed not-found view when disabled.
+  await page.goto("/client/settings");
+  await expect(page.getByRole("heading", {name:"This Pronto view is unavailable."})).toBeVisible();
 });
 
 test("PS.Cafe synthetic staff proposes and reviews knowledge", async ({ page }) => {

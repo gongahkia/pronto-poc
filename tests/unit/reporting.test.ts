@@ -18,6 +18,13 @@ describe("reporting helpers", () => {
     vi.clearAllMocks();
   });
 
+  it("excludes simulated transports even when a browser asks for them", async () => {
+    mocks.query.mockResolvedValueOnce({ rows: [] });
+    await getFilteredConversations({clientId:"business",externalOnly:true,channelKind:"console"});
+    const [sql, params] = mocks.query.mock.calls[0];
+    expect(sql).toContain("ch.kind <> 'console'");
+    expect(params[0]).toBe("business");
+  });
   it("builds filtered conversation queries with safe parameters", async () => {
     mocks.query.mockResolvedValueOnce({ rows: [] });
 

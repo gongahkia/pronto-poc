@@ -1,3 +1,4 @@
+import {customerSimulatorEnabled} from "@/lib/customer-simulator-policy";
 import {demoBusinessScope} from "@/lib/demo-business";
 import {query} from '@/lib/db';
 import type {SessionUser} from '@/lib/auth';
@@ -21,7 +22,7 @@ export async function processDemoQueue(actor:SessionUser):Promise<DemoProcessing
  protectedDemoConfiguration();enterTenantContext(actor);await assertDemoActor(actor);
  if(running)return {busy:true,processed:0,delivered:0,failed:false};
  const scope=demoInstagramConfiguration();
- return startDrain([demoBusinessScope().channelId,...(scope?[scope.channelId]:[])]);
+ return startDrain([...(customerSimulatorEnabled()?[demoBusinessScope().channelId]:[]),...(scope?[scope.channelId]:[])]);
 }
 
 // Called only after signature/account/sender checks and durable ingestion. UI

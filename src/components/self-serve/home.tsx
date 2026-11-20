@@ -99,19 +99,6 @@ export function SelfServeHome() {
           </Link>
         </section>
       </div>
-      <section className="ss-panel ss-consult">
-        <div>
-          <h3>Talk to the Pronto team</h3>
-          <p>Not sure your rules are right? Review your setup with the team.</p>
-        </div>
-        <button
-          className="ss-primary"
-          disabled
-          title="Booking link is not available yet"
-        >
-          Book a consult
-        </button>
-      </section>
     </>
   );
 }

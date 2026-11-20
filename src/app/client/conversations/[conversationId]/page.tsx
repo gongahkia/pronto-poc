@@ -1,3 +1,8 @@
+import { selfServeUIEnabled } from "@/lib/self-serve/settings";
+import { SelfServeFrame } from "@/components/self-serve/frame";
+import { ChannelConversationThread } from "@/components/channel-conversation-thread";
+import { Header } from "@/components/self-serve/workspace";
+import "@/components/self-serve/self-serve.css";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
@@ -29,11 +34,12 @@ export default async function ClientConversationPage({
   }
   if (!await canViewBusinessConversation(user, user.clientId)) redirect("/access?reason=permission");
   const { conversationId } = await params;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(conversationId)) notFound();
   const [client, conversation] = await Promise.all([
     getClient(user.clientId),
     getConversationTriageDetail({ clientId: user.clientId, conversationId }),
   ]);
-  if (!client || !conversation) {
+  if (!client || !conversation || (selfServeUIEnabled() && conversation.channel_kind === "console")) {
     notFound();
   }
   const [activeEscalation, messages, decisions] = await Promise.all([
@@ -41,6 +47,16 @@ export default async function ClientConversationPage({
     getConversationMessages(conversation.id, user.clientId),
     getConversationDecisionTraces(user.clientId, conversation.id),
   ]);
+  if (selfServeUIEnabled()) return <SelfServeFrame allowReadOnly>
+    <AutoRefresh intervalMs={5000} />
+    <Link href="/client/conversations" className="ss-back"><ArrowLeft size={17} aria-hidden="true" /> All conversations</Link>
+    <Header title={conversation.customer_name ?? conversation.customer_handle ?? "Customer conversation"}
+      description="Review the saved conversation and the decisions behind Pronto’s replies." />
+    <p className="ss-feedback ss-info">Reply directly in the customer’s messaging app. This view shows the saved conversation; it does not send messages.</p>
+    <ConversationTabs decisions={decisions}>
+      <ChannelConversationThread conversation={conversation} messages={messages} />
+    </ConversationTabs>
+  </SelfServeFrame>;
   const [canRespond, canRelease] = await Promise.all([
     hasStaffCapability(user, user.clientId, "conversation.respond"),
     hasStaffCapability(user, user.clientId, "conversation.release"),

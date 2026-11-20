@@ -16,6 +16,9 @@ import {
   MessageCircle,
   ArrowRight,
   LoaderCircle,
+  MessagesSquare,
+  Settings as SettingsIcon,
+  X,
 } from "lucide-react";
 import type { Settings } from "@/lib/self-serve/store";
 export type SourceView = {
@@ -39,6 +42,7 @@ export type RuleView = {
 };
 export type State = {
   settings: Settings | null;
+  instagram?: { id: string; name: string; status: string }[];
   sources: SourceView[];
   rules: RuleView[];
   conflicts: {
@@ -88,10 +92,14 @@ export function SelfServeWorkspace({
   name,
   initial,
   children,
+  canManageKnowledge = true,
+  simulatorEnabled = true,
 }: {
   name: string;
   initial: State;
   children: React.ReactNode;
+  canManageKnowledge?: boolean;
+  simulatorEnabled?: boolean;
 }) {
   const [state, setState] = useState(initial),
     [busy, setBusy] = useState(false),
@@ -135,6 +143,7 @@ export function SelfServeWorkspace({
     (j) => j.status === "pending" || j.status === "processing",
   );
   useEffect(() => {
+    if (!canManageKnowledge) return;
     alive.current = true;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -156,12 +165,18 @@ export function SelfServeWorkspace({
       alive.current = false;
       clearTimeout(timer);
     };
-  }, [refresh, hasPending]);
+  }, [refresh, hasPending, canManageKnowledge]);
   const nav = [
     { href: "/client/home", label: "Home", Icon: House },
     { href: "/client/handovers", label: "Handovers", Icon: Inbox },
     { href: "/client/rules", label: "Business rules", Icon: Layers },
     { href: "/client/voice", label: "Brand voice", Icon: MessageCircle },
+    {
+      href: "/client/conversations",
+      label: "Conversations",
+      Icon: MessagesSquare,
+    },
+    { href: "/client/settings", label: "Settings", Icon: SettingsIcon },
   ];
   return (
     <Context.Provider
@@ -176,31 +191,36 @@ export function SelfServeWorkspace({
             <span>P</span>Pronto
           </Link>
           <nav aria-label="Workspace">
-            {nav.map(({ href, label, Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                aria-current={path.startsWith(href) ? "page" : undefined}
-              >
-                <Icon size={17} />
-                {label}
-              </Link>
-            ))}
-            <p className="ss-later">Later</p>
-            {["Conversations", "Channels", "Settings"].map((label) => (
-              <button key={label} disabled>
-                {label}
-              </button>
-            ))}
+            {nav
+              .filter(
+                (item) =>
+                  canManageKnowledge ||
+                  ["Conversations", "Settings"].includes(item.label),
+              )
+              .map(({ href, label, Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={path.startsWith(href) ? "page" : undefined}
+                >
+                  <Icon size={17} />
+                  {label}
+                </Link>
+              ))}
           </nav>
           <div className="ss-help">
             <strong>Need a hand?</strong>
             <p>Talk through your setup with the Pronto team.</p>
-            <button disabled>Book a consult</button>
-            <small>Booking link coming soon</small>
+            <span
+              className="ss-disabled-consult"
+              title="Booking link coming soon"
+            >
+              <button disabled>Book a consult</button>
+            </span>
           </div>
           <Link className="ss-switch" href="/demo">
-            Switch demo view <ArrowRight size={14} />
+            {simulatorEnabled ? "Switch demo view" : "Workspace access"}{" "}
+            <ArrowRight size={14} />
           </Link>
         </aside>
         <main id="workspace-content" className="ss-main">
@@ -208,7 +228,7 @@ export function SelfServeWorkspace({
             <div className="ss-feedback ss-error" role="alert">
               {error}
               <button onClick={() => setError("")} aria-label="Dismiss error">
-                ×
+                <X size={18} aria-hidden="true" />
               </button>
             </div>
           )}
@@ -217,7 +237,7 @@ export function SelfServeWorkspace({
               {notice}
             </div>
           )}
-          {!state.settings ? (
+          {!state.settings && canManageKnowledge ? (
             <section className="ss-panel">
               <h1>Welcome to Pronto</h1>
               <p>
@@ -239,7 +259,7 @@ export function SelfServeWorkspace({
             </section>
           ) : (
             <>
-              {!state.settings.enabled && (
+              {state.settings && !state.settings.enabled && (
                 <p className="ss-feedback ss-info" role="status">
                   <LoaderCircle className="ss-spin" size={16} />
                   Your existing sources are being checked. Customer replies keep

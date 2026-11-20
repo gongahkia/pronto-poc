@@ -16,6 +16,13 @@ const user={userId:'reviewer',clientId:DEMO_CLIENT_ID,email:'guest@guest.invalid
 beforeEach(()=>{vi.clearAllMocks();mocks.requireUser.mockResolvedValue(user);mocks.getSessionUser.mockResolvedValue(user);mocks.assertDemoActor.mockResolvedValue(undefined);vi.stubEnv('PRONTO_CUSTOMER_DEMO_ENABLED','1');});
 afterEach(()=>{cleanup();vi.unstubAllEnvs();});
 describe('guided demo entry',()=>{
+  it('keeps business access while omitting customer simulation when retired',async()=>{
+    vi.stubEnv('PRONTO_CUSTOMER_SIMULATOR_ENABLED','0');
+    render(await DemoEntryPage({searchParams:Promise.resolve({})}));
+    expect(screen.queryByRole('link',{name:/Guest \/ customer/})).toBeNull();
+    expect(screen.getByRole('link',{name:/Client \/ business/})).toBeTruthy();
+    expect(screen.getByRole('heading',{name:'Open your business workspace'})).toBeTruthy();
+  });
   it('offers both views after checking the existing authenticated demo identity',async()=>{
     render(await DemoEntryPage({searchParams:Promise.resolve({})}));
     expect(mocks.assertDemoActor).toHaveBeenCalledWith(user);

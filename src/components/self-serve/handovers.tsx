@@ -1,18 +1,9 @@
 "use client";
+import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
-import {
-  LockKeyhole,
-  Trash2,
-  Pencil,
-  Plus,
-  Mail,
-  MessageCircle,
-} from "lucide-react";
-import {
-  handoverPresets,
-  type Alerts,
-  type Handovers,
-} from "@/lib/self-serve/catalog";
+import { LockKeyhole, Trash2, Pencil, Plus } from "lucide-react";
+import { handoverPresets, type Handovers } from "@/lib/self-serve/catalog";
 import { useWorkspace, api, Header, Badge } from "./workspace";
 export function HandoversPage() {
   const { state, busy, run } = useWorkspace();
@@ -23,9 +14,7 @@ export function HandoversPage() {
     [draft, setDraft] = useState(""),
     [threshold, setThreshold] = useState(
       String(handovers.presets.large_group.params?.min_group_size ?? 10),
-    ),
-    [contacts, setContacts] = useState<Alerts>(settings.alerts),
-    [editContacts, setEditContacts] = useState(false);
+    );
   const pending = state.jobs.some(
     (j) =>
       j.kind === "handovers" && ["pending", "processing"].includes(j.status),
@@ -43,129 +32,47 @@ export function HandoversPage() {
     <>
       <Header
         title="Handovers"
-        description="Choose when Pronto steps aside. You reply directly in WhatsApp or Instagram, where the conversation already is."
+        description="Choose when Pronto steps aside so you can reply in the customer’s messaging app."
       />
       <div className="ss-handover-intro">
         <strong>Pronto goes quiet and flags the conversation for you.</strong>
         <p>
-          No holding message. When a verified owner reply is detected, Pronto
-          can answer the customer’s next message. WhatsApp needs Business App
-          coexistence echo events; delivery receipts don’t count.
+          Reply directly in Instagram. Once Pronto detects your reply, it can
+          help with the customer’s next message.
         </p>
       </div>
       <section className="ss-panel">
-        <div className="ss-row ss-wrap">
+        <h2>Connected inbox</h2>
+        <p className="ss-muted">
+          Customer messages reach Pronto through this account.
+        </p>
+        <div className="ss-connection-status">
+          <Image
+            src="/channel-icons/instagram.png"
+            alt=""
+            width={24}
+            height={24}
+          />
           <div>
-            <h2>Where to alert you</h2>
+            <h3>Instagram</h3>
+            {(state.instagram ?? []).length ? (
+              state.instagram!.map((channel) => (
+                <p key={channel.id}>
+                  {channel.name} <Badge tone="green">Connected</Badge>
+                </p>
+              ))
+            ) : (
+              <p className="ss-muted">No Instagram account connected.</p>
+            )}
             <p className="ss-muted">
-              Alerts need a configured, verified delivery channel. This public
-              demo does not send external staff alerts.
+              When a conversation needs you, it appears in{" "}
+              <Link href="/client/conversations?status=needs_reply">
+                Conversations
+              </Link>
+              . Open Instagram to reply.
             </p>
           </div>
-          <button
-            className="ss-secondary"
-            onClick={() => {
-              setContacts(settings.alerts);
-              setEditContacts(!editContacts);
-            }}
-          >
-            {editContacts ? "Cancel" : "Edit contacts"}
-          </button>
         </div>
-        {editContacts ? (
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const result = await run(
-                () =>
-                  api("/settings", "PATCH", {
-                    version: settings.version,
-                    alerts: contacts,
-                  }),
-                "Alert preferences saved.",
-              );
-              if (result) setEditContacts(false);
-            }}
-          >
-            <label className="ss-field">
-              WhatsApp number
-              <input
-                type="tel"
-                placeholder="+65…"
-                value={contacts.whatsapp_number}
-                onChange={(e) =>
-                  setContacts({ ...contacts, whatsapp_number: e.target.value })
-                }
-              />
-            </label>
-            <label className="ss-checkbox">
-              <input
-                type="checkbox"
-                checked={contacts.whatsapp_enabled}
-                onChange={(e) =>
-                  setContacts({
-                    ...contacts,
-                    whatsapp_enabled: e.target.checked,
-                  })
-                }
-              />
-              Enable WhatsApp alerts
-            </label>
-            <label className="ss-field">
-              Email address
-              <input
-                type="email"
-                value={contacts.email_address}
-                onChange={(e) =>
-                  setContacts({ ...contacts, email_address: e.target.value })
-                }
-              />
-            </label>
-            <label className="ss-checkbox">
-              <input
-                type="checkbox"
-                checked={contacts.email_enabled}
-                onChange={(e) =>
-                  setContacts({ ...contacts, email_enabled: e.target.checked })
-                }
-              />
-              Enable email alerts
-            </label>
-            <div className="ss-actions">
-              <button className="ss-primary" disabled={busy}>
-                Save alert preferences
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="ss-alert-channels">
-            <span>
-              <MessageCircle size={19} />
-              <strong>WhatsApp</strong>
-              <span>{settings.alerts.whatsapp_number || "No number set"}</span>
-              <Badge
-                tone={settings.alerts.whatsapp_enabled ? "green" : "amber"}
-              >
-                {settings.alerts.whatsapp_enabled ? "Enabled" : "Off"}
-              </Badge>
-            </span>
-            <span>
-              <Mail size={19} />
-              <strong>Email</strong>
-              <span>{settings.alerts.email_address || "No email set"}</span>
-              <Badge tone={settings.alerts.email_enabled ? "green" : "amber"}>
-                {settings.alerts.email_enabled ? "Enabled" : "Off"}
-              </Badge>
-            </span>
-          </div>
-        )}
-        {!settings.alerts.whatsapp_enabled &&
-          !settings.alerts.email_enabled && (
-            <p className="ss-feedback ss-warning">
-              Both alert channels are off. Handovers still pause Pronto, so
-              check the Handovers status or your native inbox.
-            </p>
-          )}
       </section>
       <section className="ss-panel">
         <h2>When to hand over</h2>

@@ -1,3 +1,4 @@
+import { customerSimulatorEnabled } from "@/lib/customer-simulator-policy";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { assertSameOrigin } from "@/lib/http/csrf";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 async function handle(request: Request, mutate: boolean) {
+  if (!customerSimulatorEnabled()) return NextResponse.json({ error: "Customer simulation is disabled." }, { status: 404 });
   if (mutate) { const csrf = assertSameOrigin(request); if (csrf) return csrf; }
   const actor = await getSessionUser();
   if (!actor) return NextResponse.json({ error: "Unauthenticated." }, { status: 401 });

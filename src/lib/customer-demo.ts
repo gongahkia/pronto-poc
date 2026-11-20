@@ -1,3 +1,4 @@
+import { customerSimulatorEnabled } from "@/lib/customer-simulator-policy";
 import {demoBusinessScope} from "@/lib/demo-business";
 import { randomUUID } from "node:crypto";
 import type { SessionUser } from "@/lib/auth";
@@ -27,6 +28,7 @@ export async function assertDemoActor(actor: SessionUser, db: Queryable = { quer
 }
 
 export async function createDemoSession(actor: SessionUser, mode: AiExecutionMode, selection?: unknown) {
+  if (!customerSimulatorEnabled()) throw new DemoError("Customer simulation is disabled. Use the connected messaging account.", 404);
   await assertDemoActor(actor);
   if (process.env.NODE_ENV !== "test" && (mode !== "real" || selection === "mock" || selection === "configured"))
     throw new DemoError("Choose an available real AI model. Simulated replies are disabled.");
@@ -74,6 +76,7 @@ async function ownedSession(actor: SessionUser, id: string, db: Queryable = { qu
 }
 
 export async function sendDemoMessage(actor: SessionUser, input: { sessionId: string; requestId: string; text: string }) {
+  if (!customerSimulatorEnabled()) throw new DemoError("Customer simulation is disabled. Use the connected messaging account.", 404);
   await assertDemoActor(actor);
   if (!uuidPattern.test(input.requestId) || !input.text.trim() || input.text.length > 4000)
     throw new DemoError("Enter a message of 1–4000 characters with a valid request ID.");
@@ -113,6 +116,7 @@ export async function sendDemoMessage(actor: SessionUser, input: { sessionId: st
 }
 
 export async function retryDemoProcessing(actor: SessionUser, sessionId: string) {
+  if (!customerSimulatorEnabled()) throw new DemoError("Customer simulation is disabled. Use the connected messaging account.", 404);
   await assertDemoActor(actor);
   const session = await ownedSession(actor, sessionId);
   if (session.ai_mode === "real") await requireRealDemoConfiguration(true, storedDemoProfile(session));
@@ -140,6 +144,7 @@ export async function retryDemoProcessing(actor: SessionUser, sessionId: string)
 }
 
 export async function getDemoState(actor: SessionUser, sessionId?: string) {
+  if (!customerSimulatorEnabled()) throw new DemoError("Customer simulation is disabled. Use the connected messaging account.", 404);
   await assertDemoActor(actor);
   const sessions = await query(`select s.id,s.conversation_id,s.ai_mode,s.ai_selection,s.ai_configuration,s.created_at from customer_demo_sessions s
     join conversations c on c.id=s.conversation_id and c.client_id=s.client_id and c.deleted_at is null
