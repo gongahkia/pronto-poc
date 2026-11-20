@@ -1298,3 +1298,4 @@
     transition: none;
   }
 }
+.ss-voice-excerpt {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;line-height:1.6;color:var(--ss-muted)}

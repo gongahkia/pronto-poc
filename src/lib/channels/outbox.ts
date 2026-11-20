@@ -193,9 +193,11 @@ async function deliverClaimedOutbound(outbound: OutboundMessage, options: Outbou
     };
     if (ownershipTransaction) {
       const allowed = await transaction(async (db) => {
+        let selfServeGuard=false;
         if(selfServeUIEnabled()){
           const settings=await getSettings(outbound.client_id,db);
           if(settings?.enabled){
+            selfServeGuard=true;
             await db.query('select client_id from selfserve_settings where client_id=$1 for share',[outbound.client_id]);
             const current=await getSettings(outbound.client_id,db);
             if(outbound.metadata.purpose==='escalation_holding_reply'||String(outbound.metadata.selfServeVersion??'')!==String(current?.version)){
@@ -208,6 +210,16 @@ async function deliverClaimedOutbound(outbound: OutboundMessage, options: Outbou
           "select status from conversations where id = $1 and client_id = $2 for share",
           [outbound.conversation_id, outbound.client_id],
         );
+        // The conversation share lock serializes this check with native-owner
+        // resumption. A queued older answer must not become eligible again.
+        if(selfServeGuard&&outbound.metadata.purpose==='agent_answer'){
+          const superseded=await db.query(`select r.id from selfserve_owner_replies r join messages m on m.client_id=r.client_id
+            where r.client_id=$1 and r.channel_id=$2 and r.external_thread_id=$3 and m.id::text=$4
+              and r.occurred_at>=coalesce((m.metadata->>'providerOccurredAt')::timestamptz,m.created_at) limit 1`,
+            [outbound.client_id,outbound.channel_id,outbound.external_thread_id,String(outbound.metadata.customerMessageId??'')]);
+          if(superseded.rowCount){await db.query("update outbound_messages set status='suppressed',last_error='A native owner reply superseded this customer turn',updated_at=now() where client_id=$1 and id=$2",[outbound.client_id,outbound.id]);
+            outcomeRowWritten=true;finalState='suppressed';acceptanceState='not_attempted';return false;}
+        }
         const open = await db.query<{ id: string }>(
           "select id from escalations where conversation_id = $1 and client_id = $2 and (status='claimed' or (status='open' and not allow_ai_followups)) limit 1",
           [outbound.conversation_id, outbound.client_id],

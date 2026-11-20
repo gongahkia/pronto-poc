@@ -676,6 +676,22 @@ dbDescribe("self-serve configuration on owned PostgreSQL", () => {
         )
       ).rowCount,
     ).toBe(0);
+    const queued = await enqueueOutboundMessage(
+      { query },
+      {
+        clientId: client,
+        channelId: channel,
+        conversationId: conv,
+        externalThreadId: "customer",
+        body: "Older queued AI reply",
+        idempotencyKey: "old-native-" + conv,
+        metadata: {
+          purpose: "agent_answer",
+          customerMessageId: message,
+          selfServeVersion: (await current()).settings!.version,
+        },
+      },
+    );
     const echo = {
       messageId: "native-owner",
       threadId: "customer",
@@ -699,6 +715,17 @@ dbDescribe("self-serve configuration on owned PostgreSQL", () => {
         ])
       ).rows[0].status,
     ).toBe("active");
+    expect(
+      await flushOutboundMessage(queued.id, { clientId: client }),
+    ).toMatchObject({ status: "skipped" });
+    expect(
+      (
+        await getPool().query(
+          "select status from outbound_messages where id=$1",
+          [queued.id],
+        )
+      ).rows[0].status,
+    ).toBe("suppressed");
   });
 });
 describe("self-serve extraction and echo boundaries", () => {

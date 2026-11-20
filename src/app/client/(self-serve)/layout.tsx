@@ -1,3 +1,6 @@
+import { DemoQueuePump } from "@/components/demo-queue-pump";
+import { demoBusinessScope } from "@/lib/demo-business";
+import { requestDrivenDemoProcessing } from "@/lib/deployment-profile";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
@@ -30,11 +33,15 @@ export default async function SelfServeLayout({
     ])
   ).rows[0];
   return (
-    <SelfServeWorkspace
-      name={business?.name ?? "Your business"}
-      initial={JSON.parse(JSON.stringify(await snapshot(user.clientId)))}
-    >
-      {children}
-    </SelfServeWorkspace>
+    <>
+      {user.clientId === demoBusinessScope().clientId &&
+        requestDrivenDemoProcessing() && <DemoQueuePump />}
+      <SelfServeWorkspace
+        name={business?.name ?? "Your business"}
+        initial={JSON.parse(JSON.stringify(await snapshot(user.clientId)))}
+      >
+        {children}
+      </SelfServeWorkspace>
+    </>
   );
 }
