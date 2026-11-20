@@ -62,6 +62,7 @@ async function handle(request:Request,context:Context){
     if(method==='upload'){
      if(!form||data.consent!=='true')throw new SelfServeError('Confirm permission to analyse these samples.');const files=form.getAll('files');if(!files.length||files.length>10)throw new SelfServeError('Choose 1–10 chat exports or screenshots, up to 25 MB in total.');
      const list:PrivateFile[]=[];for(const file of files){if(!(file instanceof File)||!file.size||!/\.(txt|zip|jpe?g|png|webp|heic)$/i.test(file.name))throw new SelfServeError('Upload a WhatsApp TXT/ZIP export or chat screenshot.');list.push({name:file.name,type:file.type,data:Buffer.from(await file.arrayBuffer()).toString('base64')});}
+     if(list.some(f=>/\.(txt|zip)$/i.test(f.name))&&list.some(f=>!(/\.(txt|zip)$/i.test(f.name))))throw new SelfServeError('Choose chat exports or screenshots for one session; do not mix them.');
      sealed=sealFile({name:'voice-samples',type:'application/json',data:JSON.stringify(list)});
     }return json(await createVoiceSession(clientId,actor.userId,sessionId,method,sealed));
    }

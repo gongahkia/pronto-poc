@@ -24,7 +24,7 @@ export async function processSelfServeJobs(clientId:string){
 export async function claimJob(clientId:string):Promise<Job|null>{
  return transaction(async db=>{
   await lockSettings(db,clientId);
-  await db.query(`update selfserve_voice_sessions set status='discarded',review_text=null,transient_file=null,replies='[]',upload_meta='[]',selected_speaker=null,speaker_options='[]',updated_at=now() where client_id=$1 and expires_at<now() and status not in ('saved','discarded')`,[clientId]);
+  await db.query(`update selfserve_voice_sessions set status='discarded',draft_notes='[]',revision=revision+1,review_text=null,transient_file=null,replies='[]',upload_meta='[]',selected_speaker=null,speaker_options='[]',updated_at=now() where client_id=$1 and expires_at<now() and status not in ('saved','discarded')`,[clientId]);
   await db.query(`update selfserve_sources set transient_file=null,status='failed',error='The temporary upload expired. Add this source again.',updated_at=now() where client_id=$1 and transient_file is not null and created_at<now()-interval '1 hour'`,[clientId]);
   const row=await db.query<Job>(`update selfserve_jobs set status='processing',lease_until=now()+interval '3 minutes',lease_token=gen_random_uuid(),attempts=attempts+1,updated_at=now()
     where client_id=$1 and id=(select id from selfserve_jobs where client_id=$1

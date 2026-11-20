@@ -11,6 +11,10 @@ export type VoiceSession={id:string;client_id:string;actor_id:string;method:'con
 export async function voiceSession(clientId:string,actorId:string,id:string){
  const row=(await query<VoiceSession>('select * from selfserve_voice_sessions where client_id=$1 and id=$2 and actor_id=$3',[clientId,id,actorId])).rows[0];
  if(!row)throw new SelfServeError('Voice session not found.',404);
+ if(row.expires_at.getTime()<=Date.now()&&!['saved','discarded'].includes(row.status)){
+  await query("update selfserve_voice_sessions set status='discarded',revision=revision+1,review_text=null,replies='[]',draft_notes='[]',transient_file=null,speaker_options='[]',selected_speaker=null,upload_meta='[]' where client_id=$1 and id=$2 and actor_id=$3 and expires_at<=now() and status not in ('saved','discarded')",[clientId,id,actorId]);
+  return {...row,status:'discarded',review_text:null,replies:[],draft_notes:[],transient_file:undefined,speaker_options:[],selected_speaker:null,error:'This temporary session expired. Start again.'};
+ }
  return {...row,transient_file:undefined,review_text:row.expires_at.getTime()>Date.now()?row.review_text:null};
 }
 export async function createVoiceSession(clientId:string,actorId:string,id:string,method:'conversation'|'upload',files?:unknown){
@@ -64,7 +68,7 @@ export async function selectSpeaker(clientId:string,actorId:string,id:string,spe
   await db.query("update selfserve_voice_sessions set review_text=$4,selected_speaker=$5,speaker_options='[]',revision=revision+1 where client_id=$1 and id=$2 and actor_id=$3",[clientId,id,actorId,redactSamples(selected,messages.map(m=>m.speaker)),speaker]);
  });return voiceSession(clientId,actorId,id);
 }
-export async function discardVoice(clientId:string,actorId:string,id:string){await query(`update selfserve_voice_sessions set status='discarded',revision=revision+1,replies='[]',review_text=null,transient_file=null,upload_meta='[]',speaker_options='[]',selected_speaker=null where client_id=$1 and id=$2 and actor_id=$3`,[clientId,id,actorId]);}
+export async function discardVoice(clientId:string,actorId:string,id:string){await query(`update selfserve_voice_sessions set status='discarded',revision=revision+1,replies='[]',draft_notes='[]',review_text=null,transient_file=null,upload_meta='[]',speaker_options='[]',selected_speaker=null where client_id=$1 and id=$2 and actor_id=$3`,[clientId,id,actorId]);}
 export async function processVoiceJob(job:Job){
  if(job.kind==='handovers'){
   const text=z.string().trim().min(1).max(10000).parse(job.payload.text);
@@ -91,7 +95,7 @@ export async function processVoiceJob(job:Job){
   for(const file of files){if(file.name.toLowerCase().endsWith('.txt'))chats.push(Buffer.from(file.data,'base64').toString('utf8'));else images.push((await extractFile(file)).map(s=>s.text).join('\n'));}
   const messages=chats.flatMap(parseWhatsApp),speakers=[...new Set(messages.map(m=>m.speaker))];
   if(chats.length&&!speakers.length)throw new Error('Could not identify participants in this export.');
-  const review=messages.length?messages.map(m=>`[20/11/26, 00:00] ${m.speaker}: ${m.body}`).join('\n'):redactSamples(images.join('\n\n'));
+  const review=messages.length?chats.join('\n\n'):redactSamples(images.join('\n\n'));
   if(!review.trim()||review.length>100000)throw new Error('Choose smaller readable chat samples.');
   await transaction(async db=>{
    await lockSettings(db,job.client_id);await assertJobLease(db,job);
