@@ -69,7 +69,7 @@ export async function processVoiceJob(job:Job){
  if(job.kind==='handovers'){
   const text=z.string().trim().min(1).max(10000).parse(job.payload.text);
   const output=await selfServeModel(job.client_id,'handovers','Extract separate handover situations by meaning. Keep every qualifier and original language; one self-contained situation per item. No invented triggers or authority. Lists of independent situations should become separate items.',{text},situationsSchema);
-  await transaction(async db=>{const settings=await lockSettings(db,job.client_id);await assertJobLease(db,job);checkRevision(settings,job.payload.version);
+  await transaction(async db=>{const settings=await lockSettings(db,job.client_id);await assertJobLease(db,job);if(job.payload.baseHandovers){if(job.payload.baseHandovers!==JSON.stringify(settings.handovers))throw new SelfServeError('Handover settings changed during analysis. Review and add this situation again.',409);}else checkRevision(settings,job.payload.version);
    settings.handovers.custom.push(...output.value.situations.map(text=>({id:randomUUID(),text})));
    await db.query('update selfserve_settings set handovers=$2 where client_id=$1',[job.client_id,settings.handovers]);await touch(db,job.client_id);await updateJob(job,{added:output.value.situations.length},'ready',db,output.model);
   });return;

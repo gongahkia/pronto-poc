@@ -48,7 +48,7 @@ export default async function DemoEntryPage({searchParams}:{searchParams:Promise
           })}
         </div>
       </form>
-      <p className="mt-5 text-sm leading-6 text-muted">You can switch demo views at any time. Both views share the same synthetic workspace; nothing is sent to real customers.</p>
+      <p className="mt-5 text-sm leading-6 text-muted">{selfServeUIEnabled()?'You can switch demo views at any time. Changes affect this shared test workspace and its connected test Instagram account.':'You can switch demo views at any time. Both views share the same synthetic workspace; nothing is sent to real customers.'}</p>
       {user&&<form action="/api/auth/logout" method="post" className="mt-4"><button className="text-sm text-accent underline underline-offset-4">{isGuestEmail(user.email) ? 'Reset demo session' : 'Sign out'}</button></form>}
       <div className="mt-4"><ServiceStatusLink/></div>
     </section>

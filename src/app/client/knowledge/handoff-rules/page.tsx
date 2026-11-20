@@ -1,3 +1,5 @@
+import {redirect} from 'next/navigation';
+import {selfServeUIEnabled} from '@/lib/self-serve/settings';
 import { requireUser } from "@/lib/auth";
 import { getBusinessReplySettings } from "@/lib/knowledge/reply-settings";
 import { AppShell } from "@/components/shell";
@@ -7,6 +9,7 @@ import { ClientRulesEditor } from "@/components/client-rules-editor";
 
 export default async function HandoffRulesPage() {
   const user = await requireUser("client");
+  if(selfServeUIEnabled())redirect("/client/handovers");
   if (!user.clientId) throw new Error("Business assignment required.");
   const settings = await getBusinessReplySettings(user.clientId);
   return <AppShell user={user} active="client" clientActive="knowledge" workspaceName={settings.client.name} workspaceProfile={settings.client.business_profile}>

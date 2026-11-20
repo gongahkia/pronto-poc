@@ -44,7 +44,7 @@ export async function addSource(clientId:string,actorId:string,input:{id:string;
  });
 }
 export async function addHandovers(clientId:string,actorId:string,text:string,version:unknown,id:string=randomUUID()){
- return transaction(async db=>{const s=await lockSettings(db,clientId);checkRevision(s,version);return {id:await queueJob(db,clientId,actorId,'handovers',id,1,{text:z.string().trim().min(1).max(10000).parse(text),version})};});
+ return transaction(async db=>{const s=await lockSettings(db,clientId);checkRevision(s,version);return {id:await queueJob(db,clientId,actorId,'handovers',id,1,{text:z.string().trim().min(1).max(10000).parse(text),version,baseHandovers:JSON.stringify(s.handovers)})};});
 }
 export async function retrySource(clientId:string,actorId:string,id:string){
  return transaction(async db=>{
