@@ -50,9 +50,9 @@ export async function extractFile(file:PrivateFile):Promise<Segment[]>{
   if(ext==='csv')return boundSegments(parseCsv(bytes.toString('utf8')).map((row,index)=>({ref:`row ${index+1}`,text:row.join(' | ')})));
   if(ext==='doc')return boundSegments([{ref:'document',text:await command('antiword',[input])}]);
   if(['jpg','jpeg','png','webp','heic'].includes(ext)){
-   const dimensions=(await command('identify',['-limit','memory','96MiB','-limit','map','128MiB','-ping','-format','%w %h',input+'[0]'])).trim().split(/\s+/).map(Number);
+   const dimensions=(await command('identify',['-limit','memory','48MiB','-limit','map','64MiB','-ping','-format','%w %h',input+'[0]'])).trim().split(/\s+/).map(Number);
    if(dimensions.length!==2||dimensions.some(n=>!Number.isFinite(n)||n<1)||dimensions[0]*dimensions[1]>40_000_000)throw new Error('Image resolution exceeds the processing limit.');
-   const image=join(dir,'image.png');await command('convert',['-limit','memory','96MiB','-limit','map','128MiB',input+'[0]','-resize','2400x2400>',image]);
+   const image=join(dir,'image.png');await command('convert',['-limit','memory','48MiB','-limit','map','64MiB',input+'[0]','-resize','2400x2400>',image]);
    return boundSegments([{ref:'image',text:await command('tesseract',[image,'stdout','-l','eng+chi_sim+tam'])}]);
   }
   if(ext==='pdf'){

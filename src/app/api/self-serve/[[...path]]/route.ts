@@ -79,4 +79,10 @@ async function handle(request:Request,context:Context){
   logWarn('selfserve.request_failed',{clientId,error});return json({error:'This change could not be saved. Reload and try again.'},503);
  }
 }
-export const GET=handle;export const POST=handle;export const PUT=handle;export const PATCH=handle;export const DELETE=handle;
+let uploadActive=false;
+export async function POST(request:Request,context:Context){
+ if(!request.headers.get('content-type')?.includes('multipart/form-data'))return handle(request,context);
+ if(uploadActive)return json({error:'Another upload is being saved. Try again in a moment.'},429);
+ uploadActive=true;try{return await handle(request,context);}finally{uploadActive=false;}
+}
+export const GET=handle;export const PUT=handle;export const PATCH=handle;export const DELETE=handle;
