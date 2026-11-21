@@ -16,6 +16,9 @@ const auth = vi.hoisted(() => ({ actor: { userId: "", email: "fixture@operator.i
 vi.mock("@/lib/auth", async importOriginal => ({ ...await importOriginal<typeof import("@/lib/auth")>(),
   requireUser: vi.fn(async () => auth.actor) }));
 
+// these tests drive workers explicitly; Next.js owns post-response callbacks in production.
+vi.mock("next/server", async original => ({ ...await original<typeof import("next/server")>(), after: vi.fn() }));
+
 const dbDescribe = process.env.PRONTO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 
 dbDescribe("mock-verified Meta webhook to RAG to outbound queue demonstrations", () => {

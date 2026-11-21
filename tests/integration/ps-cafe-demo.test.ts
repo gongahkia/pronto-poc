@@ -15,6 +15,9 @@ import { PS_CAFE_CHOPE_OUTLET_ID, PS_CAFE_CHOPE_URL, PS_CAFE_DEMO_CLIENT_ID,
   PS_CAFE_DEMO_WHATSAPP_ID, PS_CAFE_DEMO_INSTAGRAM_ID, PS_CAFE_DEMO_MESSENGER_ID, psCafeDemoSources,
   removePsCafeDemo, setupPsCafeDemo } from "../../scripts/demo/ps-cafe-raffles-city";
 
+// these tests drive workers explicitly; Next.js owns post-response callbacks in production.
+vi.mock("next/server", async original => ({ ...await original<typeof import("next/server")>(), after: vi.fn() }));
+
 const dbDescribe = process.env.PRONTO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 const secret = "ps-cafe-demo-fixture-secret";
 

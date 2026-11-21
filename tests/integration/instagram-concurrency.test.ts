@@ -7,6 +7,9 @@ import { enqueueOutboundMessage, flushOutboundMessage, listRetryableOutboundMess
 import { updateConversationAction } from "@/lib/conversation-actions";
 import { POST } from "@/app/api/webhooks/instagram/[channelId]/route";
 
+// these tests drive workers explicitly; Next.js owns post-response callbacks in production.
+vi.mock("next/server", async original => ({ ...await original<typeof import("next/server")>(), after: vi.fn() }));
+
 const dbDescribe = process.env.PRONTO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 dbDescribe("Unified Login queue concurrency", () => {
   let clientId: string, channelId: string, responderId: string;
