@@ -1353,9 +1353,6 @@
 .ss-conversation-list a:hover {
   background: #f2f6ff;
 }
-.ss-conversation-list img {
-  margin-top: 3px;
-}
 .ss-conversation-summary {
   min-width: 0;
   flex: 1;

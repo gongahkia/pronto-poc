@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fakes = vi.hoisted(() => ({
   getWhatsAppChannel: vi.fn(), getInstagramChannel: vi.fn(),
+  after: vi.fn(), refreshProfiles: vi.fn(async()=>undefined),
   recordWhatsAppStatusEvents: vi.fn(async () => 0),
   processInboundMessages: vi.fn(async (messages: unknown[]) => ({
     ok: true, accepted: messages.length, duplicates: 0, jobIds: ["job-1"],
@@ -18,6 +19,8 @@ vi.mock("@/lib/channels/instagram", async (importOriginal) => ({
   getInstagramChannel: fakes.getInstagramChannel,
 }));
 vi.mock("@/lib/channels/process", () => ({ processInboundMessages: fakes.processInboundMessages }));
+vi.mock("next/server",async original=>({...await original<typeof import("next/server")>(),after:fakes.after}));
+vi.mock("@/lib/channels/instagram-profile",()=>({refreshInstagramSenderProfiles:fakes.refreshProfiles}));
 
 import { GET as whatsAppGet, POST as whatsAppPost } from "@/app/api/webhooks/whatsapp/[channelId]/route";
 import { GET as instagramGet, POST as instagramPost } from "@/app/api/webhooks/instagram/[channelId]/route";
@@ -142,6 +145,15 @@ describe("Meta webhook entry points", () => {
     echo.entry[0].messaging[0].message = { ...echo.entry[0].messaging[0].message, is_echo: true } as typeof echo.entry[0]["messaging"][0]["message"];
     await instagramPost(signedRequest("instagram", echo), context);
     expect(fakes.processInboundMessages).toHaveBeenLastCalledWith([], expect.any(Object));
+  });
+
+  it("defers profile enrichment until after the authenticated webhook is acknowledged", async () => {
+    expect((await instagramPost(signedRequest("instagram", instagramPayload,"wrong"),context)).status).toBe(401);
+    expect(fakes.after).not.toHaveBeenCalled();
+    expect((await instagramPost(signedRequest("instagram", instagramPayload),context)).status).toBe(200);
+    expect(fakes.refreshProfiles).not.toHaveBeenCalled();
+    await fakes.after.mock.calls[0][0]();
+    expect(fakes.refreshProfiles).toHaveBeenCalledExactlyOnceWith("tenant-a","channel-a",["ig-customer-a"]);
   });
 
   it("authenticates Unified Login DMs with the channel secret and exact account mapping", async () => {

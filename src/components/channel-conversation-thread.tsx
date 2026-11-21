@@ -38,7 +38,7 @@ export function ChannelConversationThread({
             {profile.followerCount !== undefined && <span className="tabular-nums">{profile.followerCount.toLocaleString("en-SG")} followers</span>}
             {profile.followsBusiness === true && <span>Follows you</span>}
             {profile.businessFollowsCustomer === true && <span>You follow this customer</span>}
-            {profile.username && <a href={`https://www.instagram.com/${encodeURIComponent(profile.username)}/`} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="text-accent underline">View Instagram profile<span className="sr-only"> (opens in a new tab)</span></a>}
+            {profile.username && <a href={`https://www.instagram.com/${encodeURIComponent(profile.username)}/`} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="inline-flex min-h-10 items-center text-accent underline max-sm:min-h-11">View Instagram profile<span className="sr-only"> (opens in a new tab)</span></a>}
           </div>}
         </div>
         <Badge tone={conversation.active_escalation_id ? "amber" : "neutral"}>
