@@ -14,6 +14,9 @@ import { flushOutboundMessage } from "@/lib/channels/outbox";
 import { verifyTestDatabase } from "../../scripts/test-db-safety";
 import type { SessionUser } from "@/lib/auth";
 
+// these tests drive workers explicitly; Next.js owns post-response callbacks in production.
+vi.mock("next/server", async original => ({ ...await original<typeof import("next/server")>(), after: vi.fn() }));
+
 const dbDescribe = process.env.PRONTO_RUN_DB_TESTS === "1" ? describe : describe.skip;
 dbDescribe("scoped Instagram AI using fake HTTP and real disposable PostgreSQL", () => {
   let clientId: string, channelId: string, operator: SessionUser, approver: SessionUser;

@@ -21,6 +21,7 @@ export type ConversationFilterInput = {
 };
 
 export type FilteredConversation = {
+  instagram_profile?: import("@/lib/channels/instagram-profile-data").InstagramCustomerProfile;
   response_provider?: string | null;
   response_model?: string | null;
   generation_mode?: string | null;
@@ -120,6 +121,7 @@ export async function getFilteredConversations(
         ch.kind as channel_kind,
         c.customer_name,
         c.customer_handle,
+        c.instagram_profile,
         c.status,
         c.ai_should_respond, c.owner_action_required, c.urgency,
         c.last_message_at,
@@ -389,6 +391,8 @@ function buildConversationFilters(input: ConversationFilterInput): SqlFilter {
       or
       c.customer_name ilike $${param}
       or c.customer_handle ilike $${param}
+      or c.instagram_profile->>'name' ilike $${param}
+      or ('@'||coalesce(c.instagram_profile->>'username','')) ilike $${param}
       or lm.body ilike $${param}
     )`);
   }

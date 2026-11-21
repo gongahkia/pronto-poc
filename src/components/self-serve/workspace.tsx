@@ -18,6 +18,7 @@ import {
   LoaderCircle,
   MessagesSquare,
   Settings as SettingsIcon,
+  Activity,
   X,
 } from "lucide-react";
 import type { Settings } from "@/lib/self-serve/store";
@@ -177,6 +178,12 @@ export function SelfServeWorkspace({
       Icon: MessagesSquare,
     },
     { href: "/client/settings", label: "Settings", Icon: SettingsIcon },
+    {
+      href: "/client/status",
+      label: "Status (dev)",
+      Icon: Activity,
+      muted: true,
+    },
   ];
   return (
     <Context.Provider
@@ -195,12 +202,15 @@ export function SelfServeWorkspace({
               .filter(
                 (item) =>
                   canManageKnowledge ||
-                  ["Conversations", "Settings"].includes(item.label),
+                  ["Conversations", "Settings", "Status (dev)"].includes(
+                    item.label,
+                  ),
               )
-              .map(({ href, label, Icon }) => (
+              .map(({ href, label, Icon, muted }) => (
                 <Link
                   key={href}
                   href={href}
+                  className={muted ? "ss-nav-muted" : undefined}
                   aria-current={path.startsWith(href) ? "page" : undefined}
                 >
                   <Icon size={17} />

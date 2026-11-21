@@ -1,3 +1,4 @@
+import { refreshInstagramSenderProfiles } from "@/lib/channels/instagram-profile";
 import {instagramOwnerEchoes,recordNativeOwnerReply} from '@/lib/self-serve/owner-replies';
 import {demoBusinessScope} from "@/lib/demo-business";
 import { after, NextResponse } from "next/server";
@@ -124,9 +125,16 @@ export async function POST(request: Request, context: Context) {
   logInfo("instagram.webhook_ingested", { requestId, channelId, accepted: result.accepted,
     duplicates: result.duplicates, ingestionMs: Date.now() - receivedAt,
     oldestProviderAgeMs: ages.length ? Math.max(...ages) : null });
-  if (isDemoInstagramChannel(channel) && result.jobIds.length) after(async () => {
-    try { const { processDemoInstagramQueue } = await import("@/lib/demo-processing"); await processDemoInstagramQueue(channelId); }
-    catch (error) { logWarn("instagram.demo_processing_interrupted", { channelId, error }); }
+  if (result.jobIds.length) after(async () => {
+    await Promise.allSettled([
+      (async () => {
+        if (!isDemoInstagramChannel(channel)) return;
+        try { const { processDemoInstagramQueue } = await import("@/lib/demo-processing"); await processDemoInstagramQueue(channelId); }
+        catch (error) { logWarn("instagram.demo_processing_interrupted", { channelId, error }); }
+      })(),
+      refreshInstagramSenderProfiles(channel.client_id, channelId, messages.map(message => message.externalThreadId))
+        .catch(() => logWarn("instagram.profile_refresh_interrupted", { channelId })),
+    ]);
   });
   return NextResponse.json(result, {
     headers: requestIdHeaders(requestId),

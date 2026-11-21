@@ -78,6 +78,8 @@ rollout, temporary uploads, real-model evidence and operational limitations.
 
 On 20 November the user retired simulated DMs in the shared deployment. `PRONTO_CUSTOMER_SIMULATOR_ENABLED=0` disables the customer simulator independently of business access, knowledge authoring and Instagram processing. The 28 console conversations and 101 messages were removed with a private backup and audit record; the real Instagram thread and four messages were retained, and 51 usage entries were detached rather than erased. Do not seed or recreate hosted simulator data. Disposable offline regression fixtures remain separate. See `docs/ops/simulated-dm-retirement.md`.
 
+Instagram customer profile display requires migration **064**. Names, handles and optional Meta details are cached separately from numeric sender/routing identity. Refreshes are tenant-bound, leased and best-effort; see `docs/channels/instagram-customer-profiles.md`.
+
 ## Product behaviour and reference guides
 
 Saved demo businesses use `config/demo-businesses/*.json` and `pnpm demo:business`

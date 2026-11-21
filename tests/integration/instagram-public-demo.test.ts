@@ -55,6 +55,8 @@ dbDescribe("public demo Instagram transport with real isolated PostgreSQL and fa
           confidence: 0.99, reasonCode: handoff ? "complaint_or_refund" : "grounded_answer", reasonDetail: "Explicit fake provider fixture.", citedChunkIds: handoff || greeting ? [] : [chunkId],
         }) } }], usage: { prompt_tokens: 100, completion_tokens: 30 } }), { headers: { "Content-Type": "application/json" } });
       }
+      if (target.startsWith("https://graph.facebook.com/") && new URL(target).pathname.endsWith("/" + senderId))
+        return Response.json({ id: senderId, name: "Fixture customer", username: "fixture_customer" });
       if (target.startsWith("https://graph.facebook.com/") && target.endsWith("/messages"))
         return new Response(JSON.stringify({ message_id: "fixture-outgoing" }));
       throw new Error("Unexpected fixture network request");
@@ -75,13 +77,15 @@ dbDescribe("public demo Instagram transport with real isolated PostgreSQL and fa
     await Promise.all(callbacks.splice(0).map(run => run()));
     const rows = (await getPool().query("select body,metadata from messages where client_id=$1 and channel_id=$2 and sender_role='agent'", [DEMO_CLIENT_ID, channelId])).rows;
     expect(rows).toHaveLength(1);expect(rows[0].metadata).toMatchObject({ generationMode: "real", responseProvider: "groq", retrievalMode: "local_text" });
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(3);
     expect((await getPool().query("select status from outbound_messages where client_id=$1 and channel_id=$2", [DEMO_CLIENT_ID, channelId])).rows).toEqual([{ status: "sent" }]);
     expect((await getFilteredConversations({ clientId: DEMO_CLIENT_ID })).some(c => c.channel_kind === "instagram")).toBe(true);
     expect(await getDemoProcessingStatus()).toMatchObject({ pending: 0, processing: 0, stopped: 0 });
     const status = await getServiceStatus();expect(status.providerProbe).toBe(false);
     expect(status.checks).toContainEqual(expect.objectContaining({ id: "instagram", state: "ok" }));
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(3);
+    const profile = (await getPool().query("select instagram_profile from conversations where client_id=$1 and channel_id=$2", [DEMO_CLIENT_ID, channelId])).rows[0].instagram_profile;
+    expect(profile).toEqual({ name: "Fixture customer", username: "fixture_customer" });
   });
   it("resumes saved Instagram jobs through the same browser processing request", async () => {
     expect((await POST(request(), context())).status).toBe(200);callbacks.length = 0;
@@ -106,7 +110,7 @@ dbDescribe("public demo Instagram transport with real isolated PostgreSQL and fa
     expect(trace.steps.find((step: { label: string }) => step.label === "conversation_context").detail.historyMessageIds).toHaveLength(history);
     expect((await getPool().query("select status,attempt_count from outbound_messages where client_id=$1 and channel_id=$2", [DEMO_CLIENT_ID, channelId])).rows)
       .toEqual([{ status: "sent", attempt_count: 1 }, { status: "sent", attempt_count: 1 }]);
-    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(fetch).toHaveBeenCalledTimes(5);
   });
   it("routes a complaint for staff review and preserves takeover when the tester sends another question", async () => {
     handoff = true;expect((await POST(request("refund", senderId, "I want a refund for my order."), context())).status).toBe(200);

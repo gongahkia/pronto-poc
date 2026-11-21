@@ -6,7 +6,7 @@ import {notFound,redirect} from 'next/navigation';
 import {getSessionUser} from '@/lib/auth';
 import {assertDemoActor} from '@/lib/customer-demo';
 import {DemoError} from '@/lib/customer-demo-boundary';
-import {guestAccessEnabled,isGuestEmail} from '@/lib/guest-policy';
+import {guestAccessEnabled} from '@/lib/guest-policy';
 import {ServiceStatusLink} from '@/components/service-status';
 import {enterTenantContext} from '@/lib/tenant-context';
 import {getDemoBusinessPresentation} from '@/lib/demo-business-branding';
@@ -38,7 +38,7 @@ export default async function DemoEntryPage({searchParams}:{searchParams:Promise
       <form action="/api/auth/guest" method="post">
         {!user&&<div className="mb-5 max-w-sm"><label className="block text-sm font-medium" htmlFor="reviewer-name">Your name <span className="font-normal text-muted">(optional)</span></label>
           <input id="reviewer-name" name="name" maxLength={40} autoComplete="name" placeholder="e.g. Keith" className="ui-input mt-2 w-full px-3 py-2 text-sm"/>
-          <p className="mt-2 text-xs leading-5 text-muted">Used for your demo session. No account or password needed.</p></div>}
+          <p className="mt-2 text-xs leading-5 text-muted">Used to identify you in this workspace. No account or password needed.</p></div>}
         <div className={simulator ? "grid gap-4 sm:grid-cols-2" : "grid gap-4"}>
           {views.filter(view=>simulator || view.href!=="/demo/customer").map(view=>{
             const {title,Icon}=view;const modern=selfServeUIEnabled()&&view.href==='/client/inbox';const href=modern?'/client/home':view.href;const description=modern?'Manage business rules, brand voice and handovers.':view.description;const action=modern?'Open business workspace':view.action;
@@ -51,7 +51,6 @@ export default async function DemoEntryPage({searchParams}:{searchParams:Promise
         </div>
       </form>
       <p className="mt-5 text-sm leading-6 text-muted">{!simulator ? 'Customer conversations arrive through the connected Instagram account. Changes here affect this shared business workspace.' : selfServeUIEnabled()?'You can switch demo views at any time. Changes affect this shared test workspace and its connected test Instagram account.':'You can switch demo views at any time. Both views share the same synthetic workspace; nothing is sent to real customers.'}</p>
-      {user&&<form action="/api/auth/logout" method="post" className="mt-4"><button className="text-sm text-accent underline underline-offset-4">{isGuestEmail(user.email) ? 'Reset demo session' : 'Sign out'}</button></form>}
       <div className="mt-4"><ServiceStatusLink/></div>
     </section>
   </main>;
