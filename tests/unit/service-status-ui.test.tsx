@@ -19,3 +19,11 @@ it('recovers automatically without generating an AI request',async()=>{
   expect(fetch.mock.calls.every(call=>call[0]==='/api/status')).toBe(true);
  }finally{cleanup();vi.useRealTimers();}
 });
+
+it('embeds the same status dashboard in the workspace without a second main or exit link',async()=>{
+ vi.stubGlobal('fetch',vi.fn(async()=>Response.json({status:'operational',checkedAt:'2026-11-21T00:00:00Z',checks:[],providerProbe:false})));
+ try{render(<ServiceStatus embedded/>);await screen.findByText('Service checks passed');
+  expect(screen.getByRole('heading',{name:'Status (dev)'})).toBeTruthy();expect(screen.queryByRole('main')).toBeNull();
+  expect(screen.queryByRole('link',{name:'Back to Pronto'})).toBeNull();
+ }finally{cleanup();}
+});
