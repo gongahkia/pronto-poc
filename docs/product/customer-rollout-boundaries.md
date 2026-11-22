@@ -4,9 +4,11 @@ Source review: 22 November 2026. This is a code-level assessment, not a hosted
 configuration, Meta permission or production-capacity acceptance test. The
 current scope remains the shared public Instagram demo.
 
-The deferred [SEA regionalisation plan](sea-regionalisation-plan.md) separately
-records proposed per-business regional settings, language/retrieval gaps and
-later acceptance work. Neither document authorises implementation or rollout.
+The deferred [SEA regionalisation plan](sea-regionalisation-plan.md) records
+proposed per-business regional settings and language/retrieval gaps. The
+[outcome pricing plan](outcome-pricing-plan.md) records the proposed allowances,
+backend metering work and unresolved counting rules. These documents do not
+authorise implementation, billing or rollout.
 
 ## Reusable foundations
 
