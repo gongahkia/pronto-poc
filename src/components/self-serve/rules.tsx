@@ -14,6 +14,7 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { useWorkspace, api, Header, Badge, type RuleView } from "./workspace";
+import { formatDateTime } from "@/lib/date-format";
 export function BusinessRules() {
   const { state, busy, run } = useWorkspace();
   const [adding, setAdding] = useState(!state.sources.length),
@@ -232,7 +233,7 @@ export function BusinessRules() {
                         <strong>{s.label}</strong>
                         <small>
                           {s.status === "processing"
-                            ? "Processing…"
+                            ? s.progress?.stage ?? "Processing…"
                             : s.status === "failed"
                               ? "Could not process"
                               : `${rules.length} rules · ${new Date(s.created_at).toLocaleDateString("en-SG", { day: "numeric", month: "short" })}`}
@@ -244,14 +245,19 @@ export function BusinessRules() {
                       {s.status === "processing" && (
                         <p className="ss-inline ss-muted">
                           <LoaderCircle className="ss-spin" size={16} />
-                          Extracting facts and checking for conflicts. This
-                          source is not live yet.
+                          <span>
+                            {s.progress?.stage ?? "Extracting facts and checking for conflicts"}.
+                            {s.progress?.total !== null && s.progress?.total !== undefined && s.progress.completed !== null &&
+                              ` ${s.progress.completed} of ${s.progress.total} ${s.progress.stage === "Extracting business rules" ? "source sections" : s.progress.stage === "Checking source accuracy" ? "rules" : "comparisons"} checked in this stage.`}
+                            {s.progress?.retryAt && ` Next retry after ${formatDateTime(s.progress.retryAt)}.`}
+                            {" "}This source is not live yet. Work is saved; keep this page open to continue processing.
+                          </span>
                         </p>
                       )}
                       {s.error && (
                         <p className="ss-feedback ss-error">
                           {s.error}
-                          <button
+                          {s.can_retry !== false ? <button
                             className="ss-secondary"
                             disabled={busy}
                             onClick={() =>
@@ -262,7 +268,7 @@ export function BusinessRules() {
                             }
                           >
                             Retry
-                          </button>
+                          </button> : <span> Add this source again with a readable file; the temporary original is no longer available.</span>}
                         </p>
                       )}
                       {s.status === "ready" && !rules.length && (
@@ -270,6 +276,10 @@ export function BusinessRules() {
                           No usable business rules were found in this source.
                         </p>
                       )}
+                      {s.status === "ready" && rules.length > 0 && <p className="ss-muted">
+                        {rules.filter(r => r.live).length} of {rules.length} displayed rules live.
+                        {rules.some(r => conflictIds.has(r.id)) && " Conflicting rules stay withheld until you resolve them."}
+                      </p>}
                       {rules.map((rule) => (
                         <RuleRow key={rule.id} rule={rule} />
                       ))}

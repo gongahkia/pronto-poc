@@ -5,6 +5,7 @@ import { useState } from "react";
 import { LockKeyhole, Trash2, Pencil, Plus } from "lucide-react";
 import { handoverPresets, type Handovers } from "@/lib/self-serve/catalog";
 import { useWorkspace, api, Header, Badge } from "./workspace";
+import { HandoverInbox } from "./handover-inbox";
 export function HandoversPage() {
   const { state, busy, run } = useWorkspace();
   const settings = state.settings!;
@@ -41,6 +42,7 @@ export function HandoversPage() {
           help with the customer’s next message.
         </p>
       </div>
+      <HandoverInbox />
       <section className="ss-panel">
         <h2>Connected inbox</h2>
         <p className="ss-muted">

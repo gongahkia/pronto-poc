@@ -7,6 +7,7 @@ import { hasStaffCapability } from "@/lib/staff-permissions";
 import { assertSameOrigin } from "@/lib/http/csrf";
 import { query, transaction } from "@/lib/db";
 import { logWarn } from "@/lib/logger";
+import { voicePresets } from "@/lib/self-serve/catalog";
 import {
   initializeSelfServe,
   snapshot,
@@ -83,7 +84,7 @@ async function handle(request: Request, context: Context) {
       if (section === "jobs" && id) {
         const row = (
           await query(
-            "select id,kind,status,error,result from selfserve_jobs where client_id=$1 and id=$2 and actor_id=$3",
+            "select id,kind,status,error,result,model from selfserve_jobs where client_id=$1 and id=$2 and actor_id=$3",
             [clientId, z.uuid().parse(id), actor.userId],
           )
         ).rows[0];
@@ -223,7 +224,12 @@ async function handle(request: Request, context: Context) {
         actor.userId,
         data as Parameters<typeof saveVoice>[2],
       );
-    else if (section === "preview" && request.method === "POST")
+    else if (section === "preview" && request.method === "POST") {
+      if ((data.preset_id !== undefined) === (data.notes !== undefined))
+        throw new SelfServeError("Choose a preset or custom voice notes.");
+      const preset = data.preset_id === undefined ? null : voicePresets.find(p => p.id === data.preset_id);
+      if (data.preset_id !== undefined && !preset) throw new SelfServeError("Choose a supported voice preset.");
+      const notes = preset ? [preset.instruction] : z.array(z.string().trim().min(1).max(1600)).min(1).max(20).parse(data.notes);
       return json({
         id: await transaction((db) =>
           queueJob(
@@ -234,15 +240,12 @@ async function handle(request: Request, context: Context) {
             z.uuid().parse(data.id),
             1,
             {
-              notes: z
-                .array(z.string().max(1600))
-                .min(1)
-                .max(20)
-                .parse(data.notes),
+              notes,
             },
           ),
         ),
       });
+    }
     else if (section === "voice-sessions") {
       if (!id && request.method === "POST") {
         const sessionId = z.uuid().parse(data.id),

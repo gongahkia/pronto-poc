@@ -181,13 +181,10 @@ async function queueAnswer(job: InboundJob, conversation: Conversation, answer: 
     );
     if (open.rows[0]) return;
     assertTurnActive();
-    const csatUrl = typeof answer.metadata.csatUrl === "string"
-      ? `${answer.metadata.csatUrl}?messageId=${answer.id}` : null;
     await enqueueOutboundMessage(db, {
       clientId: job.client_id, channelId: job.channel_id, conversationId: conversation.id,
       externalThreadId: conversation.external_thread_id,
-      body: csatUrl && process.env.PRONTO_DISABLE_CSAT_HOOK !== "1"
-        ? `${answer.body}\n\nRate this reply: ${csatUrl}` : answer.body,
+      body: answer.body,
       idempotencyKey: `agent-answer:${job.message_id}`,
       metadata: { purpose: "agent_answer", customerMessageId: job.message_id,
         agentMessageId: answer.id, selfServeVersion:answer.metadata.selfServeVersion??null, reasonCode: answer.metadata.reasonCode },

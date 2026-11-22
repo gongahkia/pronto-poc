@@ -1,6 +1,7 @@
 import * as email from "@/lib/channels/email";
 import * as dispatch from "@/lib/channels/dispatch";
 import { selfServeAlert } from "@/lib/self-serve/alerts";
+import { getHandoverSummary } from "@/lib/self-serve/handover-summary";
 import { encryptedChannelCredentialValues } from "@/lib/channels/credentials";
 // @vitest-environment node
 import { randomUUID } from "node:crypto";
@@ -168,6 +169,44 @@ dbDescribe("self-serve configuration on owned PostgreSQL", () => {
     await getPool().end();
   });
   const current = () => snapshot(client);
+  it("reports source stages without returning source text or private voice results", async () => {
+    const id = randomUUID();
+    await addSource(client, actor, { id, type: "text", label: "Policy source", text: "Private source evidence for extraction." });
+    expect((await current()).sources[0].progress.stage).toBe("Queued to read source");
+    await processSelfServeJobs(client);
+    const state = await current();
+    expect(state.sources[0].progress).toMatchObject({ stage: "Extracting business rules", completed: 0, total: 1 });
+    expect(JSON.stringify(state)).not.toContain("Private source evidence");
+    expect(state.sources[0]).not.toHaveProperty("processing_counts");
+    await getPool().query("update selfserve_jobs set created_at=now()-interval '2 days' where client_id=$1", [client]);
+    expect((await current()).sources[0].progress.jobStatus).toBe("pending");
+    expect((await current()).jobs).toHaveLength(0);
+  });
+  it("queues preset previews for the real-model job path without activating the preset", async () => {
+    const id = randomUUID(), before = (await current()).settings!.voice;
+    const context = { params: Promise.resolve({ path: ["preview"] }) };
+    const request = (data: unknown) => new Request("http://localhost:3000/api/self-serve/preview", {
+      method: "POST", headers: { Origin: "http://localhost:3000", "Content-Type": "application/json" }, body: JSON.stringify(data),
+    });
+    expect((await configurationPost(request({ id, preset_id: "formal" }), context)).status).toBe(200);
+    const job = (await getPool().query("select payload from selfserve_jobs where client_id=$1 and target_id=$2", [client, id])).rows[0];
+    expect(job.payload.notes).toEqual([expect.stringContaining("polished")]);
+    expect((await current()).settings!.voice).toEqual(before);
+    expect((await configurationPost(request({ id: randomUUID(), preset_id: "unknown" }), context)).status).toBe(400);
+    expect((await configurationPost(request({ id: randomUUID(), preset_id: "formal", notes: ["Other"] }), context)).status).toBe(400);
+  });
+  it("returns only actionable external handovers from the selected business", async () => {
+    const conversation = randomUUID(), message = randomUUID();
+    await getPool().query("insert into conversations(id,client_id,channel_id,external_thread_id,status,ai_should_respond,owner_action_required) values($1,$2,$3,'handover-fixture','escalated',false,true)", [conversation, client, channel]);
+    await getPool().query("insert into messages(id,client_id,channel_id,conversation_id,external_message_id,sender_role,body) values($1,$2,$3,$4,'handover-summary','customer','private enquiry')", [message, client, channel, conversation]);
+    await getPool().query("insert into escalations(client_id,conversation_id,message_id,reason_code,reason_detail,confidence) values($1,$2,$3,'knowledge_conflict','private internal detail',1)", [client, conversation, message]);
+    enterTenantContext({ role: "client", clientId: client });
+    const summary = await getHandoverSummary(client);
+    expect(summary.items).toHaveLength(1);
+    expect(summary.items[0]).toMatchObject({ id: conversation, reason: "Business rules conflict", paused: true });
+    expect(JSON.stringify(summary)).not.toMatch(/private enquiry|private internal detail/);
+    enterTenantContext({ role: "operator", clientId: null });
+  });
   async function pump() {
     for (let i = 0; i < 40; i++) {
       const state = await current();

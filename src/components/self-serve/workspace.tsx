@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import type { Settings } from "@/lib/self-serve/store";
+import type { SourceProgress } from "@/lib/self-serve/progress";
 export type SourceView = {
   id: string;
   type: string;
@@ -30,6 +31,8 @@ export type SourceView = {
   revision: number;
   error: string | null;
   created_at: string;
+  can_retry?: boolean;
+  progress?: SourceProgress;
 };
 export type RuleView = {
   id: string;
@@ -75,6 +78,7 @@ export async function api<T = State>(
   return result;
 }
 type Workspace = {
+  canViewConversations: boolean;
   state: State;
   name: string;
   busy: boolean;
@@ -94,12 +98,14 @@ export function SelfServeWorkspace({
   initial,
   children,
   canManageKnowledge = true,
+  canViewConversations = false,
   simulatorEnabled = true,
 }: {
   name: string;
   initial: State;
   children: React.ReactNode;
   canManageKnowledge?: boolean;
+  canViewConversations?: boolean;
   simulatorEnabled?: boolean;
 }) {
   const [state, setState] = useState(initial),
@@ -140,7 +146,8 @@ export function SelfServeWorkspace({
     },
     [refresh, path],
   );
-  const hasPending = state.jobs.some(
+  const hasPending = state.sources.some(s => s.status === "processing" &&
+    ["pending", "processing"].includes(s.progress?.jobStatus ?? "")) || state.jobs.some(
     (j) => j.status === "pending" || j.status === "processing",
   );
   useEffect(() => {
@@ -187,7 +194,7 @@ export function SelfServeWorkspace({
   ];
   return (
     <Context.Provider
-      value={{ state, name, busy, error, notice, refresh, run }}
+      value={{ state, name, busy, error, notice, refresh, run, canViewConversations }}
     >
       <div className="selfserve">
         <a className="ss-skip" href="#workspace-content">
