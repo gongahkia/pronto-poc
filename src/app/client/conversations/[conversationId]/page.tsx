@@ -23,6 +23,7 @@ import { getEscalationPolicy } from "@/lib/staff-configuration";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ConversationTabs } from "@/components/conversation-tabs";
 import { getConversationDecisionTraces } from "@/lib/conversation-decision-traces";
+import { handoverReason } from "@/lib/self-serve/handover-summary";
 
 export default async function ClientConversationPage({
   params,
@@ -54,6 +55,12 @@ export default async function ClientConversationPage({
     <Header title={customerDisplayName(conversation)}
       description="Review the saved conversation and the decisions behind Pronto’s replies." />
     <p className="ss-feedback ss-info">Reply directly in the customer’s messaging app. This view shows the saved conversation; it does not send messages.</p>
+    {(activeEscalation || conversation.owner_action_required) && <section className="ss-panel">
+      <h2>{conversation.status === "escalated" || conversation.ai_should_respond === false ? "Pronto is paused" : "Your review is needed"}</h2>
+      <p>{handoverReason(activeEscalation?.reason_code ?? null)}</p>
+      <p className="ss-muted">A detected native owner reply can allow Pronto to help with future customer messages. Older paused messages are not replayed.</p>
+      {conversation.channel_kind === "instagram" && <a className="ss-link" href="https://www.instagram.com/direct/inbox/" target="_blank" rel="noopener noreferrer">Open Instagram inbox</a>}
+    </section>}
     <ConversationTabs decisions={decisions}>
       <ChannelConversationThread conversation={conversation} messages={messages} />
     </ConversationTabs>

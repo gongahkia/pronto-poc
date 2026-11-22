@@ -1,6 +1,7 @@
 import * as email from "@/lib/channels/email";
 import * as dispatch from "@/lib/channels/dispatch";
 import { selfServeAlert } from "@/lib/self-serve/alerts";
+import { getHandoverSummary } from "@/lib/self-serve/handover-summary";
 import { encryptedChannelCredentialValues } from "@/lib/channels/credentials";
 // @vitest-environment node
 import { randomUUID } from "node:crypto";
@@ -193,6 +194,18 @@ dbDescribe("self-serve configuration on owned PostgreSQL", () => {
     expect((await current()).settings!.voice).toEqual(before);
     expect((await configurationPost(request({ id: randomUUID(), preset_id: "unknown" }), context)).status).toBe(400);
     expect((await configurationPost(request({ id: randomUUID(), preset_id: "formal", notes: ["Other"] }), context)).status).toBe(400);
+  });
+  it("returns only actionable external handovers from the selected business", async () => {
+    const conversation = randomUUID(), message = randomUUID();
+    await getPool().query("insert into conversations(id,client_id,channel_id,external_thread_id,status,ai_should_respond,owner_action_required) values($1,$2,$3,'handover-fixture','escalated',false,true)", [conversation, client, channel]);
+    await getPool().query("insert into messages(id,client_id,channel_id,conversation_id,external_message_id,sender_role,body) values($1,$2,$3,$4,'handover-summary','customer','private enquiry')", [message, client, channel, conversation]);
+    await getPool().query("insert into escalations(client_id,conversation_id,message_id,reason_code,reason_detail,confidence) values($1,$2,$3,'knowledge_conflict','private internal detail',1)", [client, conversation, message]);
+    enterTenantContext({ role: "client", clientId: client });
+    const summary = await getHandoverSummary(client);
+    expect(summary.items).toHaveLength(1);
+    expect(summary.items[0]).toMatchObject({ id: conversation, reason: "Business rules conflict", paused: true });
+    expect(JSON.stringify(summary)).not.toMatch(/private enquiry|private internal detail/);
+    enterTenantContext({ role: "operator", clientId: null });
   });
   async function pump() {
     for (let i = 0; i < 40; i++) {

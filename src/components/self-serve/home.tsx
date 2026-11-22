@@ -4,6 +4,7 @@ import { Layers, MessageCircle, TriangleAlert } from "lucide-react";
 import { useWorkspace, Header, Badge } from "./workspace";
 import { voicePresets } from "@/lib/self-serve/catalog";
 import { ModelVoicePreview } from "./voice-preview";
+import { HandoverInbox } from "./handover-inbox";
 export function SelfServeHome() {
   const { state, name } = useWorkspace();
   const settings = state.settings!;
@@ -15,6 +16,7 @@ export function SelfServeHome() {
         title={`Hello, ${name}`}
         description="Here’s what your agent knows and how it sounds."
       />
+      <HandoverInbox />
       <div className="ss-home-grid">
         <section className="ss-panel">
           <div className="ss-row">

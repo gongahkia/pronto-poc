@@ -5,7 +5,7 @@ import { requestDrivenDemoProcessing } from "@/lib/deployment-profile";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { hasStaffCapability } from "@/lib/staff-permissions";
+import { hasStaffCapability, canViewBusinessConversation } from "@/lib/staff-permissions";
 import { selfServeUIEnabled } from "@/lib/self-serve/settings";
 import { snapshot } from "@/lib/self-serve/store";
 import { SelfServeWorkspace } from "@/components/self-serve/workspace";
@@ -45,6 +45,7 @@ export async function SelfServeFrame({
       <SelfServeWorkspace
         name={business?.name ?? "Your business"}
         canManageKnowledge={canManageKnowledge}
+        canViewConversations={await canViewBusinessConversation(user, user.clientId)}
         simulatorEnabled={customerSimulatorEnabled()}
         initial={
           canManageKnowledge

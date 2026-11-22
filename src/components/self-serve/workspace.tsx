@@ -78,6 +78,7 @@ export async function api<T = State>(
   return result;
 }
 type Workspace = {
+  canViewConversations: boolean;
   state: State;
   name: string;
   busy: boolean;
@@ -97,12 +98,14 @@ export function SelfServeWorkspace({
   initial,
   children,
   canManageKnowledge = true,
+  canViewConversations = false,
   simulatorEnabled = true,
 }: {
   name: string;
   initial: State;
   children: React.ReactNode;
   canManageKnowledge?: boolean;
+  canViewConversations?: boolean;
   simulatorEnabled?: boolean;
 }) {
   const [state, setState] = useState(initial),
@@ -191,7 +194,7 @@ export function SelfServeWorkspace({
   ];
   return (
     <Context.Provider
-      value={{ state, name, busy, error, notice, refresh, run }}
+      value={{ state, name, busy, error, notice, refresh, run, canViewConversations }}
     >
       <div className="selfserve">
         <a className="ss-skip" href="#workspace-content">

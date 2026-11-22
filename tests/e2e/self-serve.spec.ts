@@ -24,7 +24,7 @@ test.beforeAll(async () => {
     [actor, client, actor + "@fixture.invalid"],
   );
   await db.query(
-    "insert into staff_permission_grants(client_id,user_id,permission,granted_by) values($1,$2,'knowledge.approve',$2),($1,$2,'escalation.policy.manage',$2)",
+    "insert into staff_permission_grants(client_id,user_id,permission,granted_by) values($1,$2,'knowledge.approve',$2),($1,$2,'escalation.policy.manage',$2),($1,$2,'conversation.respond',$2)",
     [client, actor],
   );
   await db.query(
@@ -59,6 +59,11 @@ test.beforeAll(async () => {
     [client, source],
   );
   await mkdir("output/playwright/self-serve", { recursive: true });
+  const channel = randomUUID(), conversation = randomUUID(), message = randomUUID();
+  await db.query("insert into channels(id,client_id,kind,name,status) values($1,$2,'instagram','Fixture Instagram','active')", [channel, client]);
+  await db.query("insert into conversations(id,client_id,channel_id,external_thread_id,customer_name,status,ai_should_respond,owner_action_required) values($1,$2,$3,'fixture-customer','Fixture customer','escalated',false,true)", [conversation, client, channel]);
+  await db.query("insert into messages(id,client_id,channel_id,conversation_id,external_message_id,sender_role,body) values($1,$2,$3,$4,'handover-ui','customer','What is the policy?')", [message, client, channel, conversation]);
+  await db.query("insert into escalations(client_id,conversation_id,message_id,reason_code,reason_detail,confidence) values($1,$2,$3,'knowledge_conflict','Fixture conflict',1)", [client, conversation, message]);
 });
 test.afterAll(async () => {
   await getPool().query("delete from clients where id=$1", [client]);
@@ -94,10 +99,20 @@ test("shared persisted state, editable voice, locked handovers, source errors an
   await expect(
     page.getByText("Your custom voice", { exact: true }),
   ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Conversations needing you" })).toBeVisible();
+  await expect(page.getByText("Business rules conflict", { exact: true })).toBeVisible();
+  await expect(page.getByText("AI paused", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open Instagram inbox" })).toHaveAttribute("href", "https://www.instagram.com/direct/inbox/");
   await page.screenshot({
     path: "output/playwright/self-serve/home-desktop.png",
     fullPage: true,
   });
+  await page.getByRole("link", { name: "Review conversation", exact: true }).click();
+  await page.waitForURL(/\/client\/conversations\/[^/]+$/);
+  await expect(page.getByRole("heading", { name: "Pronto is paused", exact: true })).toBeVisible();
+  await expect(page.getByText("Business rules conflict", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open Instagram inbox" })).toBeVisible();
+  await page.getByRole("link", { name: "Home", exact: true }).click();
   await page.getByRole("link", { name: "Brand voice", exact: true }).click();
   const previewId = randomUUID();
   await page.route("**/api/self-serve/preview", async route => {
