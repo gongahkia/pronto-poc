@@ -51,7 +51,8 @@ dbDescribe("durable inbound processing in isolated PostgreSQL", () => {
          values ($1, $2, $3, $4, 'agent', $5, $6)
          on conflict (channel_id, external_message_id) do update set external_message_id = excluded.external_message_id returning id`,
         [input.conversationId, input.clientId, input.channelId, `agent-${input.customerMessageId}`, text,
-          { customerMessageId: input.customerMessageId, reasonCode: "grounded_answer" }],
+          { customerMessageId: input.customerMessageId, reasonCode: "grounded_answer",
+            csatUrl: `http://localhost:3000/csat/${input.conversationId}` }],
       );
       return { action: "answered", responseText: text, reasonCode: "grounded_answer",
         agentMessageId: saved.rows[0].id };
@@ -89,6 +90,8 @@ dbDescribe("durable inbound processing in isolated PostgreSQL", () => {
     expect(fakes.runAgentForMessage).not.toHaveBeenCalled();
     expect((await getPool().query("select id from outbound_messages where client_id = $1", [clientId])).rows).toEqual([]);
     expect(await processInboundJob()).toEqual({ jobId: first.jobId, outcome: "answered" });
+    expect((await getPool().query("select body from outbound_messages where client_id=$1", [clientId])).rows)
+      .toEqual([{ body: "Pronto A closes at 9 pm." }]);
     const outbox = await getPool().query<{ status: string }>(
       "select status from outbound_messages where client_id = $1", [clientId]);
     expect(outbox.rows).toEqual([{ status: "pending" }]);
