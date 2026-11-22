@@ -168,6 +168,19 @@ dbDescribe("self-serve configuration on owned PostgreSQL", () => {
     await getPool().end();
   });
   const current = () => snapshot(client);
+  it("reports source stages without returning source text or private voice results", async () => {
+    const id = randomUUID();
+    await addSource(client, actor, { id, type: "text", label: "Policy source", text: "Private source evidence for extraction." });
+    expect((await current()).sources[0].progress.stage).toBe("Queued to read source");
+    await processSelfServeJobs(client);
+    const state = await current();
+    expect(state.sources[0].progress).toMatchObject({ stage: "Extracting business rules", completed: 0, total: 1 });
+    expect(JSON.stringify(state)).not.toContain("Private source evidence");
+    expect(state.sources[0]).not.toHaveProperty("processing_counts");
+    await getPool().query("update selfserve_jobs set created_at=now()-interval '2 days' where client_id=$1", [client]);
+    expect((await current()).sources[0].progress.jobStatus).toBe("pending");
+    expect((await current()).jobs).toHaveLength(0);
+  });
   it("queues preset previews for the real-model job path without activating the preset", async () => {
     const id = randomUUID(), before = (await current()).settings!.voice;
     const context = { params: Promise.resolve({ path: ["preview"] }) };

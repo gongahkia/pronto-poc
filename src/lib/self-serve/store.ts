@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { query, transaction, type Queryable } from "@/lib/db";
 import { recordAuditLog } from "@/lib/audit";
+import { sourceProgress } from "./progress";
 import {
   voicePresets,
   defaultHandovers,
@@ -201,8 +202,26 @@ export async function initializeSelfServe(clientId: string, actorId: string) {
 export async function snapshot(clientId: string) {
   const [settings, sources, rules, conflicts, jobs, instagram] = await Promise.all([
     getSettings(clientId),
-    query(
-      `select id,type,label,status,revision,file_meta,error,created_at from selfserve_sources where client_id=$1 and deleted_at is null order by created_at desc,id`,
+    query<{
+      id: string; type: string; label: string; status: string; revision: number;
+      file_meta: unknown; error: string | null; created_at: Date; can_retry: boolean;
+      job_status: string | null; attempts: number | null; available_at: Date | null;
+      processing_counts: Parameters<typeof sourceProgress>[0]["processing_counts"];
+    }>(
+      `select s.id,s.type,s.label,s.status,s.revision,s.file_meta,s.error,s.created_at,
+        (s.type<>'file' or s.extracted_text is not null) as can_retry,
+        j.status as job_status,j.attempts,j.available_at,
+        jsonb_build_object('phase',j.result->>'phase','cursor',j.result->'cursor',
+          'verifyCursor',j.result->'verifyCursor','judgeCursor',j.result->'judgeCursor',
+          'segments',case when jsonb_typeof(j.result->'segments')='array' then jsonb_array_length(j.result->'segments') end,
+          'rules',case when jsonb_typeof(j.result->'rules')='array' then jsonb_array_length(j.result->'rules') end,
+          'pairs',case when jsonb_typeof(j.result->'pairs')='array' then jsonb_array_length(j.result->'pairs') end) as processing_counts
+       from selfserve_sources s left join lateral (
+         select status,attempts,available_at,result from selfserve_jobs
+         where client_id=$1 and target_id=s.id and kind='source' and revision=s.revision
+         order by created_at desc,id desc limit 1
+       ) j on true
+       where s.client_id=$1 and s.deleted_at is null order by s.created_at desc,s.id`,
       [clientId],
     ),
     query(
@@ -227,7 +246,9 @@ export async function snapshot(clientId: string) {
   ]);
   return {
     settings,
-    sources: sources.rows,
+    sources: sources.rows.map(({ job_status, attempts, available_at, processing_counts, ...source }) => ({
+      ...source, progress: sourceProgress({ status: source.status, job_status, attempts, available_at, processing_counts }),
+    })),
     rules: rules.rows,
     conflicts: conflicts.rows,
     jobs: jobs.rows,

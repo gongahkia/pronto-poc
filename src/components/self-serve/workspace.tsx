@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import type { Settings } from "@/lib/self-serve/store";
+import type { SourceProgress } from "@/lib/self-serve/progress";
 export type SourceView = {
   id: string;
   type: string;
@@ -30,6 +31,8 @@ export type SourceView = {
   revision: number;
   error: string | null;
   created_at: string;
+  can_retry?: boolean;
+  progress?: SourceProgress;
 };
 export type RuleView = {
   id: string;
@@ -140,7 +143,8 @@ export function SelfServeWorkspace({
     },
     [refresh, path],
   );
-  const hasPending = state.jobs.some(
+  const hasPending = state.sources.some(s => s.status === "processing" &&
+    ["pending", "processing"].includes(s.progress?.jobStatus ?? "")) || state.jobs.some(
     (j) => j.status === "pending" || j.status === "processing",
   );
   useEffect(() => {
