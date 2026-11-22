@@ -40,6 +40,54 @@ Signed/account-matched native Instagram text echoes and WhatsApp `smb_message_ec
 
 ## Verification evidence
 
+### Public demo handovers, processing progress and real previews
+
+Home and Handovers show a bounded list of external conversations needing
+attention, with a short reason, saved pause state and links to the protected
+thread and Instagram inbox. The list requires the existing conversation-read
+capabilities and never enables external staff alerts. The Instagram link opens
+the inbox, not a claimed exact-thread deep link. Silent handovers and native
+owner-reply resumption are unchanged.
+
+Source cards report extraction, source-verification and conflict-comparison
+counts from the current revision's durable job. They do not expose source text
+or private voice samples as progress. A completed comparison stage does not
+claim that publication is complete. Jobs remain visible through their source
+even after they leave the recent-job list. Failed file extraction directs the
+owner to re-upload when the temporary original cannot be retried.
+
+Preset and Home voice examples now require an explicit **Generate AI preview**
+action using the existing real-model preview job. No canned assistant replies
+are displayed as a preset preview. Custom style analysis and previews use the
+same real-provider service, record model usage, and surface failure rather than
+substituting sample output. Fictional customer prompts remain labelled inputs;
+previews do not perform actions or activate a voice. Generating a preview does
+not send a customer DM or recreate retired simulator conversations.
+
+New customer replies no longer receive an automatic response-rating footer.
+Previously queued/sent message bodies, historical ratings and the existing CSAT
+endpoints are retained.
+
+See [later customer rollout boundaries](customer-rollout-boundaries.md) for the
+code-level assessment of future private-business onboarding. No private
+deployment or additional messaging platform is introduced by these changes.
+
+Local checks on 22 November 2026 passed TypeScript, ESLint, the production build,
+the 19-test disposable PostgreSQL self-serve suite, the inbox-flow regression and
+the Chromium desktop/mobile flow, including the handover detail link. The build
+retains the existing temporary-document filesystem-tracing warning. Provider
+selection tests and browser preview fixtures use mocked provider output; these
+checks do not constitute a new genuine Groq or native Instagram acceptance test.
+No hosted configuration, database or deployment was changed.
+
+`pnpm test --maxWorkers=2` passed against the committed code in a clean detached
+checkout: 147 files / 1,079 tests passed; 27 files / 186 tests were skipped by the
+existing opt-in configuration. The original working directory repeatedly hit
+the unchanged PDF extraction test's five-second startup timeout. Both the base
+revision's focused PDF test and the final code's full suite passed in the clean
+checkout without changing timeouts. The precise local-directory cause remains
+unresolved; this is not evidence that every optional database or channel test ran.
+
 Fresh, marked disposable PostgreSQL runs verify migration/repeat application, conflict withholding and rechecks, stale revisions, lease replacement, source deletion, training order, participant review, expiry/discard and tenant scope. Browser checks exercise persisted voice selection, editable custom notes, locked handovers, source addition and 1440px/390px layouts. Evidence files are private in ignored `output/playwright/self-serve` and `output/isolated-db`.
 
 A genuine Groq hosted-database preparation converted the three existing demo sources into five checked rules with no conflicts, retaining all old tables. A separate fictional three-round voice smoke produced seven notes; opening-hours triage continued and a refund complaint handed over. The test session was discarded and the active voice was not changed. These focused checks are not a full multilingual evaluation or a live native-channel acceptance test.
