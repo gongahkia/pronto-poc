@@ -4,19 +4,16 @@ import { useState } from "react";
 import {
   ArrowLeft,
   Check,
-  ChevronLeft,
-  Phone,
-  Video,
   Pencil,
 } from "lucide-react";
 import { useWorkspace, api, Header, Badge } from "./workspace";
 import {
   voicePresets,
-  previewReplies,
   type PresetId,
 } from "@/lib/self-serve/catalog";
+import { ModelVoicePreview } from "./voice-preview";
 export function BrandVoice() {
-  const { state, busy, run, name } = useWorkspace();
+  const { state, busy, run } = useWorkspace();
   const saved = state.settings!.voice;
   const [selected, setSelected] = useState<PresetId>(saved.preset_id);
   const preset = voicePresets.find((p) => p.id === selected)!;
@@ -25,7 +22,7 @@ export function BrandVoice() {
     <>
       <Header
         title="Brand voice"
-        description="Choose how Pronto sounds when it texts your customers. Tap a style to hear it, or teach Pronto your own."
+        description="Choose how Pronto sounds when it texts your customers. Select a style and generate an AI preview, or teach Pronto your own."
       >
         <div className="ss-inline">
           <Link className="ss-secondary" href="/client/home">
@@ -72,7 +69,6 @@ export function BrandVoice() {
               </span>
               {"badge" in p && <Badge>{p.badge}</Badge>}
               <p>{p.description}</p>
-              <q>{previewReplies(p.id)[0]}</q>
             </button>
           ))}
           <Link className="ss-custom-card" href="/client/voice/customise">
@@ -92,50 +88,10 @@ export function BrandVoice() {
         </section>
         <div className="ss-preview">
           <p className="ss-preview-label">Preview · {preset.name}</p>
-          <PhonePreview name={name} replies={previewReplies(selected)} />
-          <p className="ss-muted ss-preview-caption">
-            Illustrative wording only. Actual replies follow your business rules
-            and handover settings.
-          </p>
+          <ModelVoicePreview key={selected} presetId={selected} />
         </div>
       </div>
     </>
-  );
-}
-export function PhonePreview({
-  name,
-  replies,
-}: {
-  name: string;
-  replies: string[];
-}) {
-  return (
-    <div className="ss-phone">
-      <div className="ss-phone-top">
-        <ChevronLeft size={18} />
-        <span className="ss-avatar">{name.slice(0, 2).toUpperCase()}</span>
-        <div>
-          <strong>{name}</strong>
-          <small>Active now</small>
-        </div>
-        <Phone size={17} />
-        <Video size={18} />
-      </div>
-      <div className="ss-phone-body">
-        <small className="ss-chat-time">Today 6:42 PM</small>
-        <p className="ss-bubble ss-customer">
-          Hi! Do you have a table for 4 tonight around 8?
-        </p>
-        <p className="ss-bubble ss-business">{replies[0]}</p>
-        <p className="ss-bubble ss-customer">
-          Can we bring a cake? It’s my mum’s birthday.
-        </p>
-        <p className="ss-bubble ss-business ss-secondary-bubble">
-          {replies[1]}
-        </p>
-      </div>
-      <div className="ss-phone-compose">Message…</div>
-    </div>
   );
 }
 export function BackToVoice() {

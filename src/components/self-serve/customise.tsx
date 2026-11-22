@@ -37,6 +37,7 @@ export function CustomiseVoice() {
     [preview, setPreview] = useState<{
       question: string;
       reply: string;
+      model: string;
     } | null>(null),
     [previewId, setPreviewId] = useState<string | null>(null);
   const [persisted, setPersisted] = useState(
@@ -105,9 +106,11 @@ export function CustomiseVoice() {
           status: string;
           result: { question: string; reply: string };
           error: string;
+          model: string | null;
         }>("/jobs/" + previewId);
         if (!stop && job.status === "ready") {
-          setPreview(job.result);
+          if (!job.model || !job.result?.reply) throw new Error("The preview could not be verified. Generate it again.");
+          setPreview({ ...job.result, model: job.model });
           setPreviewId(null);
           return;
         }
@@ -118,7 +121,13 @@ export function CustomiseVoice() {
           setPreviewId(null);
           return;
         }
-      } catch {}
+      } catch (failure) {
+        if (!stop) {
+          setPreviewId(null);
+          await run(async () => { throw failure; });
+        }
+        return;
+      }
       if (!stop) timer = setTimeout(poll, 2000);
     };
     timer = setTimeout(poll, 1000);
@@ -477,12 +486,13 @@ export function CustomiseVoice() {
                     notes.map((n, i) => (i === index ? e.target.value : n)),
                   );
                   setPreview(null);
+                  setPreviewId(null);
                 }}
               />
               <button
                 className="ss-icon-button ss-danger"
                 aria-label={"Delete style note " + (index + 1)}
-                onClick={() => setNotes(notes.filter((_, i) => i !== index))}
+                onClick={() => { setNotes(notes.filter((_, i) => i !== index)); setPreview(null); setPreviewId(null); }}
               >
                 <Trash2 size={16} />
               </button>
@@ -491,7 +501,7 @@ export function CustomiseVoice() {
           <button
             className="ss-text-button"
             disabled={notes.length >= 20}
-            onClick={() => setNotes([...notes, ""])}
+            onClick={() => { setNotes([...notes, ""]); setPreview(null); setPreviewId(null); }}
           >
             <Plus size={16} />
             Add a note
@@ -544,7 +554,7 @@ export function CustomiseVoice() {
           </div>
           {preview && (
             <div className="ss-preview-result">
-              <Badge>AI preview · illustrative</Badge>
+              <Badge>AI preview · {preview.model}</Badge>
               <p className="ss-bubble ss-customer">{preview.question}</p>
               <p className="ss-bubble ss-business">{preview.reply}</p>
               <small>

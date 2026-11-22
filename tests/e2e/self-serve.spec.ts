@@ -99,7 +99,20 @@ test("shared persisted state, editable voice, locked handovers, source errors an
     fullPage: true,
   });
   await page.getByRole("link", { name: "Brand voice", exact: true }).click();
+  const previewId = randomUUID();
+  await page.route("**/api/self-serve/preview", async route => {
+    expect(route.request().postDataJSON()).toMatchObject({ preset_id: "playful" });
+    await route.fulfill({ json: { id: previewId } });
+  });
+  await page.route(`**/api/self-serve/jobs/${previewId}`, route => route.fulfill({ json: {
+    status: "ready", model: "fixture-model", result: { question: "Can I change my booking?", reply: "Fixture generated preview. Our team will review your request." },
+  } }));
   await page.getByRole("button", { name: /Playful/ }).click();
+  await expect(page.getByText("Fixture generated preview.", { exact: false })).toHaveCount(0);
+  await page.getByRole("button", { name: "Generate AI preview", exact: true }).click();
+  await expect(page.getByText("Fixture generated preview.", { exact: false })).toBeVisible();
+  await expect(page.getByText("AI preview · fixture-model", { exact: true })).toBeVisible();
+  expect((await getPool().query("select voice from selfserve_settings where client_id=$1", [client])).rows[0].voice.mode).toBe("custom");
   await page.getByRole("button", { name: "Use Playful", exact: true }).click();
   await expect(page.getByText("Playful is your current voice")).toBeVisible();
   await page.screenshot({

@@ -692,7 +692,6 @@
   text-align: left;
   border: 1px solid var(--ss-border);
   border-radius: 12px;
-  min-height: 220px;
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -1137,9 +1136,6 @@
   .ss-sidebar {
     width: 220px;
   }
-  .ss-preset {
-    min-height: 230px;
-  }
   .ss-header > .ss-inline {
     width: 100%;
     justify-content: flex-end;
@@ -1228,7 +1224,6 @@
   }
   .selfserve .ss-preset {
     padding: 13px;
-    min-height: 250px;
   }
   .selfserve .ss-preset[aria-pressed="true"] {
     padding: 12px;

@@ -177,27 +177,3 @@ export function voiceInstruction(voice: Voice) {
     ? voicePresets.find((p) => p.id === voice.preset_id)!.instruction
     : voice.custom_notes.map((note) => `- ${note}`).join("\n");
 }
-export function previewReplies(id: PresetId) {
-  const first = {
-    friendly:
-      "Hi there! 😊 What date are you thinking? I can help you check the options.",
-    formal:
-      "Good evening. For which date would you like to enquire about a table for four at 8:00pm?",
-    warm: "Hello! We’d love to help. What date did you have in mind for four around 8?",
-    small: "hey! 4 pax around 8 — what date?",
-    playful: "Dinner plans! 🎉 Four around 8 — what date are we thinking?",
-    reassuring:
-      "Hi, happy to help. What date would you like to enquire about for four at 8pm?",
-  };
-  const second = {
-    friendly:
-      "Happy birthday to your mum! 🎂 Our team will confirm the cake policy for you.",
-    formal: "Our team will confirm whether an outside cake is permitted.",
-    warm: "That sounds lovely. Our team will confirm the cake policy for your celebration.",
-    small: "happy birthday to your mum! our team will confirm the cake policy",
-    playful:
-      "Birthday plans! 🎂 Our team will confirm the cake policy before you bring it along.",
-    reassuring: "Our team will confirm the cake policy so you can plan ahead.",
-  };
-  return [first[id], second[id]];
-}

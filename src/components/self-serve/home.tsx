@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { Layers, MessageCircle, TriangleAlert } from "lucide-react";
 import { useWorkspace, Header, Badge } from "./workspace";
-import { voicePresets, previewReplies } from "@/lib/self-serve/catalog";
+import { voicePresets } from "@/lib/self-serve/catalog";
+import { ModelVoicePreview } from "./voice-preview";
 export function SelfServeHome() {
   const { state, name } = useWorkspace();
   const settings = state.settings!;
@@ -84,16 +85,13 @@ export function SelfServeHome() {
               {settings.voice.mode === "custom" ? "Custom" : "Preset"}
             </Badge>
           </div>
-          {settings.voice.mode === "preset" ? (
-            <div className="ss-chat-mini">
-              <p>Hi! Do you have a table for 4 tonight around 8?</p>
-              <p>{previewReplies(current.id)[0]}</p>
-            </div>
-          ) : (
+          {settings.voice.mode === "custom" && (
             <p className="ss-voice-excerpt">
               {settings.voice.custom_notes.slice(0, 2).join(" ")}
             </p>
           )}
+          <ModelVoicePreview key={JSON.stringify(settings.voice)}
+            {...(settings.voice.mode === "preset" ? { presetId: settings.voice.preset_id } : { notes: settings.voice.custom_notes })} />
           <Link className="ss-link" href="/client/voice/customise">
             Want it to sound more like you? Customise your voice →
           </Link>

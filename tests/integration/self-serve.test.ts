@@ -168,6 +168,19 @@ dbDescribe("self-serve configuration on owned PostgreSQL", () => {
     await getPool().end();
   });
   const current = () => snapshot(client);
+  it("queues preset previews for the real-model job path without activating the preset", async () => {
+    const id = randomUUID(), before = (await current()).settings!.voice;
+    const context = { params: Promise.resolve({ path: ["preview"] }) };
+    const request = (data: unknown) => new Request("http://localhost:3000/api/self-serve/preview", {
+      method: "POST", headers: { Origin: "http://localhost:3000", "Content-Type": "application/json" }, body: JSON.stringify(data),
+    });
+    expect((await configurationPost(request({ id, preset_id: "formal" }), context)).status).toBe(200);
+    const job = (await getPool().query("select payload from selfserve_jobs where client_id=$1 and target_id=$2", [client, id])).rows[0];
+    expect(job.payload.notes).toEqual([expect.stringContaining("polished")]);
+    expect((await current()).settings!.voice).toEqual(before);
+    expect((await configurationPost(request({ id: randomUUID(), preset_id: "unknown" }), context)).status).toBe(400);
+    expect((await configurationPost(request({ id: randomUUID(), preset_id: "formal", notes: ["Other"] }), context)).status).toBe(400);
+  });
   async function pump() {
     for (let i = 0; i < 40; i++) {
       const state = await current();
