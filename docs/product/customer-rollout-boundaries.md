@@ -4,6 +4,10 @@ Source review: 22 November 2026. This is a code-level assessment, not a hosted
 configuration, Meta permission or production-capacity acceptance test. The
 current scope remains the shared public Instagram demo.
 
+The deferred [SEA regionalisation plan](sea-regionalisation-plan.md) separately
+records proposed per-business regional settings, language/retrieval gaps and
+later acceptance work. Neither document authorises implementation or rollout.
+
 ## Reusable foundations
 
 The application already separates business records by `client_id`, scopes staff
